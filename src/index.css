@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-beige-100: 245, 242, 230;
+    --color-brown-900: 48, 38, 28;
+    --color-amber-400: 251, 191, 36;
+    --color-amber-500: 245, 158, 11;
+    --color-amber-600: 217, 119, 6;
+    --color-amber-700: 180, 83, 9;
+    --color-amber-800: 146, 64, 14;
+    --color-amber-900: 120, 53, 15;
+  }
+  
+  body {
+    font-family: 'Courier New', Courier, monospace;
+    @apply text-amber-400 antialiased;
+  }
+  
+  ::selection {
+    @apply bg-amber-700 text-beige-100;
+  }
+
+  [data-theme='day'] {
+    --text-primary: var(--color-brown-900);
+    --text-secondary: 60, 45, 30;
+  }
+
+  [data-theme='night'] {
+    --text-primary: var(--color-amber-400);
+    --text-secondary: 251, 191, 36;
+  }
+}
+
+@layer components {
+  .scanlines {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .scanlines::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.05) 0.5%,
+      transparent 1%
+    );
+    animation: scanlines 10s linear infinite;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  
+  .screen-container {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .screen-light {
+    background-color: rgb(var(--color-beige-100));
+    color: rgb(var(--text-primary));
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.1);
+  }
+  
+  .screen-dark {
+    background-color: rgb(31, 31, 31);
+    color: rgb(var(--text-primary));
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.4);
+  }
+  
+  .bg-noise {
+    background-color: white;
+    background-repeat: repeat;
+    opacity: 1;
+  }
+  
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    background-color: rgb(74, 222, 128);
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.8);
+    animation: pulse 1.5s infinite;
+  }
+
+  .text-opacity-70 {
+    opacity: 0.9 !important;
+  }
+}
+
+@keyframes scanlines {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 100%;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+}
+
+.window-container {
+  background-color: rgba(30, 30, 30, 0.9);
+  backdrop-filter: blur(4px);
+}
+
+[data-theme='day'] .window-container {
+  background-color: rgba(245, 242, 230, 0.95);
+}
+
+[data-theme='night'] .window-container {
+  background-color: rgba(25, 25, 25, 0.95);
+}
+
+[data-theme='day'] .opacity-70 {
+  opacity: 0.85;
+}
+
+[data-theme='night'] .opacity-70 {
+  opacity: 0.9;
+}
