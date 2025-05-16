@@ -35,23 +35,23 @@ const Window = ({ title, children, className = '' }: WindowProps) => {
       <div className="window-header flex justify-between items-center p-2 bg-amber-800 text-beige-100">
         <h3 className="text-sm font-semibold tracking-wide">{title}</h3>
         <div className="flex space-x-1">
-          <button
+          {/* <button
             onClick={toggleCollapse}
             className="p-1 hover:bg-amber-700 rounded"
           >
             <Minimize2 size={14} />
-          </button>
+          </button> */}
           <button
             onClick={toggleFullscreen}
             className="p-1 hover:bg-amber-700 rounded"
           >
-            <Maximize2 size={14} />
+            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
-          <button
+          {/* <button
             className="p-1 hover:bg-red-700 rounded"
           >
             <X size={14} />
-          </button>
+          </button> */}
         </div>
       </div>
       
