@@ -6,7 +6,7 @@ import Button from '../components/Button';
 import Window from '../components/Window';
 import AmountInput from '../components/AmountInput';
 import { Progress } from '../components/Progress';
-import { ArrowRightLeft, Loader2, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRightLeft, Loader2, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Stake = () => {
@@ -15,23 +15,32 @@ const Stake = () => {
   const { currentStake, setCurrentStake, updateStakeStatus, clearStake } = useStakingStore();
   const [stakeAmount, setStakeAmount] = useState(0);
   const [stakeView, setStakeView] = useState<'form' | 'confirming' | 'success'>('form');
+  const [error, setError] = useState<string | null>(null);
 
   const handleStakeSubmit = async () => {
     if (stakeAmount <= 0) return;
+    setError(null);
 
     setCurrentStake({
       amount: stakeAmount,
       status: null,
       isInProgress: true,
-      protocol: bridgeProtocol
+      protocol: bridgeProtocol,
+      startTimestamp: Date.now()
     });
 
     try {
       await stake(stakeAmount);
     } catch (error) {
       console.error('Staking failed:', error);
+      setError('Transaction failed. Please try again.');
       clearStake();
     }
+  };
+
+  const handleClearError = () => {
+    setError(null);
+    clearStake();
   };
 
   useEffect(() => {
@@ -51,7 +60,6 @@ const Stake = () => {
   }, []);
 
   useEffect(() => {
-    // Restore timer when component mounts if there's an in-progress stake
     if (currentStake?.isInProgress && currentStake.status?.timestamp) {
       const timeElapsed = formatTimeElapsed(currentStake.status.timestamp);
       updateStakeStatus({
@@ -61,7 +69,6 @@ const Stake = () => {
     }
   }, []);
 
-  // Add timer update interval
   useEffect(() => {
     if (currentStake?.isInProgress && currentStake.status?.timestamp) {
       const interval = setInterval(() => {
@@ -76,7 +83,6 @@ const Stake = () => {
     }
   }, [currentStake?.isInProgress, currentStake?.status?.timestamp]);
 
-  // Add helper function for time formatting
   const formatTimeElapsed = (startTime: number): string => {
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
     const minutes = Math.floor(elapsed / 60);
@@ -88,6 +94,7 @@ const Stake = () => {
     setStakeAmount(0);
     setStakeView('form');
     clearStake();
+    setError(null);
   };
 
   const renderProtocolSelector = () => (
@@ -322,6 +329,20 @@ const Stake = () => {
           Stake your USDC using {bridgeProtocol} bridge and receive rUSDC in return
         </p>
       </div>
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-md">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <XCircle size={20} className="text-red-400 mr-2" />
+              <span className="text-red-400">{error}</span>
+            </div>
+            <Button onClick={handleClearError} variant="danger" size="sm">
+              Try Again
+            </Button>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Window title={`Stake USDC (${bridgeProtocol})`}>
