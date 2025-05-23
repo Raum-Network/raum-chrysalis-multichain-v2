@@ -33,6 +33,7 @@ interface StakingStore {
     startTimestamp?: number;
   } | null;
   transactions: Transaction[];
+  failedTransactions: StakeStatus[];
   setCurrentStake: (stake: {
     amount: number;
     status: StakeStatus | null;
@@ -42,6 +43,7 @@ interface StakingStore {
   } | null) => void;
   updateStakeStatus: (status: StakeStatus) => void;
   clearStake: () => void;
+  addFailedTransaction: (status: StakeStatus) => void;
   fetchTransactions: (address: string) => Promise<void>;
 }
 
@@ -50,14 +52,27 @@ export const useStakingStore = create<StakingStore>()(
     (set) => ({
       currentStake: null,
       transactions: [],
+      failedTransactions: [],
       setCurrentStake: (stake) => set({ currentStake: stake }),
       updateStakeStatus: (status) => 
-        set((state) => ({
-          currentStake: state.currentStake 
-            ? { ...state.currentStake, status } 
-            : null
-        })),
+        set((state) => {
+          if (status.status === 'FAILURE') {
+            return {
+              currentStake: null,
+              failedTransactions: [...state.failedTransactions, status]
+            };
+          }
+          return {
+            currentStake: state.currentStake 
+              ? { ...state.currentStake, status } 
+              : null
+          };
+        }),
       clearStake: () => set({ currentStake: null }),
+      addFailedTransaction: (status) => 
+        set((state) => ({
+          failedTransactions: [...state.failedTransactions, status]
+        })),
       fetchTransactions: async (address: string) => {
         try {
           const transactions = await getCCIPTransactions(address);
