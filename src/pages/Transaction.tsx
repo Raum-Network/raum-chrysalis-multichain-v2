@@ -1,82 +1,59 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWallet } from '../lib/walletConnect';
 import Window from '../components/Window';
 import Button from '../components/Button';
 import { ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, XCircle, Filter, Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
-
-interface Transaction {
-  id: string;
-  type: 'stake' | 'unstake' | 'reward' | 'transfer';
-  amount: number;
-  status: 'completed' | 'pending' | 'failed';
-  timestamp: Date;
-  hash: string;
-  from?: string;
-  to?: string;
-  gas?: number;
-  nonce?: number;
-}
+import { useStakingStore } from '../store/stakingStore';
 
 const ITEMS_PER_PAGE = 5;
 
 const Transactions = () => {
-  const { isConnected, connect } = useWallet();
+  const { isConnected, connect, address } = useWallet();
   const { theme } = useTheme();
-  const [filter, setFilter] = useState<'all' | 'stake' | 'unstake' | 'reward' | 'transfer'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'completed' | 'failed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [selectedTx, setSelectedTx] = useState<any | null>(null);
+  const { transactions, fetchTransactions, currentStake } = useStakingStore();
 
-  // Mock transactions data with additional details
-  const transactions: Transaction[] = Array.from({ length: 15 }, (_, i) => ({
-    id: `${i + 1}`,
-    type: ['stake', 'unstake', 'reward', 'transfer'][Math.floor(Math.random() * 4)] as Transaction['type'],
-    amount: parseFloat((Math.random() * 5).toFixed(3)),
-    status: ['completed', 'pending', 'failed'][Math.floor(Math.random() * 3)] as Transaction['status'],
-    timestamp: new Date(Date.now() - Math.random() * 10 * 24 * 60 * 60 * 1000),
-    hash: `0x${Math.random().toString(16).substr(2, 40)}`,
-    from: `0x${Math.random().toString(16).substr(2, 40)}`,
-    to: `0x${Math.random().toString(16).substr(2, 40)}`,
-    gas: Math.floor(Math.random() * 200000),
-    nonce: Math.floor(Math.random() * 1000)
-  }));
+  useEffect(() => {
+    if (address) {
+      fetchTransactions(address);
+    }
+  }, [address, fetchTransactions]);
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'completed':
+      case 'success':
         return <CheckCircle2 size={16} className="text-green-400" />;
       case 'pending':
+      case 'in_progress':
         return <Clock size={16} className="text-amber-400" />;
       case 'failed':
+      case 'failure':
         return <XCircle size={16} className="text-red-400" />;
       default:
         return null;
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'stake':
-        return <ArrowDownRight size={16} className="text-green-400" />;
-      case 'unstake':
-        return <ArrowUpRight size={16} className="text-red-400" />;
-      case 'reward':
-        return <CheckCircle2 size={16} className="text-amber-400" />;
-      case 'transfer':
-        return <ArrowUpRight size={16} className="text-blue-400" />;
-      default:
-        return null;
-    }
+  const formatAmount = (amount: string, decimals: number) => {
+    return (Number(amount) / Math.pow(10, decimals)).toFixed(decimals);
   };
 
-  const filteredTransactions = transactions
-    .filter(tx => filter === 'all' || tx.type === filter)
+  const filteredTransactions = [...transactions]
+    .filter(tx => {
+      if (filter === 'all') return true;
+      return tx.status.toLowerCase() === filter;
+    })
     .filter(tx => 
       searchQuery === '' || 
-      tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.amount.toString().includes(searchQuery)
+      tx.messageId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.sender.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.receiver.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
   const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
@@ -85,7 +62,23 @@ const Transactions = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const TransactionModal = ({ transaction }: { transaction: Transaction }) => (
+  // Add current stake to transactions if it exists and is in progress
+  const allTransactions = currentStake?.isInProgress 
+    ? [{ 
+        messageId: currentStake.status?.ccipMessageId || 'pending',
+        status: currentStake.status?.status || 'IN_PROGRESS',
+        sourceTimestamp: new Date(currentStake.startTimestamp || Date.now()).toISOString(),
+        tokenAmounts: [{
+          amount: (currentStake.amount * Math.pow(10, 6)).toString(),
+          token: {
+            symbol: 'USDC',
+            decimals: 6
+          }
+        }]
+      }, ...paginatedTransactions]
+    : paginatedTransactions;
+
+  const TransactionModal = ({ transaction }: { transaction: any }) => (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -107,12 +100,9 @@ const Transactions = () => {
           <div>
             <h3 className="text-xl font-medium mb-1">Transaction Details</h3>
             <div className="flex items-center space-x-2 text-sm">
-              {getTypeIcon(transaction.type)}
-              <span className="capitalize">{transaction.type}</span>
-              <span className="opacity-50">•</span>
               <div className="flex items-center space-x-1">
                 {getStatusIcon(transaction.status)}
-                <span className="capitalize">{transaction.status}</span>
+                <span className="capitalize">{transaction.status.toLowerCase()}</span>
               </div>
             </div>
           </div>
@@ -125,27 +115,31 @@ const Transactions = () => {
         </div>
 
         <div className="grid gap-4 text-sm">
-          <div className={`
-            p-3 rounded border border-amber-700/30
-            ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
-          `}>
-            <div className="text-xs opacity-70 mb-1">Amount</div>
-            <div className="text-xl font-medium">{transaction.amount} ETH</div>
-          </div>
+          {transaction.tokenAmounts?.map((token: any, index: number) => (
+            <div key={index} className={`
+              p-3 rounded border border-amber-700/30
+              ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
+            `}>
+              <div className="text-xs opacity-70 mb-1">Amount</div>
+              <div className="text-xl font-medium">
+                {formatAmount(token.amount, token.token.decimals)} {token.token.symbol}
+              </div>
+            </div>
+          ))}
 
           <div className="grid gap-3">
             <div className={`
               p-3 rounded border border-amber-700/30
               ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
             `}>
-              <div className="text-xs opacity-70 mb-1">Transaction Hash</div>
+              <div className="text-xs opacity-70 mb-1">Message ID</div>
               <a
-                href={`https://etherscan.io/tx/${transaction.hash}`}
+                href={`https://ccip.chain.link/msg/${transaction.messageId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-1 hover:text-amber-400"
               >
-                <span className="break-all">{transaction.hash}</span>
+                <span className="break-all">{transaction.messageId}</span>
                 <ArrowUpRight size={14} />
               </a>
             </div>
@@ -155,7 +149,7 @@ const Transactions = () => {
               ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
             `}>
               <div className="text-xs opacity-70 mb-1">From</div>
-              <div className="break-all">{transaction.from}</div>
+              <div className="break-all">{transaction.sender}</div>
             </div>
 
             <div className={`
@@ -163,25 +157,7 @@ const Transactions = () => {
               ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
             `}>
               <div className="text-xs opacity-70 mb-1">To</div>
-              <div className="break-all">{transaction.to}</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className={`
-              p-3 rounded border border-amber-700/30
-              ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
-            `}>
-              <div className="text-xs opacity-70 mb-1">Gas Used</div>
-              <div>{transaction.gas?.toLocaleString()}</div>
-            </div>
-
-            <div className={`
-              p-3 rounded border border-amber-700/30
-              ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
-            `}>
-              <div className="text-xs opacity-70 mb-1">Nonce</div>
-              <div>{transaction.nonce}</div>
+              <div className="break-all">{transaction.receiver}</div>
             </div>
           </div>
 
@@ -189,8 +165,24 @@ const Transactions = () => {
             p-3 rounded border border-amber-700/30
             ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
           `}>
+            <div className="text-xs opacity-70 mb-1">Source Chain</div>
+            <div>{transaction.sourceChainName || 'Arbitrum Sepolia'}</div>
+          </div>
+
+          <div className={`
+            p-3 rounded border border-amber-700/30
+            ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
+          `}>
+            <div className="text-xs opacity-70 mb-1">Destination Chain</div>
+            <div>{transaction.destinationChainName || 'Sepolia'}</div>
+          </div>
+
+          <div className={`
+            p-3 rounded border border-amber-700/30
+            ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
+          `}>
             <div className="text-xs opacity-70 mb-1">Timestamp</div>
-            <div>{transaction.timestamp.toLocaleString()}</div>
+            <div>{new Date(transaction.sourceTimestamp).toLocaleString()}</div>
           </div>
         </div>
       </motion.div>
@@ -230,17 +222,16 @@ const Transactions = () => {
                 className="bg-amber-900/20 border border-amber-700/50 rounded-md px-2 py-1 text-sm focus:outline-none focus:border-amber-500"
               >
                 <option value="all">All Transactions</option>
-                <option value="stake">Stakes</option>
-                <option value="unstake">Unstakes</option>
-                <option value="reward">Rewards</option>
-                <option value="transfer">Transfers</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
               </select>
             </div>
 
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search by hash or amount..."
+                placeholder="Search by message ID or address..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -257,47 +248,44 @@ const Transactions = () => {
               <table className="w-full">
                 <thead>
                   <tr className="bg-amber-900/30 border-b border-amber-700/30">
-                    <th className="px-4 py-2 text-left text-sm font-medium">Type</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Amount</th>
                     <th className="px-4 py-2 text-left text-sm font-medium">Status</th>
+                    <th className="px-4 py-2 text-left text-sm font-medium">Amount</th>
                     <th className="px-4 py-2 text-left text-sm font-medium">Date</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Transaction Hash</th>
+                    <th className="px-4 py-2 text-left text-sm font-medium">Message ID</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedTransactions.map((tx) => (
+                  {allTransactions.map((tx: any) => (
                     <tr 
-                      key={tx.id} 
+                      key={tx.messageId} 
                       className="border-b border-amber-700/30 hover:bg-amber-900/20 cursor-pointer"
                       onClick={() => setSelectedTx(tx)}
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center space-x-2">
-                          {getTypeIcon(tx.type)}
-                          <span className="capitalize">{tx.type}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {tx.amount} ETH
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center space-x-2">
                           {getStatusIcon(tx.status)}
-                          <span className="capitalize">{tx.status}</span>
+                          <span className="capitalize">{tx.status.toLowerCase()}</span>
                         </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {tx.tokenAmounts?.map((token: any, index: number) => (
+                          <div key={index}>
+                            {formatAmount(token.amount, token.token.decimals)} {token.token.symbol}
+                          </div>
+                        ))}
                       </td>
                       <td className="px-4 py-3 text-sm opacity-70">
-                        {tx.timestamp.toLocaleString()}
+                        {new Date(tx.sourceTimestamp).toLocaleString()}
                       </td>
                       <td className="px-4 py-3">
                         <a 
-                          href={`https://etherscan.io/tx/${tx.hash}`}
+                          href={`https://ccip.chain.link/msg/${tx.messageId}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center space-x-1 hover:text-amber-400"
                           onClick={e => e.stopPropagation()}
                         >
-                          <span className="text-sm">{tx.hash}</span>
+                          <span className="text-sm">{tx.messageId}</span>
                           <ArrowUpRight size={14} />
                         </a>
                       </td>
@@ -307,7 +295,7 @@ const Transactions = () => {
               </table>
             </div>
 
-            {filteredTransactions.length === 0 && (
+            {filteredTransactions.length === 0 && !currentStake?.isInProgress && (
               <div className="text-center py-8">
                 <p className="text-sm opacity-70">No transactions found</p>
               </div>
