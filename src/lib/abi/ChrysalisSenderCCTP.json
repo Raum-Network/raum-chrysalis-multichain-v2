@@ -1,0 +1,70 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_circleBridge",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "token",
+				"type": "address"
+			}
+		],
+		"name": "SafeERC20FailedOperation",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "circleBridge",
+		"outputs": [
+			{
+				"internalType": "contract ICircleCaller",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint32",
+				"name": "destinationDomain",
+				"type": "uint32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "mintRecipient",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "burnToken",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "destinationCaller",
+				"type": "bytes32"
+			}
+		],
+		"name": "depositForBurnWithCaller",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]

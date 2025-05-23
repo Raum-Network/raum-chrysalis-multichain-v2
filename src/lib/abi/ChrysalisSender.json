@@ -25,21 +25,6 @@
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
-	{
-		"inputs": [],
-		"name": "AlreadyRequested",
-		"type": "error"
-	},
-	{
-		"inputs": [],
-		"name": "ClaimAlreadyProcessed",
-		"type": "error"
-	},
-	{
 		"inputs": [
 			{
 				"internalType": "uint64",
@@ -52,12 +37,17 @@
 				"type": "address"
 			},
 			{
+				"internalType": "uint256",
+				"name": "_amount",
+				"type": "uint256"
+			},
+			{
 				"internalType": "uint64",
 				"name": "_gasLimit",
 				"type": "uint64"
 			}
 		],
-		"name": "claimTokens",
+		"name": "handleStakingAction",
 		"outputs": [
 			{
 				"internalType": "bytes32",
@@ -67,6 +57,11 @@
 		],
 		"stateMutability": "nonpayable",
 		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
 	},
 	{
 		"inputs": [
@@ -80,16 +75,6 @@
 		"type": "error"
 	},
 	{
-		"inputs": [],
-		"name": "InsufficientStake",
-		"type": "error"
-	},
-	{
-		"inputs": [],
-		"name": "InvalidRequest",
-		"type": "error"
-	},
-	{
 		"inputs": [
 			{
 				"internalType": "uint256",
@@ -98,7 +83,7 @@
 			},
 			{
 				"internalType": "uint256",
-				"name": "requiredBalance",
+				"name": "calculatedFees",
 				"type": "uint256"
 			}
 		],
@@ -107,12 +92,7 @@
 	},
 	{
 		"inputs": [],
-		"name": "NothingToClaim",
-		"type": "error"
-	},
-	{
-		"inputs": [],
-		"name": "Unauthorized",
+		"name": "NothingToWithdraw",
 		"type": "error"
 	},
 	{
@@ -154,69 +134,6 @@
 		"type": "event"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_amount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "address",
-				"name": "_receiver",
-				"type": "address"
-			},
-			{
-				"internalType": "uint64",
-				"name": "_destinationChainSelector",
-				"type": "uint64"
-			}
-		],
-		"name": "requestClaim",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "messageId",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint64",
-				"name": "_destinationChainSelector",
-				"type": "uint64"
-			},
-			{
-				"internalType": "address",
-				"name": "_receiver",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "_amount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint64",
-				"name": "_gasLimit",
-				"type": "uint64"
-			}
-		],
-		"name": "stakeTokens",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "messageId",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -254,12 +171,6 @@
 				"internalType": "address",
 				"name": "user",
 				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "enum ChrysalisSender.ActionType",
-				"name": "actionType",
-				"type": "uint8"
 			}
 		],
 		"name": "StakingAction",
@@ -305,63 +216,6 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "userClaimProcessed",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "userRequestedClaims",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "userStakes",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",

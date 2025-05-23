@@ -1,4 +1,3 @@
-"use client";
 import { ethers } from 'ethers';
 import { 
   useAccount, 
@@ -8,22 +7,25 @@ import {
   useReadContract,
   useContractWrite,
   useChainId,
+  useSwitchChain
 } from 'wagmi';
 import { createConfig, http } from 'wagmi';
-import { polygonAmoy } from 'wagmi/chains';
+import { polygonAmoy, arbitrumSepolia, baseSepolia , soneiumMinato } from 'wagmi/chains';
 import { getDefaultConfig } from 'connectkit';
-import { getChainId } from 'viem/actions';
 import { useEffect } from 'react';
 import { erc20Abi } from 'viem';
+import { SUPPORTED_NETWORKS, Networks } from '../config/contract';
 
-const USDC_CONTRACT_ADDRESS = "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
 
-// Config remains the same
+// Config with all supported chains
 export const config = createConfig(
   getDefaultConfig({
-    chains: [polygonAmoy],
+    chains: [arbitrumSepolia, baseSepolia, polygonAmoy, soneiumMinato],
     transports: {
-      [polygonAmoy.id]: http(`https://polygon-amoy.drpc.org`),
+      [arbitrumSepolia.id]: http('https://sepolia-rollup.arbitrum.io/rpc'),
+      [baseSepolia.id]: http('https://sepolia.base.org'),
+      [polygonAmoy.id]: http('https://polygon-amoy.drpc.org'),
+      [soneiumMinato.id]: http('https://rpc.minato.soneium.org'),
     },
     walletConnectProjectId: "ffd25e3cc20b883d266134ce525caf88",
     appName: "Chrysalis - SteadyStake",
@@ -38,17 +40,41 @@ export function useWallet() {
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+
+  // Get contract addresses for current network
+  const getCurrentNetworkConfig = () => {
+    const network = Object.entries(SUPPORTED_NETWORKS).find(
+      ([_, config]) => config.chainId === chainId
+    );
+    return {
+      config: network ? network[1] : SUPPORTED_NETWORKS['arbitrum-sepolia'],
+      key: network ? network[0] : 'arbitrum-sepolia'
+    };
+  };
+
+
+  const networkConfig = getCurrentNetworkConfig().config;
+  const USDC_CONTRACT_ADDRESS = networkConfig.contracts.usdc;
+  const FEES_CONTRACT_ADDRESS = networkConfig.contracts.fees;
+
+  const balance = () => { 
+    const bal = useBalance({
+    address
+  });
+  return ethers.formatEther(bal.data?.value || 0);
+}
 
   // Get USDC balance with proper configuration
-  const { data: balance } = useReadContract({
-    address: USDC_CONTRACT_ADDRESS,
+  const { data: usdcbalance } = useReadContract({
+    address: USDC_CONTRACT_ADDRESS as `0x${string}`,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
   });
 
-  const { data: linkBalance } = useReadContract({
-    address: "0x0Fd9e8d3aF1aaee056EB9e802c3A762a667b1904",
+  const { data: feesBalance } = useReadContract({
+    address: FEES_CONTRACT_ADDRESS as `0x${string}`,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
@@ -56,24 +82,24 @@ export function useWallet() {
 
   // Get USDC decimals
   const { data: decimals } = useReadContract({
-    address: USDC_CONTRACT_ADDRESS,
+    address: USDC_CONTRACT_ADDRESS as `0x${string}`,
     abi: erc20Abi,
     functionName: 'decimals',
   });
 
   const getFormattedBalance = () => {
-    if (!balance || !decimals) return '0';
-    return ethers.formatUnits(BigInt(balance?.toString() || '0'), BigInt(decimals?.toString() || '0'));
+    if (!usdcbalance || !decimals) return '0';
+    return ethers.formatUnits(BigInt(usdcbalance?.toString() || '0'), BigInt(decimals?.toString() || '0'));
   };
 
   const handleConnect = async () => {
     try {
       await connect({ connector: config.connectors[0] });
-      const formattedBalance = getFormattedBalance();
-      const linkFormattedBalance = (linkBalance!) / BigInt(10 ** 18);
+      const formattedBalance = balance();
+      const feesFormattedBalance = (feesBalance!) / BigInt(10 ** 18);
       
       window.dispatchEvent(new CustomEvent('walletBalanceUpdated', {
-        detail: { balance: formattedBalance, linkBalance: linkFormattedBalance }
+        detail: { balance: formattedBalance, feesBalance: feesFormattedBalance }
       }));
 
       return {
@@ -81,13 +107,14 @@ export function useWallet() {
         isConnected: true,
         chainId: chainId || null,
         balance: formattedBalance,
-        linkBalance: linkFormattedBalance
+        feesBalance: feesFormattedBalance
       };
     } catch (error) {
       console.error('Failed to connect wallet:', error);
       throw error;
     }
   };
+
 
   const handleDisconnect = async () => {
     try {
@@ -97,7 +124,7 @@ export function useWallet() {
         isConnected: false,
         chainId: null,
         balance: null,
-        linkBalance:null
+        feesBalance: null
       };
     } catch (error) {
       console.error('Error disconnecting wallet:', error);
@@ -105,35 +132,45 @@ export function useWallet() {
     }
   };
 
+  const handleSwitchNetwork = async (network: Networks) => {
+    const targetChainId = SUPPORTED_NETWORKS[network].chainId;
+    try {
+      await switchChain({ chainId: targetChainId });
+      console.log(`Switched to ${network} with chain ID ${targetChainId}`);
+    } catch (error) {
+      console.error('Failed to switch network:', error);
+      throw error;
+    }
+  };
+
   return {
     address,
     isConnected,
-    chainId: chainId,
-    balance: getFormattedBalance(),
-    linkBalance,
+    chainId,
+    network: getCurrentNetworkConfig().key,
+    networkConfig: getCurrentNetworkConfig().config,
+    balance: balance(),
+    feesBalance,
     connect: handleConnect,
     disconnect: handleDisconnect,
+    switchNetwork: handleSwitchNetwork,
   };
 }
 
 // Update your component to use the hook
 export function WalletComponent() {
   const { 
-    address, 
     isConnected, 
-    chainId, 
-    balance, 
-    connect, 
-    disconnect 
+    chainId,
+    switchNetwork
   } = useWallet();
 
   useEffect(() => {
-    if (isConnected && chainId !== 80002) {
-      window.dispatchEvent(new CustomEvent('walletNetworkSwitch', {
-        detail: { targetChainId: 80002 }
-      }));
+    // Default to Arbitrum Sepolia if not connected to a supported network
+    if (isConnected && !Object.values(SUPPORTED_NETWORKS).some(net => net.chainId === chainId)) {
+     console.error('Unsupported network. Switching to Arbitrum Sepolia.');
     }
-  }, [chainId, isConnected]);
+  }, [chainId, isConnected, switchNetwork]);
 
-  return null; // or your wallet UI component
+  return null;
 }
