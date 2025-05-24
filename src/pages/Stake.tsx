@@ -16,10 +16,12 @@ const Stake = () => {
   const [stakeAmount, setStakeAmount] = useState(0);
   const [stakeView, setStakeView] = useState<'form' | 'confirming' | 'success'>('form');
   const [error, setError] = useState<string | null>(null);
+  const [showStatus, setShowStatus] = useState(true);
 
   const handleStakeSubmit = async () => {
     if (stakeAmount <= 0) return;
     setError(null);
+    setShowStatus(true);
 
     setCurrentStake({
       amount: stakeAmount,
@@ -49,6 +51,11 @@ const Stake = () => {
 
       if (stakeStatus.status === 'SUCCESS') {
         setStakeView('success');
+      }
+
+      // Hide status after 30 seconds
+      if (stakeStatus.hideOnStakePage) {
+        setShowStatus(false);
       }
     }
   }, [stakeStatus]);
@@ -95,6 +102,7 @@ const Stake = () => {
     setStakeView('form');
     clearStake();
     setError(null);
+    setShowStatus(true);
   };
 
   const renderProtocolSelector = () => (
@@ -128,7 +136,7 @@ const Stake = () => {
   );
 
   const renderStakeStatus = () => {
-    if (!currentStake?.status) return null;
+    if (!currentStake?.status || !showStatus) return null;
 
     const getProgressValue = () => {
       if (!currentStake?.status) return 0;
