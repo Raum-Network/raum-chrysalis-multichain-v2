@@ -12,9 +12,12 @@ export default defineConfig({
       '/ccip-api': {
         target: 'https://ccip.chain.link',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/ccip-api/, '/api'),
+        secure: false,
+        rewrite: (path) => path.replace(/^\/ccip-api/, '/api/h/atlas'),
         headers: {
           'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+          'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept'
         },
       },
       '/circle-api': {

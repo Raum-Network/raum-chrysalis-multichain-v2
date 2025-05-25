@@ -1,13 +1,17 @@
 export const getCCIPStatus = async (messageId: string) => {
   try {
     const response = await fetch(
-      `/ccip-api/h/atlas/message/${messageId}`,
+      `/ccip-api/message/${messageId}`,
       {
         headers: {
           'Accept': 'application/json',
+          'Content-Type': 'application/json',
         },
       }
     );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     return await response.json();
   } catch (error) {
     console.error('Error fetching CCIP status:', error);
@@ -52,13 +56,17 @@ export const getCCTPAttestation = async (messageHash: string) => {
 export const getCCIPTransactions = async (address: string) => {
   try {
     const response = await fetch(
-      `/ccip-api/h/atlas/transactions?first=100&offset=0&sender=${address.toLowerCase()}`,
+      `https://ccip.chain.link/api/h/atlas/transactions?first=100&offset=0&sender=${address.toLowerCase()}`,
       {
         headers: {
           'Accept': 'application/json',
+          'Content-Type': 'application/json',
         },
       }
     );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     return await response.json();
   } catch (error) {
     console.error('Error fetching CCIP Transactions:', error);

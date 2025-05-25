@@ -1,93 +1,57 @@
 import { useState, useEffect } from 'react';
 import { useWallet } from '../lib/walletConnect';
 import { useStaking } from '../hooks/useStaking';
-import { useStakingStore } from '../store/stakingStore';
+import stakeManager, { StakeStatus } from '../lib/stakeManager';
 import Button from '../components/Button';
 import Window from '../components/Window';
 import AmountInput from '../components/AmountInput';
 import { Progress } from '../components/Progress';
-import { ArrowRightLeft, Loader2, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRightLeft, Loader2, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Stake = () => {
   const { isConnected, balance, connect } = useWallet();
   const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, hasAllowance, isApproving, usdcBalance } = useStaking();
-  const { currentStake, setCurrentStake, updateStakeStatus, clearStake } = useStakingStore();
   const [stakeAmount, setStakeAmount] = useState(0);
   const [stakeView, setStakeView] = useState<'form' | 'confirming' | 'success'>('form');
+  const [error, setError] = useState<string | null>(null);
+  const [currentStake, setCurrentStake] = useState<StakeStatus | null>(null);
+
+  // Subscribe to StakeManager updates
+  useEffect(() => {
+    const handleStatusUpdate = (status: StakeStatus) => {
+      setCurrentStake(status);
+      
+      if (status.status === 'SUCCESS') {
+        setStakeView('success');
+      }
+    };
+
+    const unsubscribe = stakeManager.subscribeToStatus(handleStatusUpdate);
+    return () => unsubscribe();
+  }, []);
 
   const handleStakeSubmit = async () => {
     if (stakeAmount <= 0) return;
-
-    setCurrentStake({
-      amount: stakeAmount,
-      status: null,
-      isInProgress: true,
-      protocol: bridgeProtocol
-    });
+    setError(null);
 
     try {
       await stake(stakeAmount);
     } catch (error) {
       console.error('Staking failed:', error);
-      clearStake();
+      setError('Transaction failed. Please try again.');
     }
   };
 
-  useEffect(() => {
-    if (stakeStatus) {
-      updateStakeStatus(stakeStatus);
-
-      if (stakeStatus.status === 'SUCCESS') {
-        setStakeView('success');
-      }
-    }
-  }, [stakeStatus]);
-
-  useEffect(() => {
-    if (currentStake?.isInProgress) {
-      setStakeView(currentStake.status?.status === 'SUCCESS' ? 'success' : 'form');
-    }
-  }, []);
-
-  useEffect(() => {
-    // Restore timer when component mounts if there's an in-progress stake
-    if (currentStake?.isInProgress && currentStake.status?.timestamp) {
-      const timeElapsed = formatTimeElapsed(currentStake.status.timestamp);
-      updateStakeStatus({
-        ...currentStake.status,
-        timeElapsed,
-      });
-    }
-  }, []);
-
-  // Add timer update interval
-  useEffect(() => {
-    if (currentStake?.isInProgress && currentStake.status?.timestamp) {
-      const interval = setInterval(() => {
-        const timeElapsed = formatTimeElapsed(currentStake.status!.timestamp);
-        updateStakeStatus({
-          ...currentStake.status!,
-          timeElapsed,
-        });
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }
-  }, [currentStake?.isInProgress, currentStake?.status?.timestamp]);
-
-  // Add helper function for time formatting
-  const formatTimeElapsed = (startTime: number): string => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = elapsed % 60;
-    return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+  const handleClearError = () => {
+    setError(null);
   };
 
   const resetForm = () => {
     setStakeAmount(0);
     setStakeView('form');
-    clearStake();
+    setError(null);
+    setCurrentStake(null);
   };
 
   const renderProtocolSelector = () => (
@@ -121,15 +85,14 @@ const Stake = () => {
   );
 
   const renderStakeStatus = () => {
-    if (!currentStake?.status) return null;
+    if (!currentStake) return null;
 
     const getProgressValue = () => {
-      if (!currentStake?.status) return 0;
-      if (currentStake.status.status === 'SUCCESS') return 100;
-      if (currentStake.status.status === 'FAILURE') return 100;
-      if (currentStake.status.isBlessed) return 75;
-      if (currentStake.status.isCommitted) return 50;
-      if (currentStake.status.status === 'IN_PROGRESS') return 25;
+      if (currentStake.status === 'SUCCESS') return 100;
+      if (currentStake.status === 'FAILURE') return 100;
+      if (currentStake.isBlessed) return 75;
+      if (currentStake.isCommitted) return 50;
+      if (currentStake.status === 'IN_PROGRESS') return 25;
       return 0;
     };
 
@@ -137,79 +100,65 @@ const Stake = () => {
       <div className="mt-4 p-4 border border-amber-700/40 rounded-md bg-amber-900/10">
         <div className="space-y-4">
           <div className="flex justify-between text-sm">
-            <span>Status: {currentStake.status.status}</span>
-            <span>Time Elapsed: {currentStake.status.timeElapsed}</span>
+            <span>Status: {currentStake.status}</span>
+            <span>Time Elapsed: {currentStake.timeElapsed}</span>
           </div>
 
           <Progress value={getProgressValue()} />
 
-          {currentStake.status.sourceTxHash && (
+          {currentStake.sourceTxHash && (
             <div className="text-sm break-all">
               <span className="text-amber-500">Source Tx:</span>
               <a 
-                href={`https://sepolia.arbiscan.io/tx/${currentStake.status.sourceTxHash}`}
+                href={`https://sepolia.arbiscan.io/tx/${currentStake.sourceTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-2 text-amber-400 hover:text-amber-300"
               >
-                {currentStake.status.sourceTxHash}
+                {currentStake.sourceTxHash}
               </a>
             </div>
           )}
 
-          {bridgeProtocol === 'CCIP' && currentStake.status.ccipMessageId && (
+          {bridgeProtocol === 'CCIP' && currentStake.ccipMessageId && (
             <div className="text-sm break-all">
               <span className="text-amber-500">CCIP Message ID:</span>
               <a 
-                href={`https://ccip.chain.link/msg/${currentStake.status.ccipMessageId}`}
+                href={`https://ccip.chain.link/msg/${currentStake.ccipMessageId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-2 text-amber-400 hover:text-amber-300"
               >
-                {currentStake.status.ccipMessageId}
+                {currentStake.ccipMessageId}
               </a>
             </div>
           )}
 
-          {bridgeProtocol === 'CCTP' && currentStake.status.messageBytes && (
+          {bridgeProtocol === 'CCTP' && currentStake.messageBytes && (
             <div className="text-sm break-all">
               <span className="text-amber-500">Message Bytes:</span>
-              <span className="ml-2">{currentStake.status.messageBytes}</span>
+              <span className="ml-2">{currentStake.messageBytes}</span>
             </div>
           )}
 
-          {currentStake.status.destinationTxHash && (
+          {currentStake.destinationTxHash && (
             <div className="text-sm break-all">
               <span className="text-amber-500">Destination Tx:</span>
               <a 
-                href={`https://sepolia.etherscan.io/tx/${currentStake.status.destinationTxHash}`}
+                href={`https://sepolia.etherscan.io/tx/${currentStake.destinationTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-2 text-amber-400 hover:text-amber-300"
               >
-                {currentStake.status.destinationTxHash}
+                {currentStake.destinationTxHash}
               </a>
             </div>
           )}
 
-          {bridgeProtocol === 'CCIP' && currentStake.status.bridgingMessageId && (
-            <p className="text-amber-500 text-sm break-all">
-              rnstETH CCIP Message ID:{" "}
-              <a
-                href={`https://ccip.chain.link/msg/${currentStake.status.bridgingMessageId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-2 text-amber-400 hover:text-amber-300"
-              >
-                {currentStake.status.bridgingMessageId}
-              </a>
-            </p>
-          )}
-
-          {currentStake.status.expectedTime && (
+          {currentStake.expectedTime && (
             <div className="text-sm mt-2">
               <span className="text-amber-500">Expected Time:</span>
-              <span className="ml-2">{currentStake.status.expectedTime}</span>
+              <span className="ml-2">{currentStake.expectedTime}</span>
             </div>
           )}
         </div>
@@ -219,7 +168,7 @@ const Stake = () => {
 
   const renderStakeForm = () => (
     <div className="space-y-4 p-2">
-      {!currentStake?.isInProgress && renderProtocolSelector()}
+      {!currentStake && renderProtocolSelector()}
       
       <div className="p-3 rounded-md border border-amber-700/40 bg-amber-900/10">
         <div className="flex justify-between items-center mb-1">
@@ -244,18 +193,18 @@ const Stake = () => {
         disabled={
           stakeAmount <= 0 || 
           stakeAmount > usdcBalance || 
-          currentStake?.isInProgress || 
+          isStaking || 
           isApproving
         }
         fullWidth
       >
         {isApproving ? 'Approving...' :
-         currentStake?.isInProgress ? 'Staking in Progress...' : 
+         isStaking ? 'Staking in Progress...' : 
          !hasAllowance ? `Approve for ${bridgeProtocol}` :
          `Stake with ${bridgeProtocol}`}
       </Button>
 
-      {currentStake?.status && renderStakeStatus()}
+      {currentStake && renderStakeStatus()}
     </div>
   );
   
@@ -322,6 +271,20 @@ const Stake = () => {
           Stake your USDC using {bridgeProtocol} bridge and receive rUSDC in return
         </p>
       </div>
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-md">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <XCircle size={20} className="text-red-400 mr-2" />
+              <span className="text-red-400">{error}</span>
+            </div>
+            <Button onClick={handleClearError} variant="danger" size="sm">
+              Try Again
+            </Button>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Window title={`Stake USDC (${bridgeProtocol})`}>

@@ -18,7 +18,6 @@ const publicClient = createPublicClient({
 
 const abiCoder = new ethers.AbiCoder();
 
-// Define the tuple structure
 const tupleType = `tuple(
   uint64 sourceChainSelector,
   address sender,
@@ -49,27 +48,32 @@ export type StakeStatus = {
   ccipMessageId: string | null;
   destinationTxHash: any;
   status: 'UNTOUCHED' | 'IN_PROGRESS' | 'SUCCESS' | 'FAILURE' | 'COMMITTED' | 'BLESSED' | 'BRIDGING_BACK';
-  bridgingMessageId:any;
+  bridgingMessageId: any;
   timestamp: number;
   timeElapsed: string;
   expectedTime: string;
   isCommitted: boolean;
   isBlessed: boolean;
-  sourceChain?: 'arbitrum_sepolia' | 'sepolia';  // Add this for CCTP
+  sourceChain?: 'arbitrum_sepolia' | 'sepolia';
   attestationStatus?: string;
   messageBytes?: string;
   attestation?: string;
+  hideOnStakePage?: boolean;
+  // Add these new properties
+  origin?: string;
+  receiver?: string;
+  amount?: number; // Add amount property
 };
 
 class StakeManager {
   private pollingInterval: number = 30000; 
   private statusInterval: NodeJS.Timeout | null = null;
   private timerInterval: NodeJS.Timeout | null = null;
-  private currentStatus: StakeStatus | null = null; // Add this to track current status
+  private currentStatus: StakeStatus | null = null;
+  private backgroundPolling: boolean = true;
+  private statusSubscribers: ((status: StakeStatus) => void)[] = []; // Subscribers array
 
-  constructor() {
-    // Remove provider initialization from constructor
-  }
+  constructor() {}
 
   private isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
@@ -83,7 +87,6 @@ class StakeManager {
     onStatusUpdate: (status: StakeStatus) => void
   ): Promise<void> {
     try {
-      // Use the passed in writeContractAsync function
       const txHashStake = await writeContractAsync({
         address: STAKE_CONTRACT_ADDRESS,
         abi: stakeABI,
@@ -96,10 +99,8 @@ class StakeManager {
         ]
       });
 
-      // Start timer only after transaction is confirmed
       const initialTimestamp = Date.now();
 
-      // Set initial status
       this.currentStatus = {
         sourceTxHash: txHashStake,
         ccipMessageId: null,
@@ -113,15 +114,9 @@ class StakeManager {
         isBlessed: false
       };
 
-      // Initial status update
       onStatusUpdate(this.currentStatus);
 
-      // Start the timer interval
       this.startTimer(initialTimestamp, onStatusUpdate);
-      // Wait for transaction receipt
-      // const receipt = await useTransaction({
-      //   hash: txHashStake
-      // });
 
       const receipt = await publicClient.waitForTransactionReceipt(
         { hash: txHashStake }
@@ -129,7 +124,7 @@ class StakeManager {
 
       userAddress = receipt.from;
 
-      const simulationData = await simulateContract( config , {
+      const simulationData = await simulateContract(config, {
         address: STAKE_CONTRACT_ADDRESS,
         abi: stakeABI,
         functionName: 'handleStakingAction',
@@ -144,8 +139,6 @@ class StakeManager {
         value: BigInt(0),
       });
 
-    
-
       const messageId = simulationData?.result;
 
       if (!messageId) {
@@ -155,11 +148,26 @@ class StakeManager {
       this.currentStatus = {
         ...this.currentStatus,
         ccipMessageId: messageId,
-        status: 'IN_PROGRESS'
+        status: 'IN_PROGRESS',
+        origin: userAddress, // Add origin
+        receiver: receiver,   // Add receiver
+        amount: amount        // Add amount
       };
-      onStatusUpdate(this.currentStatus);
+      this.updateStatus(this.currentStatus, onStatusUpdate);
 
+      // Start background polling
       this.startPollingStatus(txHashStake, messageId, initialTimestamp, onStatusUpdate);
+
+      // Hide status after 30 seconds
+      setTimeout(() => {
+        if (this.currentStatus) {
+          this.currentStatus = {
+            ...this.currentStatus,
+            hideOnStakePage: true
+          };
+          onStatusUpdate(this.currentStatus);
+        }
+      }, 30000);
 
     } catch (error) {
       this.stopTimer();
@@ -201,7 +209,10 @@ class StakeManager {
         isCommitted: false,
         isBlessed: false,
         attestationStatus: 'pending',
-        sourceChain: 'arbitrum_sepolia'  // Add this to identify source chain
+        sourceChain: 'arbitrum_sepolia',
+        origin: address,           // Add origin
+        receiver: mintReceipient,  // Add receiver
+        amount: amount              // Add amount
       };
 
       onStatusUpdate(this.currentStatus);
@@ -218,10 +229,29 @@ class StakeManager {
         await this.pollAttestation(messageHash, messageBytes as string, amount, address, onStatusUpdate);
       }
 
+      // Hide status after 30 seconds
+      setTimeout(() => {
+        if (this.currentStatus) {
+          this.currentStatus = {
+            ...this.currentStatus,
+            hideOnStakePage: true
+          };
+          onStatusUpdate(this.currentStatus);
+        }
+      }, 30000);
+
     } catch (error) {
       this.stopTimer();
       console.error('CCTP Staking failed:', error);
       throw error;
+    }
+  }
+
+  public stopBackgroundPolling() {
+    this.backgroundPolling = false;
+    if (this.statusInterval) {
+      clearInterval(this.statusInterval);
+      this.statusInterval = null;
     }
   }
 
@@ -247,7 +277,7 @@ class StakeManager {
     let attestationResponse = { status: 'pending_confirmations', attestation: '' };
     let retryCount = 0;
 
-    while (attestationResponse.status === 'pending_confirmations') {
+    while (attestationResponse.status === 'pending_confirmations' && this.backgroundPolling) {
       try {
         attestationResponse = await getCCTPAttestation(messageHash);
 
@@ -275,10 +305,9 @@ class StakeManager {
         if (retryCount < maxRetries) {
           retryCount++;
           console.log(`Retrying attestation request (${retryCount}/${maxRetries})...`);
-          await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds before retry
-          continue; // Skip the normal wait and retry immediately
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
         } else {
-          // Update status to show error state
           this.currentStatus = {
             sourceTxHash: this.currentStatus?.sourceTxHash ?? '',
             ccipMessageId: this.currentStatus?.ccipMessageId ?? null,
@@ -301,8 +330,9 @@ class StakeManager {
         }
       }
 
-      // Normal polling interval
-      await new Promise((r) => setTimeout(r, 1100));
+      if (this.backgroundPolling) {
+        await new Promise((r) => setTimeout(r, 1100));
+      }
     }
   }
 
@@ -364,28 +394,28 @@ class StakeManager {
         sourceChain: 'sepolia'
       };
 
-      onStatusUpdate(this.currentStatus);  // Make sure to call onStatusUpdate
+      onStatusUpdate(this.currentStatus);
       this.stopTimer();
 
     } catch (error) {
       console.error("Error calling Sepolia contract:", error);
       this.currentStatus = {
         sourceTxHash: this.currentStatus?.sourceTxHash ?? '',
-            ccipMessageId: this.currentStatus?.ccipMessageId ?? null,
-            destinationTxHash: this.currentStatus?.destinationTxHash ?? null,
-            status: 'FAILURE',
-            bridgingMessageId: this.currentStatus?.bridgingMessageId ?? null,
-            timestamp: this.currentStatus?.timestamp ?? Date.now(),
-            timeElapsed: this.formatTimeElapsed(this.currentStatus?.timestamp ?? Date.now()),
-            expectedTime: this.currentStatus?.expectedTime ?? '',
-            isCommitted: false,
-            isBlessed: false,
-            attestationStatus: 'error',
-            sourceChain: this.currentStatus?.sourceChain ?? 'sepolia',
-            messageBytes: this.currentStatus?.messageBytes ?? '',
-            attestation: this.currentStatus?.attestation ?? ''
+        ccipMessageId: this.currentStatus?.ccipMessageId ?? null,
+        destinationTxHash: this.currentStatus?.destinationTxHash ?? null,
+        status: 'FAILURE',
+        bridgingMessageId: this.currentStatus?.bridgingMessageId ?? null,
+        timestamp: this.currentStatus?.timestamp ?? Date.now(),
+        timeElapsed: this.formatTimeElapsed(this.currentStatus?.timestamp ?? Date.now()),
+        expectedTime: this.currentStatus?.expectedTime ?? '',
+        isCommitted: false,
+        isBlessed: false,
+        attestationStatus: 'error',
+        sourceChain: this.currentStatus?.sourceChain ?? 'sepolia',
+        messageBytes: this.currentStatus?.messageBytes ?? '',
+        attestation: this.currentStatus?.attestation ?? ''
       };
-      onStatusUpdate(this.currentStatus);  // Make sure to call onStatusUpdate
+      onStatusUpdate(this.currentStatus);
       this.stopTimer();
       throw error;
     }
@@ -421,7 +451,7 @@ class StakeManager {
     onStatusUpdate: (status: StakeStatus) => void
   ) {
     try {
-      if (!messageId) return;
+      if (!messageId || !this.backgroundPolling) return;
 
       if (this.currentStatus?.bridgingMessageId) {
         const ccipStatusBack = await getCCIPStatus(this.currentStatus.bridgingMessageId);
@@ -542,19 +572,36 @@ class StakeManager {
       clearInterval(this.statusInterval);
     }
 
+    this.backgroundPolling = true;
     this.statusInterval = setInterval(() => {
       this.checkStatus(txHash, messageId, initialTimestamp, onStatusUpdate);
     }, this.pollingInterval);
   }
 
-  public formatTimeElapsed(timestamp: number): string {
-    const elapsed = Math.floor((Date.now() - timestamp) / 1000); // seconds
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = elapsed % 60;
-
-    return `${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
+  public subscribeToStatus(callback: (status: StakeStatus) => void) {
+    this.statusSubscribers.push(callback);
+    // Return unsubscribe function
+    return () => {
+      this.statusSubscribers = this.statusSubscribers.filter(cb => cb !== callback);
+    };
   }
 
+  private notifyStatusSubscribers(status: StakeStatus) {
+    this.statusSubscribers.forEach(callback => callback(status));
+  }
+
+  private updateStatus(status: StakeStatus, onStatusUpdate: (status: StakeStatus) => void) {
+    this.currentStatus = status;
+    onStatusUpdate(status);
+    this.notifyStatusSubscribers(status);
+  }
+
+  public formatTimeElapsed(timestamp: number): string {
+    const elapsed = Math.floor((Date.now() - timestamp) / 1000);
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+  }
 }
 
 export default new StakeManager();
