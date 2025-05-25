@@ -1,16 +1,14 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { ethers } from 'ethers';
-import { SUPPORTED_NETWORKS, Networks } from '../config/contract';
+import { createContext, useContext, useState, ReactNode } from 'react';
+import { Networks, SUPPORTED_NETWORKS } from '../config/contract';
 
 interface WalletContextType {
   isConnected: boolean;
   address: string | null;
   balance: number;
   network: Networks;
-  chainId: number | null;
-  connectWallet: () => Promise<void>;
+  connectWallet: () => void;
   disconnectWallet: () => void;
-  switchNetwork: (network: Networks) => Promise<void>;
+  switchNetwork: (network: Networks) => void;
 }
 
 const defaultWalletContext: WalletContextType = {
@@ -18,10 +16,9 @@ const defaultWalletContext: WalletContextType = {
   address: null,
   balance: 0,
   network: 'arbitrum-sepolia',
-  chainId: null,
-  connectWallet: async () => {},
+  connectWallet: () => {},
   disconnectWallet: () => {},
-  switchNetwork: async () => {}
+  switchNetwork: () => {},
 };
 
 const WalletContext = createContext<WalletContextType>(defaultWalletContext);
@@ -33,128 +30,26 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [address, setAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState(0);
   const [network, setNetwork] = useState<Networks>('arbitrum-sepolia');
-  const [chainId, setChainId] = useState<number | null>(null);
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
 
-  useEffect(() => {
-    if (window.ethereum) {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      setProvider(provider);
-
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', handleChainChanged);
-
-      return () => {
-        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        window.ethereum.removeListener('chainChanged', handleChainChanged);
-      };
-    }
-  }, []);
-
-  const handleAccountsChanged = async (accounts: string[]) => {
-    if (accounts.length === 0) {
-      disconnectWallet();
-    } else {
-      setAddress(accounts[0]);
-      await updateBalance(accounts[0]);
-    }
-  };
-
-  const handleChainChanged = async (chainIdHex: string) => {
-    const newChainId = parseInt(chainIdHex, 16);
-    setChainId(newChainId);
+  const connectWallet = () => {
+    // Simulate wallet connection
+    const mockAddress = '0x' + Array(40).fill(0).map(() => 
+      Math.floor(Math.random() * 16).toString(16)
+    ).join('');
     
-    // Find and set the corresponding network
-    const networkEntry = Object.entries(SUPPORTED_NETWORKS).find(
-      ([_, config]) => config.chainId === newChainId
-    );
-    if (networkEntry) {
-      setNetwork(networkEntry[0] as Networks);
-    }
-  };
-
-  const updateBalance = async (addr: string) => {
-    if (provider) {
-      try {
-        const balance = await provider.getBalance(addr);
-        setBalance(parseFloat(ethers.formatEther(balance)));
-      } catch (error) {
-        console.error('Error fetching balance:', error);
-      }
-    }
-  };
-
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        const accounts = await window.ethereum.request({ 
-          method: 'eth_requestAccounts' 
-        });
-        
-        setAddress(accounts[0]);
-        await updateBalance(accounts[0]);
-        
-        const chainIdHex = await window.ethereum.request({ 
-          method: 'eth_chainId' 
-        });
-        const currentChainId = parseInt(chainIdHex, 16);
-        setChainId(currentChainId);
-        
-        setIsConnected(true);
-      } catch (error) {
-        console.error('Error connecting wallet:', error);
-      }
-    } else {
-      alert('Please install MetaMask!');
-    }
+    setAddress(mockAddress);
+    setBalance(Math.floor(Math.random() * 10000) / 100);
+    setIsConnected(true);
   };
 
   const disconnectWallet = () => {
-    setIsConnected(false);
     setAddress(null);
     setBalance(0);
-    setChainId(null);
+    setIsConnected(false);
   };
 
-  const switchNetwork = async (newNetwork: Networks) => {
-    if (!window.ethereum) {
-      alert('Please install MetaMask!');
-      return;
-    }
-
-    const networkConfig = SUPPORTED_NETWORKS[newNetwork];
-    
-    try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: `0x${networkConfig.chainId.toString(16)}` }],
-      });
-    } catch (switchError: any) {
-      // This error code indicates that the chain has not been added to MetaMask
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [
-              {
-                chainId: `0x${networkConfig.chainId.toString(16)}`,
-                chainName: networkConfig.name,
-                rpcUrls: [networkConfig.rpcUrl],
-                blockExplorerUrls: [networkConfig.explorer],
-                nativeCurrency: {
-                  name: 'ETH',
-                  symbol: 'ETH',
-                  decimals: 18,
-                },
-              },
-            ],
-          });
-        } catch (addError) {
-          console.error('Error adding network:', addError);
-        }
-      }
-      console.error('Error switching network:', switchError);
-    }
+  const switchNetwork = (newNetwork: Networks) => {
+    setNetwork(newNetwork);
   };
 
   return (
@@ -163,7 +58,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       address,
       balance,
       network,
-      chainId,
       connectWallet,
       disconnectWallet,
       switchNetwork

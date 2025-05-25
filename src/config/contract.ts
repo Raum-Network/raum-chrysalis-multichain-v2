@@ -35,9 +35,11 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     rpcUrl: 'https://sepolia.base.org',
     explorer: 'https://sepolia.basescan.org',
     contracts: {
-      chrysalis: '0x0000000000000000000000000000000000000000',
+      ccip: '0x0000000000000000000000000000000000000000',
       usdc: '0x0000000000000000000000000000000000000000',
-      fees: '0x0000000000000000000000000000000000000000'
+      fees: '0x0000000000000000000000000000000000000000',
+      cctp:'',
+      destination: '0x'
     }
   },
   'polygon-amoy': {
@@ -46,9 +48,11 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     rpcUrl: 'https://rpc-amoy.polygon.technology',
     explorer: 'https://www.oklink.com/amoy',
     contracts: {
-      chrysalis: '0x0000000000000000000000000000000000000000',
+     ccip: '0x0000000000000000000000000000000000000000',
       usdc: '0x0000000000000000000000000000000000000000',
-      fees: '0x0000000000000000000000000000000000000000'
+      fees: '0x0000000000000000000000000000000000000000',
+      cctp:'',
+      destination: '0x'
     }
   },
   'sonieum-minato': {
@@ -57,9 +61,11 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     rpcUrl: 'https://rpc.minato.sonieum.com',
     explorer: 'https://soneium-minato.blockscout.com/',
     contracts: {
-      chrysalis: '0x0000000000000000000000000000000000000000',
+     ccip: '0x0000000000000000000000000000000000000000',
       usdc: '0x0000000000000000000000000000000000000000',
-      fees: '0x0000000000000000000000000000000000000000'
+      fees: '0x0000000000000000000000000000000000000000',
+      cctp:'',
+      destination: '0x'
     }
   }
 };
