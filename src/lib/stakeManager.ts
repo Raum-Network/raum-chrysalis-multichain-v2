@@ -197,6 +197,7 @@ class StakeManager {
 
       const initialTimestamp = Date.now();
 
+      // Initialize status with source transaction
       this.currentStatus = {
         sourceTxHash: txHashStake,
         ccipMessageId: null,
@@ -210,12 +211,13 @@ class StakeManager {
         isBlessed: false,
         attestationStatus: 'pending',
         sourceChain: 'arbitrum_sepolia',
-        origin: address,           // Add origin
-        receiver: mintReceipient,  // Add receiver
-        amount: amount              // Add amount
+        origin: address,
+        receiver: mintReceipient,
+        amount: amount
       };
 
-      onStatusUpdate(this.currentStatus);
+      this.updateStatus(this.currentStatus, onStatusUpdate);
+      this.notifyStatusSubscribers(this.currentStatus);
       this.startTimer(initialTimestamp, onStatusUpdate);
 
       const receipt = await this.pollTransactionReceipt(txHashStake);
@@ -226,19 +228,15 @@ class StakeManager {
         const messageBytes = web3.eth.abi.decodeParameters(['bytes'], log.data)[0];
         const messageHash = web3.utils.keccak256(messageBytes as string);
           
+        // Update status with messageBytes
+        this.currentStatus = {
+          ...this.currentStatus,
+          messageBytes: messageBytes as string
+        };
+        this.updateStatus(this.currentStatus, onStatusUpdate);
+        
         await this.pollAttestation(messageHash, messageBytes as string, amount, address, onStatusUpdate);
       }
-
-      // Hide status after 30 seconds
-      setTimeout(() => {
-        if (this.currentStatus) {
-          this.currentStatus = {
-            ...this.currentStatus,
-            hideOnStakePage: true
-          };
-          onStatusUpdate(this.currentStatus);
-        }
-      }, 30000);
 
     } catch (error) {
       this.stopTimer();
@@ -380,43 +378,20 @@ class StakeManager {
         signedTx.rawTransaction!
       );
 
+      // Update status with destination transaction
       this.currentStatus = {
-        sourceTxHash: this.currentStatus?.sourceTxHash || '',
-        ccipMessageId: this.currentStatus?.ccipMessageId || null,
+        ...this.currentStatus!,
         destinationTxHash: receipt.transactionHash,
         status: 'SUCCESS',
-        bridgingMessageId: this.currentStatus?.bridgingMessageId || null,
-        timestamp: this.currentStatus?.timestamp || Date.now(),
-        timeElapsed: this.currentStatus?.timeElapsed || '',
-        expectedTime: this.currentStatus?.expectedTime || '',
-        isCommitted: this.currentStatus?.isCommitted || false,
-        isBlessed: this.currentStatus?.isBlessed || false,
         sourceChain: 'sepolia'
       };
 
-      onStatusUpdate(this.currentStatus);
+      this.updateStatus(this.currentStatus, onStatusUpdate);
+      this.notifyStatusSubscribers(this.currentStatus);
       this.stopTimer();
 
     } catch (error) {
       console.error("Error calling Sepolia contract:", error);
-      this.currentStatus = {
-        sourceTxHash: this.currentStatus?.sourceTxHash ?? '',
-        ccipMessageId: this.currentStatus?.ccipMessageId ?? null,
-        destinationTxHash: this.currentStatus?.destinationTxHash ?? null,
-        status: 'FAILURE',
-        bridgingMessageId: this.currentStatus?.bridgingMessageId ?? null,
-        timestamp: this.currentStatus?.timestamp ?? Date.now(),
-        timeElapsed: this.formatTimeElapsed(this.currentStatus?.timestamp ?? Date.now()),
-        expectedTime: this.currentStatus?.expectedTime ?? '',
-        isCommitted: false,
-        isBlessed: false,
-        attestationStatus: 'error',
-        sourceChain: this.currentStatus?.sourceChain ?? 'sepolia',
-        messageBytes: this.currentStatus?.messageBytes ?? '',
-        attestation: this.currentStatus?.attestation ?? ''
-      };
-      onStatusUpdate(this.currentStatus);
-      this.stopTimer();
       throw error;
     }
   }

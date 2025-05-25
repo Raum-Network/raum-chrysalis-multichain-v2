@@ -106,11 +106,11 @@ const Transactions = () => {
       if (filter === 'all') return true;
       switch (filter) {
         case 'completed':
-          return tx.state === "2";
+          return tx.state === 2;
         case 'pending':
-          return tx.state === "1"
+          return tx.state === 1
         case 'failed':
-          return tx.state === "3"
+          return tx.state === 3
         default:
           return true;
       }
@@ -131,19 +131,26 @@ const Transactions = () => {
   // Update the transaction mapping for current stake
   const allTransactions = currentStatus?.status === 'IN_PROGRESS'
     ? [{ 
-        messageId: currentStatus.ccipMessageId || 'Pending...',
-        state: currentTxState,
-        status: currentStatus.status,
+        messageId: currentStatus.ccipMessageId || currentStatus.messageBytes || 'Pending...',
+        state: currentTxState === '2' ? MessageState.SUCCESS :
+               currentTxState === '3' ? MessageState.FAILURE :
+               currentTxState === '1' ? MessageState.IN_PROGRESS : 
+               MessageState.UNTOUCHED,
         blockTimestamp: currentStatus.timestamp,
         origin: currentStatus.origin || address,
         receiver: currentStatus.receiver,
+        sourceChainName: currentStatus.sourceChain || 'Arbitrum Sepolia',
+        destinationChainName: 'Sepolia',
+        sourceTxHash: currentStatus.sourceTxHash,
+        destinationTxHash: currentStatus.destinationTxHash,
         tokenAmounts: [{
           amount: currentStatus.amount?.toString() || '0',
           token: {
             symbol: 'USDC',
             decimals: 6
           }
-        }]
+        }],
+        protocol: currentStatus.messageBytes ? 'CCTP' : 'CCIP'
       }, ...paginatedTransactions]
     : paginatedTransactions;
 
@@ -259,6 +266,38 @@ const Transactions = () => {
             <div className="text-xs opacity-70 mb-1">Timestamp</div>
             <div>{(transaction.blockTimestamp)}</div>
           </div>
+        </div>
+
+        <div className="grid gap-3">
+          {transaction.sourceTxHash && (
+            <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
+              <div className="text-xs opacity-70 mb-1">Source Transaction</div>
+              <a
+                href={`https://sepolia.arbiscan.io/tx/${transaction.sourceTxHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-1 hover:text-amber-400"
+              >
+                <span className="break-all">{transaction.sourceTxHash}</span>
+                <ArrowUpRight size={14} />
+              </a>
+            </div>
+          )}
+
+          {transaction.destinationTxHash && (
+            <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
+              <div className="text-xs opacity-70 mb-1">Destination Transaction</div>
+              <a
+                href={`https://sepolia.etherscan.io/tx/${transaction.destinationTxHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-1 hover:text-amber-400"
+              >
+                <span className="break-all">{transaction.destinationTxHash}</span>
+                <ArrowUpRight size={14} />
+              </a>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
