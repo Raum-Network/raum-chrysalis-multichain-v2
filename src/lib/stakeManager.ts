@@ -48,7 +48,7 @@ export type StakeStatus = {
   ccipMessageId: string | null;
   destinationTxHash: any;
   status: 'UNTOUCHED' | 'IN_PROGRESS' | 'SUCCESS' | 'FAILURE' | 'COMMITTED' | 'BLESSED' | 'BRIDGING_BACK';
-  bridgingMessageId:any;
+  bridgingMessageId: any;
   timestamp: number;
   timeElapsed: string;
   expectedTime: string;
@@ -58,6 +58,7 @@ export type StakeStatus = {
   attestationStatus?: string;
   messageBytes?: string;
   attestation?: string;
+  hideOnStakePage?: boolean;
 };
 
 class StakeManager {
@@ -151,10 +152,13 @@ class StakeManager {
 
       // Hide status after 30 seconds
       setTimeout(() => {
-        onStatusUpdate({
-          ...this.currentStatus!,
-          hideOnStakePage: true
-        });
+        if (this.currentStatus) {
+          this.currentStatus = {
+            ...this.currentStatus,
+            hideOnStakePage: true
+          };
+          onStatusUpdate(this.currentStatus);
+        }
       }, 30000);
 
     } catch (error) {
@@ -216,10 +220,13 @@ class StakeManager {
 
       // Hide status after 30 seconds
       setTimeout(() => {
-        onStatusUpdate({
-          ...this.currentStatus!,
-          hideOnStakePage: true
-        });
+        if (this.currentStatus) {
+          this.currentStatus = {
+            ...this.currentStatus,
+            hideOnStakePage: true
+          };
+          onStatusUpdate(this.currentStatus);
+        }
       }, 30000);
 
     } catch (error) {
@@ -564,7 +571,7 @@ class StakeManager {
     const elapsed = Math.floor((Date.now() - timestamp) / 1000);
     const minutes = Math.floor(elapsed / 60);
     const seconds = elapsed % 60;
-    return `${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
+    return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
   }
 }
 
