@@ -19,22 +19,34 @@ export const getCCIPStatus = async (messageId: string) => {
   }
 };
 
-export const getLidoAPY = async () => {
+export async function getLidoAPY(): Promise<number | null> {
   try {
-    const response = await fetch(
-      'https://eth-api-holesky.testnet.fi/v1/protocol/steth/apr/last',
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
+      const response = await fetch(
+          'https://eth-api-holesky.testnet.fi/v1/protocol/steth/apr/last',
+          {
+              headers: {
+                  'Accept': 'application/json',
+              },
+          }
+      );
+      
+      if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
       }
-    );
-    return await response.json();
+      
+      const data = await response.json();
+      
+      if (data && typeof data.data.apr === 'number') {
+          return Number(data.data.apr.toFixed(2));
+      } else {
+          console.warn('Unexpected APY data format:', data);
+          return null;
+      }
   } catch (error) {
-    console.error('Error fetching Lido APY:', error);
-    throw new Error('Failed to fetch Lido APY');
+      console.error("Error fetching Lido APY:", error);
+      return null;
   }
-};
+}
 
 export const getCCTPAttestation = async (messageHash: string) => {
   try {

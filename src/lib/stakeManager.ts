@@ -10,6 +10,7 @@ import { config } from './walletConnect';
 import Web3 from 'web3';
 import ReceiverAbiCCTP from './abi/ChrysalisReceiverCCTP.json';
 import { getCCIPStatus, getCCTPAttestation } from '../services/api';
+import { SUPPORTED_NETWORKS } from '../config/contract';
 
 const publicClient = createPublicClient({
   chain: arbitrumSepolia,
@@ -59,10 +60,13 @@ export type StakeStatus = {
   messageBytes?: string;
   attestation?: string;
   hideOnStakePage?: boolean;
-  // Add these new properties
   origin?: string;
   receiver?: string;
-  amount?: number; // Add amount property
+  amount?: number;
+  sourceNetworkName?: string;
+  destNetworkName?: string;
+  sourceDecimals?: number;
+  destDecimals?: number;
 };
 
 class StakeManager {
@@ -111,7 +115,9 @@ class StakeManager {
         timeElapsed: this.formatTimeElapsed(initialTimestamp),
         expectedTime: "5m 02s",
         isCommitted: false,
-        isBlessed: false
+        isBlessed: false,
+        sourceNetworkName: 'Arbitrum Sepolia',
+        destNetworkName: 'Sepolia'
       };
 
       onStatusUpdate(this.currentStatus);
@@ -149,9 +155,11 @@ class StakeManager {
         ...this.currentStatus,
         ccipMessageId: messageId,
         status: 'IN_PROGRESS',
-        origin: userAddress, // Add origin
-        receiver: receiver,   // Add receiver
-        amount: amount        // Add amount
+        origin: userAddress,
+        receiver: receiver,
+        amount: amount,
+        sourceNetworkName: 'Arbitrum Sepolia',
+        destNetworkName: 'Sepolia'
       };
       this.updateStatus(this.currentStatus, onStatusUpdate);
 
@@ -432,6 +440,30 @@ class StakeManager {
     }
   }
 
+  private getNetworkName(chainName: string): string {
+    if (chainName.toLowerCase().includes('sonieum')) {
+      return 'Sonieum Minato';
+    } else if (chainName.toLowerCase().includes('arbitrum')) {
+      return 'Arbitrum Sepolia';
+    } else if (chainName.toLowerCase().includes('base')) {
+      return 'Base Sepolia';
+    } else if (chainName.toLowerCase().includes('polygon')) {
+      return 'Polygon Amoy';
+    }
+    return chainName;
+  }
+
+  private getNetworkDecimals(chainName: string): number {
+    const networkKey = Object.keys(SUPPORTED_NETWORKS).find(key => 
+      SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].name.toLowerCase() === chainName.toLowerCase()
+    );
+    
+    if (networkKey) {
+      return SUPPORTED_NETWORKS[networkKey as keyof typeof SUPPORTED_NETWORKS].contracts.decimal || 6;
+    }
+    return 6; // Default to 6 decimals if network not found
+  }
+
   private async checkStatus(
     txHash: string,
     messageId: string | null,
@@ -461,12 +493,19 @@ class StakeManager {
         const isCommitted = !!ccipStatusBack.commitBlockTimestamp;
         const isBlessed = !!ccipStatusBack.blessBlockTimestamp;
 
+        const sourceNetworkName = this.getNetworkName(ccipStatusBack.sourceNetworkName || 'Arbitrum Sepolia');
+        const destNetworkName = this.getNetworkName(ccipStatusBack.destNetworkName || 'Sepolia');
+
         this.currentStatus = {
           ...this.currentStatus,
           status: newStatusBack,
           isCommitted,
           isBlessed,
-          expectedTime: ['SUCCESS', 'FAILURE'].includes(newStatusBack) ? '' : "28m 03s"
+          expectedTime: ['SUCCESS', 'FAILURE'].includes(newStatusBack) ? '' : "28m 03s",
+          sourceNetworkName,
+          destNetworkName,
+          sourceDecimals: this.getNetworkDecimals(sourceNetworkName),
+          destDecimals: this.getNetworkDecimals(destNetworkName)
         };
         onStatusUpdate(this.currentStatus);
 
@@ -499,6 +538,9 @@ class StakeManager {
       const isCommitted = !!ccipStatus.commitBlockTimestamp;
       const isBlessed = !!ccipStatus.blessBlockTimestamp;
 
+      const sourceNetworkName = this.getNetworkName(ccipStatus.sourceNetworkName || 'Arbitrum Sepolia');
+      const destNetworkName = this.getNetworkName(ccipStatus.destNetworkName || 'Sepolia');
+
       if (!this.currentStatus || initialTimestamp >= this.currentStatus.timestamp) {
         this.currentStatus = {
           sourceTxHash: txHash,
@@ -510,7 +552,11 @@ class StakeManager {
           timeElapsed: this.formatTimeElapsed(initialTimestamp),
           expectedTime: ['SUCCESS', 'FAILURE', 'BRIDGING_BACK'].includes(newStatus) ? '' : "28m 03s",
           isCommitted,
-          isBlessed
+          isBlessed,
+          sourceNetworkName,
+          destNetworkName,
+          sourceDecimals: this.getNetworkDecimals(sourceNetworkName),
+          destDecimals: this.getNetworkDecimals(destNetworkName)
         };
         onStatusUpdate(this.currentStatus);
       }
@@ -540,7 +586,11 @@ class StakeManager {
             ...this.currentStatus,
             bridgingMessageId,
             status: 'IN_PROGRESS',
-            expectedTime: "28m 03s"
+            expectedTime: "28m 03s",
+            sourceNetworkName,
+            destNetworkName,
+            sourceDecimals: this.getNetworkDecimals(sourceNetworkName),
+            destDecimals: this.getNetworkDecimals(destNetworkName)
           };
           onStatusUpdate(this.currentStatus);
         }

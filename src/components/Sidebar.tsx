@@ -1,53 +1,67 @@
-import { Mailbox, HelpCircle, Settings, Package } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { NavLink } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { Home, Wallet, ArrowRightLeft } from 'lucide-react';
 
 const Sidebar = () => {
   const { theme } = useTheme();
 
+  const navItems = [
+    { path: '/', icon: Home, label: 'Dashboard' },
+    { path: '/stake', icon: Wallet, label: 'Stake' },
+    { path: '/transactions', icon: ArrowRightLeft, label: 'Transactions' },
+  ];
+
   return (
-    <div
-      className={`
-        w-12 min-w-[5rem] h-full py-6 px-2 sm:px-4 
-        flex flex-col justify-between
-        ${theme === 'night' ? 'bg-gray-900 text-amber-100' : 'bg-beige-800 text-brown-900'} 
-        border-r border-amber-700/50
-      `}
-    >
-      <div className="flex flex-col space-y-2">
-        <SidebarItem icon={<Mailbox />}  />
-        <SidebarItem icon={<Package />} />
-        <SidebarItem icon={<HelpCircle />}  />
-        <SidebarItem icon={<Settings />}  />
+    <div className={`h-full flex ${theme === 'night' ? 'bg-gray-900' : 'bg-beige-800'}`}>
+      {/* Desktop Sidebar */}
+      <div className="hidden sm:flex flex-col w-16 border-r border-amber-700/50">
+        <nav className="flex-1 px-2 py-4">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                `flex items-center justify-center p-3 mb-1 rounded-md transition-colors ${
+                  isActive
+                    ? theme === 'night'
+                      ? 'bg-amber-700 text-white'
+                      : 'bg-amber-600 text-black'
+                    : theme === 'night'
+                    ? 'text-amber-400 hover:bg-amber-700/50'
+                    : 'text-brown-900 hover:bg-amber-600/50'
+                }`
+              }
+            >
+              <item.icon className="w-5 h-5" />
+            </NavLink>
+          ))}
+        </nav>
       </div>
 
-      <div className="text-center text-xs mt-6  pt-2  text-black-300/60">
-        <div>v0.1.0</div>
-        <div className="text-[10px] mt-1">© 2025 Chrysalis</div>
+      {/* Mobile Footer Navigation */}
+      <div className={`sm:hidden flex-1 flex justify-around items-center py-2 ${theme === 'night' ? 'bg-gray-900' : 'bg-beige-800'}`}>
+        {navItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) =>
+              `flex flex-col items-center px-2 py-1 rounded-md transition-colors ${
+                isActive
+                  ? theme === 'night'
+                    ? 'text-amber-400'
+                    : 'text-brown-900'
+                  : theme === 'night'
+                  ? 'text-amber-400/70 hover:text-amber-400'
+                  : 'text-brown-900/70 hover:text-brown-900'
+              }`
+            }
+          >
+            <item.icon className="w-5 h-5" />
+            <span className="text-xs mt-1">{item.label}</span>
+          </NavLink>
+        ))}
       </div>
     </div>
-  );
-};
-
-const SidebarItem = ({
-  icon,
-  // label
-}: {
-  icon: React.ReactNode;
-  // label: string;
-}) => {
-  return (
-    <motion.button
-      className={`
-        flex items-center p-3 rounded-md w-6
-        hover:bg-amber-700/30 transition-colors justify-start
-      `}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-    >
-      <div>{icon}</div>
-      {/* <span className="ml-3 text-sm whitespace-nowrap">{label}</span> */}
-    </motion.button>
   );
 };
 

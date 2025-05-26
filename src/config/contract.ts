@@ -12,6 +12,10 @@ export type NetworkConfig = {
     decimal?: number;
   };
   icon?: string;
+  ccipNames: {
+    sourceName: string;
+    destName: string;
+  };
 };
 
 export type Networks = 'arbitrum-sepolia' | 'base-sepolia' | 'polygon-amoy' | 'sonieum-minato';
@@ -29,6 +33,10 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       fees: '0xb1D4538B4571d411F07960EF2838Ce337FE1E80E',
       destination: '0x185915e86a5dd567fc8d381914503cb517e51317',
       decimal: 6
+    },
+    ccipNames: {
+      sourceName: 'ethereum-testnet-sepolia-arbitrum-1',
+      destName: 'ethereum-testnet-sepolia'
     }
   },
   'base-sepolia': {
@@ -43,6 +51,10 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       cctp:'',
       destination: '0x',
       decimal: 6
+    },
+    ccipNames: {
+      sourceName: 'base_sepolia',
+      destName: 'sepolia'
     }
   },
   'polygon-amoy': {
@@ -57,6 +69,10 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       cctp:'',
       destination: '0x',
       decimal: 6
+    },
+    ccipNames: {
+      sourceName: 'polygon-testnet-amoy',
+      destName: 'ethereum-testnet-sepolia'
     }
   },
   'sonieum-minato': {
@@ -70,7 +86,11 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       fees: '0x0000000000000000000000000000000000000000',
       cctp:'',
       destination: '0x',
-      decimal: 6
+      decimal: 18
+    },
+    ccipNames: {
+      sourceName: 'ethereum-testnet-sepolia-soneium-1',
+      destName: 'ethereum-testnet-sepolia'
     }
   }
 };

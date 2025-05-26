@@ -9,6 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useStakingStore } from '../store/stakingStore';
 import { getCCIPStatus } from '../services/api';
 import { CCTPTransaction, fetchCCTPTransactions } from '../services/cctpTransactions';
+import { SUPPORTED_NETWORKS } from '../config/contract';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -25,6 +26,10 @@ type TransactionState = typeof MessageState[keyof typeof MessageState];
 interface Transaction {
   state: TransactionState;
   messageId: string;
+  sourceNetworkName?: string;
+  destNetworkName?: string;
+  sourceDecimals?: number;
+  destDecimals?: number;
   // ... other properties
 }
 
@@ -150,12 +155,6 @@ const Transactions = () => {
       tx.receiver.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
-  const paginatedTransactions = filteredTransactions.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
   // Update the transaction mapping for current stake
   const allTransactions = [
     ...(currentStatus?.status === 'IN_PROGRESS' ? [{
@@ -171,33 +170,121 @@ const Transactions = () => {
       destinationTxHash: currentStatus.destinationTxHash,
       tokenAmounts: [{
         amount: currentStatus.amount?.toString() || '0',
-        token: { symbol: 'USDC', decimals: 6 }
+        token: { symbol: 'USDC', decimals: currentStatus.sourceDecimals || 6 }
       }],
-      protocol: 'CCIP'
-    }] : []),
-    ...paginatedTransactions.map(tx => ({ 
-      ...tx, 
       protocol: 'CCIP',
-      blockTimestamp: tx.blockTimestamp
-    })),
-    ...cctpTransactions.map(tx => ({
-      messageId: tx.hash, // Use hash as messageId for CCTP
-      state: tx.status === 'SUCCESS' ? MessageState.SUCCESS :
-             tx.status === 'FAILURE' ? MessageState.FAILURE :
-             MessageState.IN_PROGRESS,
-      blockTimestamp: tx.timestamp,
-      origin: tx.from,
-      receiver: tx.to,
-      sourceTxHash: tx.hash,
-      tokenAmounts: [{
-        amount: tx.amount,
-        token: { symbol: 'USDC', decimals: 6 }
-      }],
-      protocol: 'CCTP',
-      sourceChainName: 'Arbitrum Sepolia',
-      destinationChainName: 'Sepolia'
-    }))
-  ].sort((a, b) => (b.blockTimestamp || 0) - (a.blockTimestamp || 0));
+      sourceNetworkName: currentStatus.sourceNetworkName || 'Arbitrum Sepolia',
+      destNetworkName: currentStatus.destNetworkName || 'Sepolia',
+      sourceDecimals: currentStatus.sourceDecimals || 6,
+      destDecimals: currentStatus.destDecimals || 6
+    }] : []),
+    ...filteredTransactions
+      .filter(tx => {
+        // Find the network that matches the sourceNetworkName
+        const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
+          network.name === tx.sourceNetworkName
+        );
+        
+        // For now, all destination chains are Ethereum Sepolia
+        const destNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
+          network.name === 'Arbitrum Sepolia' // Using Arbitrum Sepolia as it has the correct destination name
+        );
+        return sourceNetwork && destNetwork;
+      })
+      .map(tx => {
+        const [sourceKey, sourceNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
+          network.name === tx.sourceNetworkName
+        ) || [null, null];
+        
+        // For now, all destination chains are Ethereum Sepolia
+        const [destKey, destNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
+          network.name === 'Arbitrum Sepolia' // Using Arbitrum Sepolia as it has the correct destination name
+        ) || [null, null];
+
+        if (!sourceNetwork || !destNetwork) {
+          return null;
+        }
+
+        return {
+          ...tx,
+          protocol: 'CCIP',
+          blockTimestamp: tx.blockTimestamp,
+          sourceNetworkName: sourceNetwork.name,
+          destNetworkName: 'Sepolia', // Always set destination to Sepolia
+          sourceDecimals: sourceNetwork.contracts.decimal || 6,
+          destDecimals: 6, // Sepolia always uses 6 decimals
+          tokenAmounts: tx.tokenAmounts?.map(token => ({
+            ...token,
+            token: {
+              ...token.token,
+              decimals: sourceNetwork.contracts.decimal || 6
+            }
+          }))
+        };
+      })
+      .filter(Boolean), // Remove any null entries
+    ...cctpTransactions
+      .filter(tx => {
+        // Find the network that matches Arbitrum Sepolia as source
+        const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
+          network.name === 'Arbitrum Sepolia'
+        );
+        // For now, all destination chains are Ethereum Sepolia
+        const destNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
+          network.name === 'Arbitrum Sepolia'
+        );
+        return sourceNetwork && destNetwork;
+      })
+      .map(tx => {
+        // Find the network that matches Arbitrum Sepolia as source
+        const [sourceKey, sourceNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
+          network.name === 'Arbitrum Sepolia'
+        ) || [null, null];
+        
+        // For now, all destination chains are Ethereum Sepolia
+        const [destKey, destNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
+          network.name === 'Arbitrum Sepolia'
+        ) || [null, null];
+
+        if (!sourceNetwork || !destNetwork) {
+          return null;
+        }
+
+        return {
+          messageId: tx.hash,
+          state: tx.status === 'SUCCESS' ? MessageState.SUCCESS :
+                 tx.status === 'FAILURE' ? MessageState.FAILURE :
+                 MessageState.IN_PROGRESS,
+          blockTimestamp: tx.timestamp,
+          origin: tx.from,
+          receiver: tx.to,
+          sourceTxHash: tx.hash,
+          tokenAmounts: [{
+            amount: tx.amount,
+            token: { symbol: 'USDC', decimals: sourceNetwork.contracts.decimal || 6 }
+          }],
+          protocol: 'CCTP',
+          sourceNetworkName: sourceNetwork.name,
+          destNetworkName: 'Sepolia', // Always set destination to Sepolia
+          sourceDecimals: sourceNetwork.contracts.decimal || 6,
+          destDecimals: 6 // Sepolia always uses 6 decimals
+        };
+      })
+      .filter(Boolean) // Remove any null entries
+  ]
+  .filter((tx): tx is NonNullable<typeof tx> => tx !== null) // Type guard to remove nulls
+  .sort((a, b) => {
+    const timestampA = a.blockTimestamp ? new Date(a.blockTimestamp).getTime() : 0;
+    const timestampB = b.blockTimestamp ? new Date(b.blockTimestamp).getTime() : 0;
+    return timestampB - timestampA;
+  });
+
+  // Update pagination to use allTransactions
+  const totalPages = Math.ceil(allTransactions.length / ITEMS_PER_PAGE);
+  const paginatedTransactions = allTransactions.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   // Update the TransactionModal component
   const TransactionModal = ({ transaction }: { transaction: any }) => (
@@ -250,7 +337,7 @@ const Transactions = () => {
             `}>
               <div className="text-xs opacity-70 mb-1">Amount</div>
               <div className="text-xl font-medium">
-                {formatAmount(token.amount, 18)} {'USDC'}
+                {formatAmount(token.amount, transaction.sourceDecimals || token.token.decimals)} {'USDC'}
               </div>
             </div>
           ))}
@@ -262,7 +349,10 @@ const Transactions = () => {
             `}>
               <div className="text-xs opacity-70 mb-1">Message ID</div>
               <a
-                href={`https://ccip.chain.link/msg/${transaction.messageId}`}
+                href={transaction.protocol === 'CCIP' 
+                  ? `https://ccip.chain.link/msg/${transaction.messageId}`
+                  : `https://sepolia.arbiscan.io/tx/${transaction.hash || transaction.messageId}`
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-1 hover:text-amber-400"
@@ -294,7 +384,14 @@ const Transactions = () => {
             ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
           `}>
             <div className="text-xs opacity-70 mb-1">Source Chain</div>
-            <div>{transaction.sourceChainName || 'Arbitrum Sepolia'}</div>
+            <div className="flex items-center space-x-2">
+              <span>{transaction.sourceNetworkName || 'Arbitrum Sepolia'}</span>
+              {transaction.protocol === 'CCIP' && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">
+                  CCIP
+                </span>
+              )}
+            </div>
           </div>
 
           <div className={`
@@ -302,7 +399,14 @@ const Transactions = () => {
             ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
           `}>
             <div className="text-xs opacity-70 mb-1">Destination Chain</div>
-            <div>{transaction.destinationChainName || 'Sepolia'}</div>
+            <div className="flex items-center space-x-2">
+              <span>{transaction.destNetworkName || 'Sepolia'}</span>
+              {transaction.protocol === 'CCIP' && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">
+                  CCIP
+                </span>
+              )}
+            </div>
           </div>
 
           <div className={`
@@ -363,7 +467,7 @@ const Transactions = () => {
   );
 
   // Update the table row to include Protocol column
-  const tableRows = allTransactions.map((tx: any) => (
+  const tableRows = paginatedTransactions.map((tx: any) => (
     <tr 
       key={tx.messageId || tx.hash} 
       className="border-b border-amber-700/30 hover:bg-amber-900/20 cursor-pointer"
@@ -383,7 +487,7 @@ const Transactions = () => {
       <td className="px-4 py-3">
         {tx.tokenAmounts?.map((token: any, index: number) => (
           <div key={index}>
-            {formatAmount(token.amount, 6)} {'USDC'}
+            {formatAmount(token.amount, tx.sourceDecimals || token.token.decimals)} {'USDC'}
           </div>
         ))}
       </td>
@@ -491,7 +595,7 @@ const Transactions = () => {
             {filteredTransactions.length > 0 && (
               <div className="flex items-center justify-between px-4 py-3 bg-amber-900/20 border-t border-amber-700/30">
                 <div className="text-sm opacity-70">
-                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredTransactions.length)} of {filteredTransactions.length} transactions
+                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, allTransactions.length)} of {allTransactions.length} transactions
                 </div>
                 <div className="flex items-center space-x-2">
                   <button

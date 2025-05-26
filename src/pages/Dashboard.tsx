@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { useWallet } from '../lib/walletConnect';
 import Window from '../components/Window';
 import StatBox from '../components/StatBox';
@@ -8,9 +8,34 @@ import ProgressBar from '../components/ProgressBar';
 import TierCard from '../components/TierCard';
 import { CreditCard, DollarSign, BarChart3, Clock, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import stakedUserBalance from '../lib/sepoliaContract';
+import { getLidoAPY } from '../services/api';
 
 const Dashboard = () => {
   const { isConnected, address, balance, connect } = useWallet();
+  const [stakedBalance, setStakedBalance] = useState<string>('0');
+  const [lidoAPY, setLidoAPY] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (address) {
+        try {
+          const balance = await stakedUserBalance.getBalance(address);
+          setStakedBalance(balance);
+          
+          const apy = await getLidoAPY();
+          console.log(apy);
+          setLidoAPY(apy);
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        }
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, [address]);
 
   const initialLogs = useMemo(() => [
     {
@@ -32,9 +57,9 @@ const Dashboard = () => {
 
   // Mocked staking data
   const stakingData = {
-    stakedAmount: 2.5,
+    stakedAmount: parseFloat(stakedBalance),
     totalRewards: 0.125,
-    apr: 4.8,
+    apr: lidoAPY || 4.8,
     nextReward: '3d 14h',
     stakers: 1452,
     totalStaked: 24582

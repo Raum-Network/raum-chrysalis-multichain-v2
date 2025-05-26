@@ -3,10 +3,11 @@ import { Home, BarChart3, PiggyBank, History, Trophy, Menu, X } from 'lucide-rea
 import { useWallet } from '../context/WalletContext';
 import ConnectButton from './ConnectButton';
 import { useState } from 'react';
-
+import { useTheme } from '../context/ThemeContext';
 
 const Navbar = () => {
   const { isConnected } = useWallet();
+  const { theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const toggleMobileMenu = () => {
@@ -54,7 +55,7 @@ const Navbar = () => {
       <ConnectButton />
       
       {mobileMenuOpen && (
-        <div className="absolute top-[4.5rem] left-0 right-0 bg-amber-900/95 border-y border-amber-700 sm:hidden z-20">
+        <div className={`absolute top-[4.5rem] left-0 right-0 ${theme === 'night' ? 'bg-gray-900' : 'bg-beige-800'} border-y border-amber-700 sm:hidden z-20 shadow-lg`}>
           <div className="flex flex-col p-2">
             {links.map((link) => (
               <NavLink

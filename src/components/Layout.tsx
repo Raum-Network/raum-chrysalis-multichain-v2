@@ -42,12 +42,14 @@ const Layout = () => {
         </div>
       </div>
 
-      {/* Sidebar + Content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar on the left */}
-        <Sidebar />
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar - Hidden on mobile */}
+        <div className="hidden sm:block">
+          <Sidebar />
+        </div>
 
-        {/* Main content area */}
+        {/* Main content */}
         <div className="flex-1 overflow-hidden p-4 sm:p-6">
           <div className={`screen-container ${theme === 'night' ? 'screen-dark' : 'screen-light'} h-full rounded-md overflow-hidden border-4 border-amber-700 p-2 sm:p-4 flex flex-col`}>
             <Navbar />
@@ -56,6 +58,11 @@ const Layout = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Mobile Footer Navigation */}
+      <div className="sm:hidden border-t border-amber-700/50">
+        <Sidebar />
       </div>
     </div>
   );

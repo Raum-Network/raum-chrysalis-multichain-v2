@@ -1,13 +1,25 @@
 export async function getLidoAPY(): Promise<number | null> {
     try {
-        const response = await fetch('/api/lidoAPY'); // Use the new API route
+        const response = await fetch(
+            'https://eth-api-holesky.testnet.fi/v1/protocol/steth/apr/last',
+            {
+                headers: {
+                    'Accept': 'application/json',
+                },
+            }
+        );
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
-        console.log(data , "ss")
-        if (data.data.apr) {
-            console.log(`Lido APY Today: ${data.data.apr.toFixed(2)}%`);
-            return data.data.apr.toFixed(2);
+        
+        if (data && typeof data.apr === 'number') {
+            return Number(data.apr.toFixed(2));
         } else {
-            throw new Error("APY data not found");
+            console.warn('Unexpected APY data format:', data);
+            return null;
         }
     } catch (error) {
         console.error("Error fetching Lido APY:", error);
