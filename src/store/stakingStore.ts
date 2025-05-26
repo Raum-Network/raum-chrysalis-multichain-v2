@@ -4,6 +4,7 @@ import { StakeStatus } from '../lib/stakeManager';
 import { getCCIPTransactions } from '../lib/TransactionCall';
 
 interface Transaction {
+  blockTimestamp: any;
   state: number;
   messageId: string;
   status: string;
