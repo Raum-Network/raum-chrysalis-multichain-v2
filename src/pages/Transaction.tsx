@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
 import { useStakingStore } from '../store/stakingStore';
 import { getCCIPStatus } from '../services/api';
+import { CCTPTransaction, fetchCCTPTransactions } from '../services/cctpTransactions';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -27,6 +28,8 @@ interface Transaction {
   // ... other properties
 }
 
+
+
 const Transactions = () => {
   const { isConnected, connect, address } = useWallet();
   const { theme } = useTheme();
@@ -38,10 +41,36 @@ const Transactions = () => {
   const [currentStatus, setCurrentStatus] = useState<StakeStatus | null>(null);
   const [currentTxState, setCurrentTxState] = useState<string>('1'); // Default to IN_PROGRESS
 
+  // Add CCTP transactions state
+  const [cctpTransactions, setCctpTransactions] = useState<CCTPTransaction[]>([]);
+
   useEffect(() => {
     if (address) {
       fetchTransactions(address);
     }
+  }, [address, fetchTransactions]);
+
+  // Update the useEffect to fetch both CCIP and CCTP transactions
+  useEffect(() => {
+    const loadTransactions = async () => {
+      if (address) {
+        // Fetch both types of transactions
+        await fetchTransactions(address);
+        
+        try {
+          const cctpTxs = await fetchCCTPTransactions(address);
+          setCctpTransactions(cctpTxs);
+        } catch (error) {
+          console.error('Error fetching CCTP transactions:', error);
+        }
+      }
+    };
+
+    loadTransactions();
+    
+    // Polling for updates every 30 seconds
+    const interval = setInterval(loadTransactions, 30000);
+    return () => clearInterval(interval);
   }, [address, fetchTransactions]);
 
   // Add effect to listen for status updates from StakeManager
@@ -64,7 +93,6 @@ const Transactions = () => {
       if (currentStatus?.ccipMessageId) {
         try {
           const response = await getCCIPStatus(currentStatus.ccipMessageId);
-          console.log('Fetched CCIP status:', response);
           setCurrentTxState(response.state.toString());
         } catch (error) {
           console.error('Error fetching CCIP status:', error);
@@ -129,31 +157,49 @@ const Transactions = () => {
   );
 
   // Update the transaction mapping for current stake
-  const allTransactions = currentStatus?.status === 'IN_PROGRESS'
-    ? [{ 
-        messageId: currentStatus.ccipMessageId || currentStatus.messageBytes || 'Pending...',
-        state: currentTxState === '2' ? MessageState.SUCCESS :
-               currentTxState === '3' ? MessageState.FAILURE :
-               currentTxState === '1' ? MessageState.IN_PROGRESS : 
-               MessageState.UNTOUCHED,
-        blockTimestamp: currentStatus.timestamp,
-        origin: currentStatus.origin || address,
-        receiver: currentStatus.receiver,
-        sourceChainName: currentStatus.sourceChain || 'Arbitrum Sepolia',
-        destinationChainName: 'Sepolia',
-        sourceTxHash: currentStatus.sourceTxHash,
-        destinationTxHash: currentStatus.destinationTxHash,
-        tokenAmounts: [{
-          amount: currentStatus.amount?.toString() || '0',
-          token: {
-            symbol: 'USDC',
-            decimals: 6
-          }
-        }],
-        protocol: currentStatus.messageBytes ? 'CCTP' : 'CCIP'
-      }, ...paginatedTransactions]
-    : paginatedTransactions;
+  const allTransactions = [
+    ...(currentStatus?.status === 'IN_PROGRESS' ? [{
+      messageId: currentStatus.ccipMessageId || 'Pending...',
+      state: currentTxState === '2' ? MessageState.SUCCESS :
+             currentTxState === '3' ? MessageState.FAILURE :
+             currentTxState === '1' ? MessageState.IN_PROGRESS : 
+             MessageState.UNTOUCHED,
+      blockTimestamp: currentStatus.timestamp || Date.now(),
+      origin: currentStatus.origin || address,
+      receiver: currentStatus.receiver,
+      sourceTxHash: currentStatus.sourceTxHash,
+      destinationTxHash: currentStatus.destinationTxHash,
+      tokenAmounts: [{
+        amount: currentStatus.amount?.toString() || '0',
+        token: { symbol: 'USDC', decimals: 6 }
+      }],
+      protocol: 'CCIP'
+    }] : []),
+    ...paginatedTransactions.map(tx => ({ 
+      ...tx, 
+      protocol: 'CCIP',
+      blockTimestamp: tx.blockTimestamp
+    })),
+    ...cctpTransactions.map(tx => ({
+      messageId: tx.hash, // Use hash as messageId for CCTP
+      state: tx.status === 'SUCCESS' ? MessageState.SUCCESS :
+             tx.status === 'FAILURE' ? MessageState.FAILURE :
+             MessageState.IN_PROGRESS,
+      blockTimestamp: tx.timestamp,
+      origin: tx.from,
+      receiver: tx.to,
+      sourceTxHash: tx.hash,
+      tokenAmounts: [{
+        amount: tx.amount,
+        token: { symbol: 'USDC', decimals: 6 }
+      }],
+      protocol: 'CCTP',
+      sourceChainName: 'Arbitrum Sepolia',
+      destinationChainName: 'Sepolia'
+    }))
+  ].sort((a, b) => (b.blockTimestamp || 0) - (a.blockTimestamp || 0));
 
+  // Update the TransactionModal component
   const TransactionModal = ({ transaction }: { transaction: any }) => (
     <motion.div
       initial={{ opacity: 0 }}
@@ -264,7 +310,9 @@ const Transactions = () => {
             ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
           `}>
             <div className="text-xs opacity-70 mb-1">Timestamp</div>
-            <div>{(transaction.blockTimestamp)}</div>
+            <div>
+              {transaction.blockTimestamp ? new Date(transaction.blockTimestamp).toLocaleString() : 'Pending...'}
+            </div>
           </div>
         </div>
 
@@ -302,6 +350,71 @@ const Transactions = () => {
       </motion.div>
     </motion.div>
   );
+
+  // Update the table header to include Protocol column
+  const tableHeader = (
+    <tr className="bg-amber-900/30 border-b border-amber-700/30">
+      <th className="px-4 py-2 text-left text-sm font-medium">Status</th>
+      <th className="px-4 py-2 text-left text-sm font-medium">Amount</th>
+      <th className="px-4 py-2 text-left text-sm font-medium">Protocol</th>
+      <th className="px-4 py-2 text-left text-sm font-medium">Date</th>
+      <th className="px-4 py-2 text-left text-sm font-medium">Message ID</th>
+    </tr>
+  );
+
+  // Update the table row to include Protocol column
+  const tableRows = allTransactions.map((tx: any) => (
+    <tr 
+      key={tx.messageId || tx.hash} 
+      className="border-b border-amber-700/30 hover:bg-amber-900/20 cursor-pointer"
+      onClick={() => setSelectedTx(tx)}
+    >
+      <td className="px-4 py-3">
+        <div className="flex items-center space-x-2">
+          {getStatusIcon(tx.state)}
+          <span className="capitalize">
+            {tx.state === MessageState.SUCCESS && 'Completed'}
+            {tx.state === MessageState.IN_PROGRESS && 'In Progress'}
+            {(tx.state === MessageState.FAILURE || tx.state === MessageState.UNTOUCHED) && 'Failed'}
+            {tx.state === null && 'In Progress'}
+          </span>
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        {tx.tokenAmounts?.map((token: any, index: number) => (
+          <div key={index}>
+            {formatAmount(token.amount, 6)} {'USDC'}
+          </div>
+        ))}
+      </td>
+      <td className="px-4 py-3">
+        <span className={`
+          px-2 py-1 rounded-full text-xs
+          ${tx.protocol === 'CCIP' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}
+        `}>
+          {tx.protocol}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-sm opacity-70">
+        {tx.blockTimestamp ? new Date(tx.blockTimestamp).toLocaleString() : 'Pending...'}
+      </td>
+      <td className="px-4 py-3">
+        <a 
+          href={tx.protocol === 'CCIP' 
+            ? `https://ccip.chain.link/msg/${tx.messageId}`
+            : `https://sepolia.arbiscan.io/tx/${tx.hash || tx.messageId}`
+          }
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center space-x-1 hover:text-amber-400"
+          onClick={e => e.stopPropagation()}
+        >
+          <span className="text-sm">{tx.hash || tx.messageId}</span>
+          <ArrowUpRight size={14} />
+        </a>
+      </td>
+    </tr>
+  ));
 
   if (!isConnected) {
     return (
@@ -361,55 +474,10 @@ const Transactions = () => {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-amber-900/30 border-b border-amber-700/30">
-                    <th className="px-4 py-2 text-left text-sm font-medium">Status</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Amount</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Date</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Message ID</th>
-                  </tr>
+                  {tableHeader}
                 </thead>
                 <tbody>
-                  {allTransactions.map((tx: any) => (
-                    <tr 
-                      key={tx.messageId} 
-                      className="border-b border-amber-700/30 hover:bg-amber-900/20 cursor-pointer"
-                      onClick={() => setSelectedTx(tx)}
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(tx.state)}
-                          <span className="capitalize">
-                            {tx.state === MessageState.SUCCESS && 'Completed'}
-                            {tx.state === MessageState.IN_PROGRESS && 'In Progress'}
-                            {(tx.state === MessageState.FAILURE || tx.state === MessageState.UNTOUCHED) && 'Failed'}
-                            {tx.state === null && 'In Progress'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {tx.tokenAmounts?.map((token: any, index: number) => (
-                          <div key={index}>
-                            {formatAmount(token.amount, 18)} {'USDC'}
-                          </div>
-                        ))}
-                      </td>
-                      <td className="px-4 py-3 text-sm opacity-70">
-                        {tx.blockTimestamp ? new Date(tx.blockTimestamp).toLocaleString() : 'Pending...'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <a 
-                          href={`https://ccip.chain.link/msg/${tx.messageId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center space-x-1 hover:text-amber-400"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <span className="text-sm">{tx.messageId}</span>
-                          <ArrowUpRight size={14} />
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
+                  {tableRows}
                 </tbody>
               </table>
             </div>

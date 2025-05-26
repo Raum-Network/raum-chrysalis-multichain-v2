@@ -9,6 +9,7 @@ export type NetworkConfig = {
     fees: string;
     destination?: string;
     cctp?: string;
+    decimal?: number;
   };
   icon?: string;
 };
@@ -23,10 +24,11 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     explorer: 'https://sepolia.arbiscan.io',
     contracts: {
       ccip: '0x01851b172b1b0a5709deec827a88732dba00c467',
-      cctp:'0xd827d623E84EB86E4b829f92B3C77936BdAEF136',
+      cctp:'0x907D0cCc4e0Fa0EbDa7a0BDbFae592027607c22B',
       usdc: '0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d',
       fees: '0xb1D4538B4571d411F07960EF2838Ce337FE1E80E',
-      destination: '0x185915e86a5dd567fc8d381914503cb517e51317'
+      destination: '0x185915e86a5dd567fc8d381914503cb517e51317',
+      decimal: 6
     }
   },
   'base-sepolia': {
@@ -39,7 +41,8 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       usdc: '0x0000000000000000000000000000000000000000',
       fees: '0x0000000000000000000000000000000000000000',
       cctp:'',
-      destination: '0x'
+      destination: '0x',
+      decimal: 6
     }
   },
   'polygon-amoy': {
@@ -52,7 +55,8 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       usdc: '0x0000000000000000000000000000000000000000',
       fees: '0x0000000000000000000000000000000000000000',
       cctp:'',
-      destination: '0x'
+      destination: '0x',
+      decimal: 6
     }
   },
   'sonieum-minato': {
@@ -65,7 +69,8 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       usdc: '0x0000000000000000000000000000000000000000',
       fees: '0x0000000000000000000000000000000000000000',
       cctp:'',
-      destination: '0x'
+      destination: '0x',
+      decimal: 6
     }
   }
 };

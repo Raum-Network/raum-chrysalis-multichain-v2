@@ -23,3 +23,16 @@ export interface FilterOptions {
   sortBy: string;
   sortDirection: string;
 }
+
+export interface CCTPTransaction {
+  sourceTxHash: string;
+  messageHash?: string;
+  messageBytes?: string;
+  attestation?: string;
+  destinationTxHash?: string;
+  timestamp: number;
+  status: 'PENDING' | 'IN_PROGRESS' | 'SUCCESS' | 'FAILURE';
+  amount: number;
+  origin: string;
+  receiver: string;
+}

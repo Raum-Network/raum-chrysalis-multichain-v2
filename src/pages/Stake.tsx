@@ -134,10 +134,10 @@ const Stake = () => {
             </div>
           )}
 
-          {bridgeProtocol === 'CCTP' && currentStake.messageBytes && (
+          {bridgeProtocol === 'CCTP' && currentStake.attestation && (
             <div className="text-sm break-all">
-              <span className="text-amber-500">Message Bytes:</span>
-              <span className="ml-2">{currentStake.messageBytes}</span>
+              <span className="text-amber-500">Attestation:</span>
+              <span className="ml-2">{currentStake.attestation}</span>
             </div>
           )}
 

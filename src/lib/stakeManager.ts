@@ -37,7 +37,7 @@ const tupleType = `tuple(
 let userAddress: string;
 
 const STAKE_CONTRACT_ADDRESS = '0x01851B172B1B0A5709DEEC827A88732Dba00C467';
-const STAKE_CCTP_CONTRACT_ADDRESS = '0xd827d623E84EB86E4b829f92B3C77936BdAEF136';
+const STAKE_CCTP_CONTRACT_ADDRESS = '0x907D0cCc4e0Fa0EbDa7a0BDbFae592027607c22B';
 const web3 = new Web3('https://arbitrum-sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64');
 const sepoliaWeb3 = new Web3('https://sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64');
 const RECEIVER_CONTRACT_ADDRESS = '0x91730db0d18005aa0e11d686a90560bd376a4825';
@@ -270,67 +270,80 @@ class StakeManager {
     amount: number,
     address: string,
     onStatusUpdate: (status: StakeStatus) => void,
-    maxRetries = 3
+    maxRetries = 30
   ) {
+    // Add initial delay of 3 seconds before starting attestation polling
+    console.log('Waiting 3 seconds before starting attestation polling...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
     let attestationResponse = { status: 'pending_confirmations', attestation: '' };
     let retryCount = 0;
 
     while (attestationResponse.status === 'pending_confirmations' && this.backgroundPolling) {
-      try {
-        attestationResponse = await getCCTPAttestation(messageHash);
+        try {
+            attestationResponse = await getCCTPAttestation(messageHash);
+            
+            // Reset retry count on successful call
+            retryCount = 0;
 
-        this.currentStatus = {
-          ...this.currentStatus!,
-          sourceTxHash: this.currentStatus?.sourceTxHash || '',
-          status: this.currentStatus?.status || 'IN_PROGRESS',
-          bridgingMessageId: this.currentStatus?.bridgingMessageId || null,
-          timestamp: this.currentStatus?.timestamp || Date.now(),
-          timeElapsed: this.currentStatus?.timeElapsed || '',
-          expectedTime: this.currentStatus?.expectedTime || '',
-          isCommitted: this.currentStatus?.isCommitted || false,
-          isBlessed: this.currentStatus?.isBlessed || false,
-          attestationStatus: attestationResponse.status,
-        };
-        onStatusUpdate(this.currentStatus);
+            this.currentStatus = {
+                ...this.currentStatus!,
+                sourceTxHash: this.currentStatus?.sourceTxHash || '',
+                status: this.currentStatus?.status || 'IN_PROGRESS',
+                bridgingMessageId: this.currentStatus?.bridgingMessageId || null,
+                timestamp: this.currentStatus?.timestamp || Date.now(),
+                timeElapsed: this.currentStatus?.timeElapsed || '',
+                expectedTime: this.currentStatus?.expectedTime || '',
+                isCommitted: this.currentStatus?.isCommitted || false,
+                isBlessed: this.currentStatus?.isBlessed || false,
+                attestationStatus: attestationResponse.status,
+            };
+            onStatusUpdate(this.currentStatus);
 
-        if (attestationResponse.status === 'complete') {
-          await this.callSepoliaContract(messageBytes, attestationResponse.attestation, amount, address, onStatusUpdate);
-          break;
+            if (attestationResponse.status === 'complete') {
+                await this.callSepoliaContract(messageBytes, attestationResponse.attestation, amount, address, onStatusUpdate);
+                break;
+            }
+        } catch (error: any) {
+            console.error('Error fetching attestation:', error);
+            
+            if (error.response?.status === 404) {
+                console.log('Attestation not found (404), retrying in 2 seconds...');
+                await new Promise(r => setTimeout(r, 2000));
+                continue;
+            }
+            
+            if (retryCount < maxRetries) {
+                retryCount++;
+                console.log(`Retrying attestation request (${retryCount}/${maxRetries})...`);
+                await new Promise(r => setTimeout(r, 2000));
+                continue;
+            } else {
+                this.currentStatus = {
+                  sourceTxHash: this.currentStatus?.sourceTxHash ?? '',
+                  ccipMessageId: this.currentStatus?.ccipMessageId ?? null,
+                  destinationTxHash: this.currentStatus?.destinationTxHash ?? null,
+                  status: 'FAILURE',
+                  bridgingMessageId: this.currentStatus?.bridgingMessageId ?? null,
+                  timestamp: this.currentStatus?.timestamp ?? Date.now(),
+                  timeElapsed: this.formatTimeElapsed(this.currentStatus?.timestamp ?? Date.now()),
+                  expectedTime: this.currentStatus?.expectedTime ?? '',
+                  isCommitted: false,
+                  isBlessed: false,
+                  attestationStatus: 'error',
+                  sourceChain: this.currentStatus?.sourceChain ?? 'arbitrum_sepolia',
+                  messageBytes: this.currentStatus?.messageBytes ?? '',
+                  attestation: this.currentStatus?.attestation ?? ''
+                } as StakeStatus;
+                onStatusUpdate(this.currentStatus);
+                this.stopTimer();
+                throw new Error(`Failed to get attestation after ${maxRetries} retries`);
+            }
         }
-      } catch (error) {
-        console.error('Error fetching attestation:', error);
-        
-        if (retryCount < maxRetries) {
-          retryCount++;
-          console.log(`Retrying attestation request (${retryCount}/${maxRetries})...`);
-          await new Promise(r => setTimeout(r, 2000));
-          continue;
-        } else {
-          this.currentStatus = {
-            sourceTxHash: this.currentStatus?.sourceTxHash ?? '',
-            ccipMessageId: this.currentStatus?.ccipMessageId ?? null,
-            destinationTxHash: this.currentStatus?.destinationTxHash ?? null,
-            status: 'FAILURE',
-            bridgingMessageId: this.currentStatus?.bridgingMessageId ?? null,
-            timestamp: this.currentStatus?.timestamp ?? Date.now(),
-            timeElapsed: this.formatTimeElapsed(this.currentStatus?.timestamp ?? Date.now()),
-            expectedTime: this.currentStatus?.expectedTime ?? '',
-            isCommitted: false,
-            isBlessed: false,
-            attestationStatus: 'error',
-            sourceChain: this.currentStatus?.sourceChain ?? 'arbitrum_sepolia',
-            messageBytes: this.currentStatus?.messageBytes ?? '',
-            attestation: this.currentStatus?.attestation ?? ''
-          } as StakeStatus;
-          onStatusUpdate(this.currentStatus);
-          this.stopTimer();
-          throw new Error(`Failed to get attestation after ${maxRetries} retries`);
-        }
-      }
 
-      if (this.backgroundPolling) {
-        await new Promise((r) => setTimeout(r, 1100));
-      }
+        if (this.backgroundPolling) {
+            await new Promise((r) => setTimeout(r, 1100));
+        }
     }
   }
 
@@ -342,12 +355,12 @@ class StakeManager {
     onStatusUpdate: (status: StakeStatus) => void
   ) {
     try {
-      if (!process.env.NEXT_PUBLIC_PRIVATE_KEY) {
+      if (!import.meta.env.VITE_PRIVATE_KEY) {
         throw new Error("Private key is undefined");
       }
 
       const account = sepoliaWeb3.eth.accounts.privateKeyToAccount(
-        process.env.NEXT_PUBLIC_PRIVATE_KEY
+        import.meta.env.VITE_PRIVATE_KEY
       );
       sepoliaWeb3.eth.accounts.wallet.add(account);
       
