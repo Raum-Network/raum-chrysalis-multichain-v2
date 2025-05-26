@@ -10,6 +10,7 @@ import { CreditCard, DollarSign, BarChart3, Clock, ChevronRight } from 'lucide-r
 import { Link } from 'react-router-dom';
 import stakedUserBalance from '../lib/sepoliaContract';
 import { getLidoAPY } from '../services/api';
+import stakeManager, { StakeStatus } from '../lib/stakeManager';
 
 const Dashboard = () => {
   const { isConnected, address, balance, connect } = useWallet();
@@ -21,7 +22,9 @@ const Dashboard = () => {
       if (address) {
         try {
           const balance = await stakedUserBalance.getBalance(address);
-          setStakedBalance(balance);
+          const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
+          
+          setStakedBalance((Number(balance) + Number(cctpBalance)).toString());
           
           const apy = await getLidoAPY();
           console.log(apy);
@@ -35,6 +38,29 @@ const Dashboard = () => {
     fetchData();
     const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
+  }, [address]);
+
+  useEffect(() => {
+    const handleStakeUpdate = async (status: StakeStatus) => {
+      if (status.destinationTxHash && address) {
+        try {
+          // Fetch updated balances
+          const balance = await stakedUserBalance.getBalance(address);
+          const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
+          
+          // Update staked balance
+          setStakedBalance((Number(balance) + Number(cctpBalance)).toString());
+        } catch (error) {
+          console.error('Error updating staked balance:', error);
+        }
+      }
+    };
+
+    // Subscribe to stake status updates
+    const unsubscribe = stakeManager.subscribeToStatus(handleStakeUpdate);
+
+    // Cleanup subscription
+    return () => unsubscribe();
   }, [address]);
 
   const initialLogs = useMemo(() => [

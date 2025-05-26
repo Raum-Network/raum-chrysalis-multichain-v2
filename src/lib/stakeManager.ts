@@ -76,6 +76,8 @@ class StakeManager {
   private timerInterval: NodeJS.Timeout | null = null;
   private pollingTimeout: NodeJS.Timeout | null = null;
 
+  statusInterval: any;
+
   constructor() {}
 
   private isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -251,13 +253,6 @@ class StakeManager {
     }
   }
 
-  public stopBackgroundPolling() {
-    this.backgroundPolling = false;
-    if (this.statusInterval) {
-      clearInterval(this.statusInterval);
-      this.statusInterval = null;
-    }
-  }
 
   private async pollTransactionReceipt(txHash: string, maxRetries = 10, interval = 2000) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -285,7 +280,7 @@ class StakeManager {
     let attestationResponse = { status: 'pending_confirmations', attestation: '' };
     let retryCount = 0;
 
-    while (attestationResponse.status === 'pending_confirmations' && this.backgroundPolling) {
+    while (attestationResponse.status === 'pending_confirmations') {
         try {
             attestationResponse = await getCCTPAttestation(messageHash);
             
@@ -347,9 +342,9 @@ class StakeManager {
             }
         }
 
-        if (this.backgroundPolling) {
-            await new Promise((r) => setTimeout(r, 1100));
-        }
+        // if (this.backgroundPolling) {
+        //     await new Promise((r) => setTimeout(r, 1100));
+        // }
     }
   }
 
@@ -476,7 +471,7 @@ class StakeManager {
     onStatusUpdate: (status: StakeStatus) => void
   ) {
     try {
-      if (!messageId || !this.backgroundPolling) return;
+      if (!messageId ) return;
 
       if (this.currentStatus?.bridgingMessageId) {
         const ccipStatusBack = await getCCIPStatus(this.currentStatus.bridgingMessageId);
@@ -615,7 +610,7 @@ class StakeManager {
       clearInterval(this.statusInterval);
     }
 
-    this.backgroundPolling = true;
+    // this.backgroundPolling = true;
     this.statusInterval = setInterval(() => {
       this.checkStatus(txHash, messageId, initialTimestamp, onStatusUpdate);
     }, this.pollingInterval);

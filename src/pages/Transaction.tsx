@@ -349,25 +349,25 @@ const Transactions = () => {
         const bridgingInfo: Record<string, string | null> = {};
         for (const tx of currentPageTransactions) {
           if (tx.messageId) {
-            console.log('Processing CCIP transaction:', tx.messageId);
+           
             
             try {
               const provider = await stakedUserBalance.getProvider();
               const receipt = await provider.getTransactionReceipt(tx.destTransactionHash);
-              console.log('Transaction receipt:', receipt);
+              
 
               const ccipLog = receipt?.logs.find(log => log.topics[0] === "0xd0c3c799bf9e2639de44391e7f524d229b2b55f5b1ea94b2bf7da42f7243dddd");
-              console.log('CCIP log found:', ccipLog);
+              
               
               const rawData = ccipLog?.data;
-              console.log('Raw data:', rawData);
+              
               if (rawData) {
                 const decoded = abiCoder.decode([tupleType], rawData);
                 const bridgingMessageId = decoded[0][12];
-                console.log('Bridging message ID found:', bridgingMessageId);
+                
                 bridgingInfo[tx.messageId] = bridgingMessageId;
               } else {
-                console.log('No raw data found in CCIP log');
+                
                 bridgingInfo[tx.messageId] = null;
               }
             } catch (error) {
@@ -376,7 +376,7 @@ const Transactions = () => {
             }
           }
         }
-        console.log('Final bridging info:', bridgingInfo);
+        
         setBridgingInfo(prev => ({ ...prev, ...bridgingInfo }));
         // Mark this page as fetched
         fetchedPagesRef.current.add(currentPage);

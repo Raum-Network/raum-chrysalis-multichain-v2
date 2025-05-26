@@ -17,6 +17,7 @@ const Stake = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentStake, setCurrentStake] = useState<StakeStatus | null>(null);
   const [showTransactionBox, setShowTransactionBox] = useState(false);
+  const [showSuccessDelay, setShowSuccessDelay] = useState(false);
 
   // Subscribe to StakeManager updates
   useEffect(() => {
@@ -25,13 +26,21 @@ const Stake = () => {
       setShowTransactionBox(true);
       
       if (status.status === 'SUCCESS') {
-        setStakeView('success');
+        // For CCTP transactions, delay the success view
+        if (bridgeProtocol === 'CCTP') {
+          setTimeout(() => {
+            setShowSuccessDelay(true);
+            setStakeView('success');
+          }, 30000); // 30 seconds delay
+        } else {
+          setStakeView('success');
+        }
       }
     };
 
     const unsubscribe = stakeManager.subscribeToStatus(handleStatusUpdate);
     return () => unsubscribe();
-  }, []);
+  }, [bridgeProtocol]);
 
   const handleStakeSubmit = async () => {
     if (stakeAmount <= 0) return;
@@ -55,6 +64,7 @@ const Stake = () => {
     setError(null);
     setCurrentStake(null);
     setShowTransactionBox(false);
+    setShowSuccessDelay(false); // Reset the delay state
   };
 
   const renderProtocolSelector = () => (
@@ -138,6 +148,7 @@ const Stake = () => {
             </div>
           )}
 
+          {/* Show CCIP Message ID only for CCIP transactions */}
           {bridgeProtocol === 'CCIP' && currentStake.ccipMessageId && (
             <div className="text-sm break-all">
               <span className="text-amber-500">CCIP Message ID:</span>
@@ -163,6 +174,14 @@ const Stake = () => {
               >
                 {currentStake.destinationTxHash}
               </a>
+            </div>
+          )}
+
+          {/* Show countdown for CCTP transactions */}
+          {bridgeProtocol === 'CCTP' && currentStake.status === 'SUCCESS' && !showSuccessDelay && (
+            <div className="mt-4 text-sm text-center">
+              <p>Showing transaction details for 30 seconds...</p>
+              <p className="text-xs opacity-70">You will be redirected to the dashboard view shortly</p>
             </div>
           )}
         </div>
