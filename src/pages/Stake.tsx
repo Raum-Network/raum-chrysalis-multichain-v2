@@ -6,8 +6,8 @@ import Button from '../components/Button';
 import Window from '../components/Window';
 import AmountInput from '../components/AmountInput';
 import { Progress } from '../components/Progress';
-import { ArrowRightLeft, Loader2, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowRightLeft, Loader2, ChevronRight, CheckCircle2, XCircle, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Stake = () => {
   const { isConnected, balance, connect } = useWallet();
@@ -16,11 +16,13 @@ const Stake = () => {
   const [stakeView, setStakeView] = useState<'form' | 'confirming' | 'success'>('form');
   const [error, setError] = useState<string | null>(null);
   const [currentStake, setCurrentStake] = useState<StakeStatus | null>(null);
+  const [showTransactionBox, setShowTransactionBox] = useState(false);
 
   // Subscribe to StakeManager updates
   useEffect(() => {
     const handleStatusUpdate = (status: StakeStatus) => {
       setCurrentStake(status);
+      setShowTransactionBox(true);
       
       if (status.status === 'SUCCESS') {
         setStakeView('success');
@@ -52,6 +54,7 @@ const Stake = () => {
     setStakeView('form');
     setError(null);
     setCurrentStake(null);
+    setShowTransactionBox(false);
   };
 
   const renderProtocolSelector = () => (
@@ -84,8 +87,8 @@ const Stake = () => {
     </div>
   );
 
-  const renderStakeStatus = () => {
-    if (!currentStake) return null;
+  const renderTransactionBox = () => {
+    if (!currentStake || !showTransactionBox) return null;
 
     const getProgressValue = () => {
       if (currentStake.status === 'SUCCESS') return 100;
@@ -97,11 +100,26 @@ const Stake = () => {
     };
 
     return (
-      <div className="mt-4 p-4 border border-amber-700/40 rounded-md bg-amber-900/10">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className="mt-4 p-4 border border-amber-700/40 rounded-md bg-amber-900/10"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium">Transaction Status</h3>
+          <button
+            onClick={() => setShowTransactionBox(false)}
+            className="p-1 hover:bg-amber-700/30 rounded-full"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
         <div className="space-y-4">
           <div className="flex justify-between text-sm">
             <span>Status: {currentStake.status}</span>
-            <span>Time Elapsed: {currentStake.timeElapsed}</span>
+            <span>Expected Time: {currentStake.expectedTime}</span>
           </div>
 
           <Progress value={getProgressValue()} />
@@ -134,13 +152,6 @@ const Stake = () => {
             </div>
           )}
 
-          {bridgeProtocol === 'CCTP' && currentStake.attestation && (
-            <div className="text-sm break-all">
-              <span className="text-amber-500">Attestation:</span>
-              <span className="ml-2">{currentStake.attestation}</span>
-            </div>
-          )}
-
           {currentStake.destinationTxHash && (
             <div className="text-sm break-all">
               <span className="text-amber-500">Destination Tx:</span>
@@ -154,15 +165,8 @@ const Stake = () => {
               </a>
             </div>
           )}
-
-          {currentStake.expectedTime && (
-            <div className="text-sm mt-2">
-              <span className="text-amber-500">Expected Time:</span>
-              <span className="ml-2">{currentStake.expectedTime}</span>
-            </div>
-          )}
         </div>
-      </div>
+      </motion.div>
     );
   };
 
@@ -204,7 +208,9 @@ const Stake = () => {
          `Stake with ${bridgeProtocol}`}
       </Button>
 
-      {currentStake && renderStakeStatus()}
+      <AnimatePresence>
+        {renderTransactionBox()}
+      </AnimatePresence>
     </div>
   );
   
@@ -236,8 +242,6 @@ const Stake = () => {
           Successfully staked {stakeAmount.toFixed(4)} USDC
         </p>
       </div>
-
-      {renderStakeStatus()}
 
       <div className="mt-6">
         <Button 

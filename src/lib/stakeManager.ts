@@ -70,12 +70,11 @@ export type StakeStatus = {
 };
 
 class StakeManager {
-  private pollingInterval: number = 30000; 
-  private statusInterval: NodeJS.Timeout | null = null;
-  private timerInterval: NodeJS.Timeout | null = null;
+  private pollingInterval: number = 30000;
   private currentStatus: StakeStatus | null = null;
-  private backgroundPolling: boolean = true;
-  private statusSubscribers: ((status: StakeStatus) => void)[] = []; // Subscribers array
+  private statusSubscribers: ((status: StakeStatus) => void)[] = [];
+  private timerInterval: NodeJS.Timeout | null = null;
+  private pollingTimeout: NodeJS.Timeout | null = null;
 
   constructor() {}
 
@@ -112,8 +111,8 @@ class StakeManager {
         status: 'IN_PROGRESS',
         bridgingMessageId: null,
         timestamp: initialTimestamp,
-        timeElapsed: this.formatTimeElapsed(initialTimestamp),
-        expectedTime: "5m 02s",
+        timeElapsed: '',
+        expectedTime: "40m 00s",
         isCommitted: false,
         isBlessed: false,
         sourceNetworkName: 'Arbitrum Sepolia',
@@ -205,7 +204,6 @@ class StakeManager {
 
       const initialTimestamp = Date.now();
 
-      // Initialize status with source transaction
       this.currentStatus = {
         sourceTxHash: txHashStake,
         ccipMessageId: null,
@@ -213,8 +211,8 @@ class StakeManager {
         status: 'IN_PROGRESS',
         bridgingMessageId: null,
         timestamp: initialTimestamp,
-        timeElapsed: this.formatTimeElapsed(initialTimestamp),
-        expectedTime: "5m 02s",
+        timeElapsed: '',
+        expectedTime: "1m 00s",
         isCommitted: false,
         isBlessed: false,
         attestationStatus: 'pending',
@@ -417,16 +415,23 @@ class StakeManager {
     }
   }
 
-  private startTimer(initialTimestamp: number, onStatusUpdate: (status: StakeStatus) => void) {
+  private formatTimeElapsed(startTime: number): string {
+    const elapsed = Date.now() - startTime;
+    const seconds = Math.floor(elapsed / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds.toString().padStart(2, '0')}s`;
+  }
+
+  private startTimer(startTime: number, onStatusUpdate: (status: StakeStatus) => void) {
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
     }
-
     this.timerInterval = setInterval(() => {
       if (this.currentStatus) {
         this.currentStatus = {
           ...this.currentStatus,
-          timeElapsed: this.formatTimeElapsed(initialTimestamp)
+          timeElapsed: ''
         };
         onStatusUpdate(this.currentStatus);
       }
@@ -632,13 +637,6 @@ class StakeManager {
     this.currentStatus = status;
     onStatusUpdate(status);
     this.notifyStatusSubscribers(status);
-  }
-
-  public formatTimeElapsed(timestamp: number): string {
-    const elapsed = Math.floor((Date.now() - timestamp) / 1000);
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = elapsed % 60;
-    return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
   }
 }
 
