@@ -17,23 +17,31 @@ const Sidebar = () => {
       <div className="hidden sm:flex flex-col w-16 border-r border-amber-700/50">
         <nav className="flex-1 px-2 py-4">
           {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center justify-center p-3 mb-1 rounded-md transition-colors ${
-                  isActive
-                    ? theme === 'night'
-                      ? 'bg-amber-700 text-white'
-                      : 'bg-amber-600 text-black'
-                    : theme === 'night'
-                    ? 'text-amber-400 hover:bg-amber-700/50'
-                    : 'text-brown-900 hover:bg-amber-600/50'
-                }`
-              }
-            >
-              <item.icon className="w-5 h-5" />
-            </NavLink>
+            <div key={item.path} className="relative group">
+              <NavLink
+                to={item.path}
+                className={({ isActive }) =>
+                  `flex items-center justify-center p-3 mb-1 rounded-md transition-all duration-200 hover:scale-105 ${
+                    isActive
+                      ? theme === 'night'
+                        ? 'bg-amber-700 text-white'
+                        : 'bg-amber-600 text-black'
+                      : theme === 'night'
+                      ? 'text-amber-400 hover:bg-amber-700/50'
+                      : 'text-brown-900 hover:bg-amber-600/50'
+                  }`
+                }
+              >
+                <item.icon className="w-5 h-5" />
+              </NavLink>
+              <div className={`absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 text-xs rounded border border-amber-700/50 ${
+                theme === 'night' 
+                  ? 'bg-gray-900 text-amber-400' 
+                  : 'bg-beige-800 text-brown-900'
+              } opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 shadow-lg`}>
+                {item.label}
+              </div>
+            </div>
           ))}
         </nav>
       </div>

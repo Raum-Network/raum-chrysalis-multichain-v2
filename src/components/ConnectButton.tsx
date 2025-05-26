@@ -24,10 +24,13 @@ const ConnectButton = () => {
   if (isConnected) {
     return (
       <div className="flex items-center space-x-2">
-        <NetworkSwitcher 
-          currentNetwork={network as Networks} 
-          onNetworkChange={switchNetwork}
-        />
+        {/* Network Switcher - Only visible on desktop */}
+        <div className="hidden sm:block">
+          <NetworkSwitcher 
+            currentNetwork={network as Networks} 
+            onNetworkChange={switchNetwork}
+          />
+        </div>
         
         <div className="relative">
           <div 
@@ -37,9 +40,8 @@ const ConnectButton = () => {
           >
             <div className="pulse-dot"></div>
             <span className="hidden md:inline text-xs text-black-400">{truncateAddress(address || '')}</span>
-            {/* <span className="text-xs sm:inline">{Number(balance).toFixed(2)} ETH</span> */}
             <button 
-              onClick={handleDisconnect} 
+              onClick={handleDisconnect}
               className="ml-1 p-1 rounded-full hover:bg-red-900/50"
             >
               <LogOut size={14} className="text-red-400" />
@@ -65,10 +67,13 @@ const ConnectButton = () => {
 
   return (
     <div className="flex items-center space-x-2">
-      <NetworkSwitcher 
-        currentNetwork={network as Networks}
-        onNetworkChange={switchNetwork}
-      />
+      {/* Network Switcher - Only visible on desktop */}
+      <div className="hidden sm:block">
+        <NetworkSwitcher 
+          currentNetwork={network as Networks}
+          onNetworkChange={switchNetwork}
+        />
+      </div>
       <motion.button
         onClick={handleConnect}
         className="bg-amber-700 hover:bg-amber-600 text-beige-100 rounded-md px-4 py-1 text-sm flex items-center"

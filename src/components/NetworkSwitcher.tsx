@@ -44,12 +44,13 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               className={`
-                absolute top-full right-0 mt-2 w-56 rounded-md shadow-lg z-30
-                ${theme === 'night' ? 'bg-gray-900' : 'bg-beige-100'}
-                border border-amber-700/40
+                absolute w-56 rounded-md shadow-lg z-30
+                ${theme === 'night' ? 'bg-gray-900' : 'bg-white'}
+                sm:top-full sm:right-0 sm:mt-2
+                bottom-full right-0 mb-2
               `}
             >
-              <div className="py-1">
+              <div className="py-1 px-1">
                 {(Object.keys(SUPPORTED_NETWORKS) as Networks[]).map((network) => (
                   <button
                     key={network}
@@ -61,6 +62,8 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
                       w-full px-4 py-2 text-sm flex items-center justify-between
                       hover:bg-amber-700/30 transition-colors
                       ${currentNetwork === network ? 'bg-amber-700/20' : ''}
+                      border border-amber-700/40 rounded-md mb-1
+                      last:mb-0
                     `}
                   >
                     {SUPPORTED_NETWORKS[network].name}

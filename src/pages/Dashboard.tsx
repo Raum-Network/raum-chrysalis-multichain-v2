@@ -148,12 +148,12 @@ const Dashboard = () => {
               <ChevronRight size={16} className="ml-1" />
             </Button>
           </Link>
-          <Link to="/rewards">
+          {/* <Link to="/rewards">
             <Button variant="success">
               Claim Rewards
               <ChevronRight size={16} className="ml-1" />
             </Button>
-          </Link>
+          </Link> */}
         </div>
       </div>
       

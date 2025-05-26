@@ -4,11 +4,14 @@ import Sidebar from './Sidebar';
 import { useTheme } from '../context/ThemeContext';
 import { Clock, Sun, Moon } from 'lucide-react';
 import { useState, useEffect } from 'react';
-
+import { useWallet } from '../lib/walletConnect';
+import NetworkSwitcher from './NetworkSwitcher';
+import { Networks } from '../config/contract';
 
 const Layout = () => {
   const { theme, toggleTheme } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const { network, switchNetwork } = useWallet();
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -60,9 +63,14 @@ const Layout = () => {
         </div>
       </div>
 
-      {/* Mobile Footer Navigation */}
-      <div className="sm:hidden border-t border-amber-700/50">
-        <Sidebar />
+      {/* Footer with Network Switcher */}
+      <div className="sm:hidden border-t border-amber-700/50 p-2">
+        <div className="flex justify-center">
+          <NetworkSwitcher 
+            currentNetwork={network as Networks} 
+            onNetworkChange={switchNetwork}
+          />
+        </div>
       </div>
     </div>
   );

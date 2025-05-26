@@ -5,6 +5,7 @@ import { getCCIPTransactions } from '../lib/TransactionCall';
 import { SUPPORTED_NETWORKS } from '../config/contract';
 
 interface Transaction {
+  destTransactionHash:string;
   destDecimals: number;
   sourceDecimals: number;
   sourceNetworkName: string;
@@ -29,6 +30,9 @@ interface Transaction {
   }>;
   sourceTimestamp: string;
   destinationTimestamp: string | null;
+  sourceTxHash?: string;
+  destinationTxHash?: string;
+  bridgingMessageId?: string;
 }
 
 interface StakingStore {

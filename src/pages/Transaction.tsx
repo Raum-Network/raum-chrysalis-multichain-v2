@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '../lib/walletConnect';
 import stakeManager, { StakeStatus } from '../lib/stakeManager';
 import Window from '../components/Window';
 import Button from '../components/Button';
-import { ArrowUpRight, Clock, CheckCircle2, XCircle, Filter, Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ArrowUpRight, Clock, CheckCircle2, XCircle, Filter, Search, ChevronLeft, ChevronRight, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
 import { useStakingStore } from '../store/stakingStore';
 import { getCCIPStatus } from '../services/api';
 import { CCTPTransaction, fetchCCTPTransactions } from '../services/cctpTransactions';
 import { SUPPORTED_NETWORKS } from '../config/contract';
+import { ethers } from 'ethers';
+import stakedUserBalance from '../lib/sepoliaContract';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -23,17 +25,56 @@ const MessageState = {
 
 type TransactionState = typeof MessageState[keyof typeof MessageState];
 
+const tupleType = `tuple(
+  uint64 sourceChainSelector,
+  address sender,
+  address receiver,
+  uint64 sequenceNumber,
+  uint256 gasLimit,
+  bool strict,
+  uint64 nonce,
+  address feeToken,
+  uint256 feeTokenAmount,
+  bytes data,
+  tuple(address token, uint256 amount)[] tokenAmounts,
+  bytes32 extraData,
+  bytes32 messageId
+)`;
+
+const abiCoder = new ethers.AbiCoder();
+
 interface Transaction {
   state: TransactionState;
   messageId: string;
-  sourceNetworkName?: string;
-  destNetworkName?: string;
-  sourceDecimals?: number;
-  destDecimals?: number;
-  // ... other properties
+  sourceNetworkName: string;
+  destNetworkName: string;
+  sourceDecimals: number;
+  destDecimals: number;
+  sourceTxHash?: string;
+  destTransactionHash: string;
+  bridgingMessageId?: string;
+  protocol?: string;
+  hash?: string;
+  origin?: string;
+  sender?: string;
+  receiver?: string;
+  tokenAmounts?: Array<{
+    amount: string;
+    token: {
+      symbol: string;
+      decimals: number;
+      address?: string;
+    }
+  }>;
+  blockTimestamp?: any;
+  status?: string;
+  sourceChainSelector?: string;
+  sourceChainName?: string;
+  destinationChainSelector?: string;
+  destinationChainName?: string;
+  sourceTimestamp?: string;
+  destinationTimestamp?: string | null;
 }
-
-
 
 const Transactions = () => {
   const { isConnected, connect, address } = useWallet();
@@ -45,28 +86,47 @@ const Transactions = () => {
   const { transactions, fetchTransactions } = useStakingStore();
   const [currentStatus, setCurrentStatus] = useState<StakeStatus | null>(null);
   const [currentTxState, setCurrentTxState] = useState<string>('1'); // Default to IN_PROGRESS
-
-  // Add CCTP transactions state
+  const [bridgingInfo, setBridgingInfo] = useState<Record<string, string | null>>({});
+  const [isLoading, setIsLoading] = useState(true);
   const [cctpTransactions, setCctpTransactions] = useState<CCTPTransaction[]>([]);
+  const fetchedPagesRef = useRef<Set<number>>(new Set());
 
-  useEffect(() => {
-    if (address) {
-      fetchTransactions(address);
+  // Helper functions
+  const getStatusIcon = (state: TransactionState) => {
+    switch (state) {
+      case MessageState.SUCCESS:
+        return <CheckCircle2 size={16} className="text-green-400" />;
+      case MessageState.IN_PROGRESS:
+        return <Clock size={16} className="text-amber-400" />;
+      case MessageState.FAILURE:
+      case MessageState.UNTOUCHED:
+        return <XCircle size={16} className="text-red-400" />;
+      default:
+        return <Clock size={16} className="text-amber-400" />;
     }
-  }, [address, fetchTransactions]);
+  };
 
-  // Update the useEffect to fetch both CCIP and CCTP transactions
+  const formatAmount = (amount: string, decimals: number) => {
+    return (Number(amount) / Math.pow(10, decimals)).toFixed(decimals);
+  };
+
+  // Update the useEffect to load both types of transactions together
   useEffect(() => {
     const loadTransactions = async () => {
       if (address) {
-        // Fetch both types of transactions
-        await fetchTransactions(address);
-        
+        setIsLoading(true);
         try {
-          const cctpTxs = await fetchCCTPTransactions(address);
-          setCctpTransactions(cctpTxs);
+          // Load both types of transactions in parallel
+          const [ccipResult, cctpResult] = await Promise.all([
+            fetchTransactions(address),
+            fetchCCTPTransactions(address)
+          ]);
+          
+          setCctpTransactions(cctpResult);
         } catch (error) {
-          console.error('Error fetching CCTP transactions:', error);
+          console.error('Error fetching transactions:', error);
+        } finally {
+          setIsLoading(false);
         }
       }
     };
@@ -114,25 +174,6 @@ const Transactions = () => {
     }
   }, [currentStatus?.ccipMessageId, currentStatus?.status]);
 
-  // Update the getStatusIcon function
-  const getStatusIcon = (state: TransactionState) => {
-    switch (state) {
-      case MessageState.SUCCESS:
-        return <CheckCircle2 size={16} className="text-green-400" />;
-      case MessageState.IN_PROGRESS:
-        return <Clock size={16} className="text-amber-400" />;
-      case MessageState.FAILURE:
-      case MessageState.UNTOUCHED:
-        return <XCircle size={16} className="text-red-400" />;
-      default:
-        return <Clock size={16} className="text-amber-400" />;
-    }
-  };
-
-  const formatAmount = (amount: string, decimals: number) => {
-    return (Number(amount) / Math.pow(10, decimals)).toFixed(decimals);
-  };
-
   // Update the filter logic in filteredTransactions
   const filteredTransactions = [...transactions]
     .filter(tx => {
@@ -151,8 +192,8 @@ const Transactions = () => {
     .filter(tx => 
       searchQuery === '' || 
       tx.messageId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.sender.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.receiver.toLowerCase().includes(searchQuery.toLowerCase())
+      tx.sender?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.receiver?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
   // Update the transaction mapping for current stake
@@ -167,7 +208,7 @@ const Transactions = () => {
       origin: currentStatus.origin || address,
       receiver: currentStatus.receiver,
       sourceTxHash: currentStatus.sourceTxHash,
-      destinationTxHash: currentStatus.destinationTxHash,
+      destTransactionHash: currentStatus.destinationTxHash || '',
       tokenAmounts: [{
         amount: currentStatus.amount?.toString() || '0',
         token: { symbol: 'USDC', decimals: currentStatus.sourceDecimals || 6 }
@@ -213,8 +254,9 @@ const Transactions = () => {
           destNetworkName: 'Sepolia', // Always set destination to Sepolia
           sourceDecimals: sourceNetwork.contracts.decimal || 6,
           destDecimals: 6, // Sepolia always uses 6 decimals
+          destTransactionHash: tx.destTransactionHash || '',
           tokenAmounts: tx.tokenAmounts?.map(token => ({
-            ...token,
+            amount: token.amount,
             token: {
               ...token.token,
               decimals: sourceNetwork.contracts.decimal || 6
@@ -224,6 +266,13 @@ const Transactions = () => {
       })
       .filter(Boolean), // Remove any null entries
     ...cctpTransactions
+      .filter(tx => {
+        // Only include CCTP transactions if there's no search query or if they match the search
+        if (searchQuery === '') return true;
+        return tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
+               tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+               tx.to.toLowerCase().includes(searchQuery.toLowerCase());
+      })
       .filter(tx => {
         // Find the network that matches Arbitrum Sepolia as source
         const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
@@ -259,6 +308,7 @@ const Transactions = () => {
           origin: tx.from,
           receiver: tx.to,
           sourceTxHash: tx.hash,
+          destTransactionHash: tx.hash, // For CCTP, we use the same hash
           tokenAmounts: [{
             amount: tx.amount,
             token: { symbol: 'USDC', decimals: sourceNetwork.contracts.decimal || 6 }
@@ -285,6 +335,61 @@ const Transactions = () => {
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+
+  // Update the useEffect to prevent infinite fetching
+  useEffect(() => {
+    const fetchBridgingInfo = async () => {
+      // Skip if we've already fetched for this page
+      if (fetchedPagesRef.current.has(currentPage)) {
+        return;
+      }
+
+      const currentPageTransactions = paginatedTransactions;
+      if (currentPageTransactions.length > 0) {
+        const bridgingInfo: Record<string, string | null> = {};
+        for (const tx of currentPageTransactions) {
+          if (tx.messageId) {
+            console.log('Processing CCIP transaction:', tx.messageId);
+            
+            try {
+              const provider = await stakedUserBalance.getProvider();
+              const receipt = await provider.getTransactionReceipt(tx.destTransactionHash);
+              console.log('Transaction receipt:', receipt);
+
+              const ccipLog = receipt?.logs.find(log => log.topics[0] === "0xd0c3c799bf9e2639de44391e7f524d229b2b55f5b1ea94b2bf7da42f7243dddd");
+              console.log('CCIP log found:', ccipLog);
+              
+              const rawData = ccipLog?.data;
+              console.log('Raw data:', rawData);
+              if (rawData) {
+                const decoded = abiCoder.decode([tupleType], rawData);
+                const bridgingMessageId = decoded[0][12];
+                console.log('Bridging message ID found:', bridgingMessageId);
+                bridgingInfo[tx.messageId] = bridgingMessageId;
+              } else {
+                console.log('No raw data found in CCIP log');
+                bridgingInfo[tx.messageId] = null;
+              }
+            } catch (error) {
+              console.error('Error fetching bridging message ID:', error);
+              bridgingInfo[tx.messageId] = null;
+            }
+          }
+        }
+        console.log('Final bridging info:', bridgingInfo);
+        setBridgingInfo(prev => ({ ...prev, ...bridgingInfo }));
+        // Mark this page as fetched
+        fetchedPagesRef.current.add(currentPage);
+      }
+    };
+
+    fetchBridgingInfo();
+  }, [currentPage, paginatedTransactions.length]); // Only run when page changes or transactions length changes
+
+  // Reset fetched pages when transactions change
+  useEffect(() => {
+    fetchedPagesRef.current.clear();
+  }, [transactions]);
 
   // Update the TransactionModal component
   const TransactionModal = ({ transaction }: { transaction: any }) => (
@@ -436,18 +541,47 @@ const Transactions = () => {
             </div>
           )}
 
-          {transaction.destinationTxHash && (
+          {transaction.destTransactionHash && (
             <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
               <div className="text-xs opacity-70 mb-1">Destination Transaction</div>
               <a
-                href={`https://sepolia.etherscan.io/tx/${transaction.destinationTxHash}`}
+                href={`https://sepolia.etherscan.io/tx/${transaction.destTransactionHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-1 hover:text-amber-400"
               >
-                <span className="break-all">{transaction.destinationTxHash}</span>
+                <span className="break-all">{transaction.destTransactionHash}</span>
                 <ArrowUpRight size={14} />
               </a>
+            </div>
+          )}
+
+          {transaction.protocol === 'CCIP' && (
+            <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
+              <div className="text-xs opacity-70 mb-1">Bridging Information</div>
+              {bridgingInfo[transaction.messageId] ? (
+                <a
+                  href={`https://ccip.chain.link/msg/${bridgingInfo[transaction.messageId]}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-1 hover:text-amber-400"
+                >
+                  <span className="break-all">{bridgingInfo[transaction.messageId]}</span>
+                  <ArrowUpRight size={14} />
+                </a>
+              ) : transaction.destTransactionHash ? (
+                <a
+                  href={`https://sepolia.etherscan.io/tx/${transaction.destTransactionHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-1 hover:text-amber-400"
+                >
+                  <span className="break-all">{transaction.destTransactionHash}</span>
+                  <ArrowUpRight size={14} />
+                </a>
+              ) : (
+                <div className="text-sm opacity-70">No bridging information available</div>
+              )}
             </div>
           )}
         </div>
@@ -575,48 +709,57 @@ const Transactions = () => {
           </div>
 
           <div className="border border-amber-700/30 rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  {tableHeader}
-                </thead>
-                <tbody>
-                  {tableRows}
-                </tbody>
-              </table>
-            </div>
-
-            {filteredTransactions.length === 0 && currentStatus?.status !== 'IN_PROGRESS' && (
-              <div className="text-center py-8">
-                <p className="text-sm opacity-70">No transactions found</p>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+                <span className="ml-2 text-amber-400">Loading transactions...</span>
               </div>
-            )}
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      {tableHeader}
+                    </thead>
+                    <tbody>
+                      {tableRows}
+                    </tbody>
+                  </table>
+                </div>
 
-            {filteredTransactions.length > 0 && (
-              <div className="flex items-center justify-between px-4 py-3 bg-amber-900/20 border-t border-amber-700/30">
-                <div className="text-sm opacity-70">
-                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, allTransactions.length)} of {allTransactions.length} transactions
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="p-1 rounded hover:bg-amber-700/30 disabled:opacity-50"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <span className="text-sm px-2">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="p-1 rounded hover:bg-amber-700/30 disabled:opacity-50"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
-                </div>
-              </div>
+                {filteredTransactions.length === 0 && currentStatus?.status !== 'IN_PROGRESS' && (
+                  <div className="text-center py-8">
+                    <p className="text-sm opacity-70">No transactions found</p>
+                  </div>
+                )}
+
+                {filteredTransactions.length > 0 && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-amber-900/20 border-t border-amber-700/30">
+                    <div className="text-sm opacity-70">
+                      Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, allTransactions.length)} of {allTransactions.length} transactions
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="p-1 rounded hover:bg-amber-700/30 disabled:opacity-50"
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                      <span className="text-sm px-2">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="p-1 rounded hover:bg-amber-700/30 disabled:opacity-50"
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
