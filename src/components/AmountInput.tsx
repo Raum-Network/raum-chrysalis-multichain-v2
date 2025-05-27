@@ -9,6 +9,7 @@ interface AmountInputProps {
   step?: number;
   label?: string;
   suffix?: string;
+  className?:any;
 }
 
 const AmountInput: React.FC<AmountInputProps> = ({
@@ -18,7 +19,8 @@ const AmountInput: React.FC<AmountInputProps> = ({
   max = 100,
   step = 0.1,
   label,
-  suffix
+  suffix,
+  className
 }) => {
   const [focused, setFocused] = useState(false);
 
@@ -69,7 +71,7 @@ const AmountInput: React.FC<AmountInputProps> = ({
           step={step}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          className="w-full bg-transparent px-2 py-1 text-center focus:outline-none"
+          className="w-full bg-transparent px-2 py-1 text-center focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
         
         {suffix && (

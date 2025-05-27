@@ -207,6 +207,7 @@ const Stake = () => {
             step={0.01}
             label={`Stake Amount (${bridgeProtocol})`}
             suffix="USDC"
+            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
         </div>
       </div>
@@ -289,9 +290,9 @@ const Stake = () => {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl mb-1">Stake USDC</h1>
+        <h1 className="text-2xl mb-1">Stake Asset</h1>
         <p className="text-sm opacity-70">
-          Stake your USDC using {bridgeProtocol} bridge and receive rUSDC in return
+          Stake your USDC using CCIP/CCTP and receive LST in return
         </p>
       </div>
 
@@ -310,7 +311,7 @@ const Stake = () => {
       )}
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Window title={`Stake USDC (${bridgeProtocol})`}>
+        <Window title={`Stake Asset`}>
           {stakeView === 'success' 
             ? renderSuccess()
             : renderStakeForm()

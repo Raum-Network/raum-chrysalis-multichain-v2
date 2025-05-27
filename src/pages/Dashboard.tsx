@@ -11,8 +11,11 @@ import { Link } from 'react-router-dom';
 import stakedUserBalance from '../lib/sepoliaContract';
 import { getLidoAPY } from '../services/api';
 import stakeManager, { StakeStatus } from '../lib/stakeManager';
+import { useStaking } from '../hooks/useStaking';
+
 
 const Dashboard = () => {
+  const {usdcBalance} =  useStaking();
   const { isConnected, address, balance, connect } = useWallet();
   const [stakedBalance, setStakedBalance] = useState<string>('0');
   const [lidoAPY, setLidoAPY] = useState<number | null>(null);
@@ -185,8 +188,8 @@ const Dashboard = () => {
       
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatBox 
-          title="Your Staked ETH" 
-          value={stakingData.stakedAmount} 
+          title="Your Staked Asset" 
+          value={stakingData.stakedAmount.toFixed(4)} 
           suffix="ETH"
           icon={<CreditCard size={18} />} 
           change={{ value: 2.5, isPositive: true }}
@@ -231,16 +234,16 @@ const Dashboard = () => {
             <div className="border border-amber-700/30 rounded-md p-3 bg-amber-900/20">
               <h3 className="text-sm mb-2">Your Staking Balance</h3>
               <div className="flex items-end mb-3">
-                <span className="text-2xl font-medium">{stakingData.stakedAmount}</span>
+                <span className="text-2xl font-medium">{stakingData.stakedAmount.toFixed(4)}</span>
                 <span className="ml-1 text-sm opacity-70">ETH</span>
               </div>
-              <ProgressBar value={stakingData.stakedAmount} max={10} />
+              {/* <ProgressBar value={stakingData.stakedAmount} max={10} /> */}
               
               <div className="mt-4">
                 <h4 className="text-xs opacity-70 mb-1">Available to Stake</h4>
                 <div className="flex items-end">
-                  <span className="text-lg">{balance}</span>
-                  <span className="ml-1 text-xs opacity-70">ETH</span>
+                  <span className="text-lg">{usdcBalance}</span>
+                  <span className="ml-1 text-xs opacity-70">USDC</span>
                 </div>
               </div>
             </div>

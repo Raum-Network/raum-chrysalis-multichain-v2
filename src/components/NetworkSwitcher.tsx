@@ -20,8 +20,9 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
         onClick={() => setIsOpen(!isOpen)}
         className={`
           flex items-center space-x-2 px-3 py-1.5 rounded-md
-          border border-amber-700/40 bg-amber-900/20
-          hover:bg-amber-700/30 transition-colors
+          border border-green-500/40 bg-black/90
+          hover:bg-green-500/20 transition-colors 
+          text-green-500
         `}
       >
         <span className="text-sm">{currentNetworkConfig.name}</span>
@@ -45,9 +46,11 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
               exit={{ opacity: 0, y: 10 }}
               className={`
                 absolute w-56 rounded-md shadow-lg z-30
-                ${theme === 'night' ? 'bg-gray-900' : 'bg-white'}
+                bg-gray-900
                 sm:top-full sm:right-0 sm:mt-2
                 bottom-full right-0 mb-2
+                backdrop-blur-md
+               
               `}
             >
               <div className="py-1 px-1">
@@ -60,15 +63,16 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
                     }}
                     className={`
                       w-full px-4 py-2 text-sm flex items-center justify-between
-                      hover:bg-amber-700/30 transition-colors
-                      ${currentNetwork === network ? 'bg-amber-700/20' : ''}
-                      border border-amber-700/40 rounded-md mb-1
+                      hover:bg-green-100/10 transition-colors
+                      ${currentNetwork === network ? 'bg-gray-800' : 'bg-gray-800'}
+                      rounded-md mb-1
                       last:mb-0
+                      text-green-500
                     `}
                   >
                     {SUPPORTED_NETWORKS[network].name}
                     {currentNetwork === network && (
-                      <CheckCircle2 size={16} className="text-green-400" />
+                      <CheckCircle2 size={16} className="text-green-500" />
                     )}
                   </button>
                 ))}
