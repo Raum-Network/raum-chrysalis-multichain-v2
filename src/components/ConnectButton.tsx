@@ -24,7 +24,6 @@ const ConnectButton = () => {
   if (isConnected) {
     return (
       <div className="flex items-center space-x-2">
-        {/* Network Switcher - Only visible on desktop */}
         <div className="hidden sm:block">
           <NetworkSwitcher 
             currentNetwork={network as Networks} 
@@ -34,7 +33,7 @@ const ConnectButton = () => {
         
         <div className="relative">
           <div 
-            className="flex items-center space-x-2 px-2 py-1 rounded-md bg-green-900/30 border border-green-700/40"
+            className="flex items-center space-x-2 px-2 py-1 rounded-ßmd bg-green-900/30 border border-green-700/40"
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
           >
@@ -52,12 +51,36 @@ const ConnectButton = () => {
             <motion.div 
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="absolute top-full right-0 mt-2 p-2 bg-gray-800 border border-amber-700/40 rounded-md shadow-lg text-xs whitespace-nowrap z-20"
+              className={`
+                absolute top-full right-0 mt-2 p-2 
+                bg-gray-800 border border-amber-700/40 rounded-md shadow-lg 
+                text-xs whitespace-nowrap z-20
+                ${window.innerWidth < 768 ? 'w-[200px]' : ''}
+              `}
             >
-              <div className="text-green-400">Connected: {address}</div>
-              <div className="text-green-400">Balance: {Number(balance).toFixed(2)} ETH</div>
-              <div className="text-green-400">Network: {network}</div>
-              <div className="text-green-400">Chain ID: {chainId}</div>
+              {/* Mobile view */}
+              <div className="md:hidden">
+                <div className="text-green-400 truncate">
+                  Connected:{truncateAddress(address || '')}
+                </div>
+                <div className="text-green-400">
+                  Balance:{Number(balance).toFixed(4)} ETH
+                </div>
+                <div className="text-green-400">
+                  Network:{network}
+                </div>
+                <div className="text-green-400">
+                  Chain ID:{chainId} ETH
+                </div>
+              </div>
+
+              {/* Desktop view */}
+              <div className="hidden md:block">
+                <div className="text-green-400">Connected: {address}</div>
+                <div className="text-green-400">Balance: {Number(balance).toFixed(2)} ETH</div>
+                <div className="text-green-400">Network: {network}</div>
+                <div className="text-green-400">Chain ID: {chainId}</div>
+              </div>
             </motion.div>
           )}
         </div>
