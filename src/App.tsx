@@ -24,7 +24,7 @@ function App() {
           <ConnectKitProvider>
             <ThemeProvider>
               <WalletProvider>
-                <Helmet>
+                {/* <Helmet>
                   <script 
                     defer 
                     src="https://widget.mava.app" 
@@ -33,7 +33,7 @@ function App() {
                     enable-sdk="false" 
                     data-token="2e68732517079e0fd3f20c330e4ab62bf3f2072ec8614153384c28a58ef76b8f"
                   />
-                </Helmet>
+                </Helmet> */}
                 <BrowserRouter>
                   <Routes>
                     <Route path="/" element={<Layout />}>
