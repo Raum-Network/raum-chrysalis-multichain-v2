@@ -214,20 +214,6 @@ const Dashboard = () => {
         />
       </div>
       
-      {/* <Window title="Staking Tiers" className="mt-2">
-        <div className="p-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            {tiers.map((tier) => (
-              <TierCard 
-                key={tier.name} 
-                tier={tier}
-                userAmount={stakingData.stakedAmount}
-              />
-            ))}
-          </div>
-        </div>
-      </Window> */}
-      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-2">
         <Window title="Staking Summary" className="lg:col-span-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
