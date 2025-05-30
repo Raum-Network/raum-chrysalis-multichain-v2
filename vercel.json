@@ -1,5 +1,6 @@
 {
     "rewrites":  [
+      {"source": "/ccip-api/:path*", "destination": "https://ccip.chain.link/api/h/atlas/:path*"},
       {"source": "/(.*)", "destination": "/"}
     ]
   }
