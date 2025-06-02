@@ -68,11 +68,11 @@ const Stake = () => {
   };
 
   const renderProtocolSelector = () => (
-    <div className="grid grid-cols-2 gap-4 mb-4">
-      {['CCIP', 'CCTP'].map((protocol) => (
+    <div className="grid grid-cols-1 gap-4 mb-4">
+      {['CCTP'].map((protocol) => (
         <button
           key={protocol}
-          onClick={() => setBridgeProtocol(protocol as "CCIP" | "CCTP")}
+          onClick={() => setBridgeProtocol(protocol as "CCTP")}
           className={`
             p-3 rounded-md border transition-all duration-200
             ${bridgeProtocol === protocol 
@@ -83,13 +83,12 @@ const Stake = () => {
         >
           <div className="flex flex-col items-center space-y-2">
             <span className="text-sm font-medium">
-              {protocol === 'CCIP' ? 'Chainlink CCIP' : 'Circle CCTP'}
+              Circle CCTP
             </span>
             <span className="text-xs opacity-70">
-              {protocol === 'CCIP' 
-                ? 'Cross-Chain Interoperability Protocol' 
-                : 'Cross-Chain Transfer Protocol'
-              }
+             
+                Cross-Chain Transfer Protocol
+              
             </span>
           </div>
         </button>
@@ -321,10 +320,10 @@ const Stake = () => {
         <Window title="Staking Information">
           <div className="space-y-4 p-2">
             <div className="p-3 rounded-md border border-amber-700/40 bg-amber-900/10">
-              <h3 className="text-sm font-medium mb-2">About rUSDC</h3>
+              <h3 className="text-sm font-medium mb-2">About stETH</h3>
               <p className="text-sm opacity-80 leading-relaxed">
-                rUSDC is a token that represents your staked USDC in the Chrysalis protocol. 
-                You can transfer or trade rUSDC like any other token while continuing to earn staking rewards.
+                stETH is a token that represents your staked USDC in the LIDO protocol. 
+                You can transfer or trade stETH like any other token while continuing to earn staking rewards.
               </p>
             </div>
             

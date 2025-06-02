@@ -14,7 +14,7 @@ export function useStaking() {
   const { address } = useWallet();
   const [stakeStatus, setStakeStatus] = useState<StakeStatus | null>(null);
   const [isStaking, setIsStaking] = useState(false);
-  const [bridgeProtocol, setBridgeProtocol] = useState<"CCIP" | "CCTP">("CCIP");
+  const [bridgeProtocol, setBridgeProtocol] = useState<"CCIP" | "CCTP">("CCTP");
   const [isApproving, setIsApproving] = useState(false);
   
   const { writeContractAsync } = useWriteContract();
