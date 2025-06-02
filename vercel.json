@@ -1,6 +1,7 @@
 {
-    "rewrites":  [
+    "rewrites": [
       {"source": "/ccip-api/:path*", "destination": "https://ccip.chain.link/api/h/atlas/:path*"},
+      {"source": "/circle-api/attestations/:path*", "destination": "https://iris-api-sandbox.circle.com/attestations/:path*"},
       {"source": "/(.*)", "destination": "/"}
     ]
-  }
+}
