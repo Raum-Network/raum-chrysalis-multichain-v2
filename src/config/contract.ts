@@ -18,7 +18,8 @@ export type NetworkConfig = {
   };
 };
 
-export type Networks = 'arbitrum-sepolia' | 'base-sepolia' | 'polygon-amoy' | 'sonieum-minato';
+export type Networks = 'arbitrum-sepolia' 
+// | 'base-sepolia' | 'polygon-amoy' | 'sonieum-minato';
 
 export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
   'arbitrum-sepolia': {
@@ -39,58 +40,58 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       destName: 'ethereum-testnet-sepolia'
     }
   },
-  'base-sepolia': {
-    name: 'Base Sepolia',
-    chainId: 84532,
-    rpcUrl: 'https://sepolia.base.org',
-    explorer: 'https://sepolia.basescan.org',
-    contracts: {
-      ccip: '0x0000000000000000000000000000000000000000',
-      usdc: '0x0000000000000000000000000000000000000000',
-      fees: '0x0000000000000000000000000000000000000000',
-      cctp:'',
-      destination: '0x',
-      decimal: 6
-    },
-    ccipNames: {
-      sourceName: 'base_sepolia',
-      destName: 'sepolia'
-    }
-  },
-  'polygon-amoy': {
-    name: 'Polygon Amoy',
-    chainId: 80002,
-    rpcUrl: 'https://rpc-amoy.polygon.technology',
-    explorer: 'https://www.oklink.com/amoy',
-    contracts: {
-     ccip: '0x0000000000000000000000000000000000000000',
-      usdc: '0x0000000000000000000000000000000000000000',
-      fees: '0x0000000000000000000000000000000000000000',
-      cctp:'',
-      destination: '0x',
-      decimal: 6
-    },
-    ccipNames: {
-      sourceName: 'polygon-testnet-amoy',
-      destName: 'ethereum-testnet-sepolia'
-    }
-  },
-  'sonieum-minato': {
-    name: 'Sonieum Minato',
-    chainId: 1946,
-    rpcUrl: 'https://rpc.minato.sonieum.com',
-    explorer: 'https://soneium-minato.blockscout.com/',
-    contracts: {
-     ccip: '0x0000000000000000000000000000000000000000',
-      usdc: '0x0000000000000000000000000000000000000000',
-      fees: '0x0000000000000000000000000000000000000000',
-      cctp:'',
-      destination: '0x',
-      decimal: 18
-    },
-    ccipNames: {
-      sourceName: 'ethereum-testnet-sepolia-soneium-1',
-      destName: 'ethereum-testnet-sepolia'
-    }
-  }
+  // 'base-sepolia': {
+  //   name: 'Base Sepolia',
+  //   chainId: 84532,
+  //   rpcUrl: 'https://sepolia.base.org',
+  //   explorer: 'https://sepolia.basescan.org',
+  //   contracts: {
+  //     ccip: '0x0000000000000000000000000000000000000000',
+  //     usdc: '0x0000000000000000000000000000000000000000',
+  //     fees: '0x0000000000000000000000000000000000000000',
+  //     cctp:'',
+  //     destination: '0x',
+  //     decimal: 6
+  //   },
+  //   ccipNames: {
+  //     sourceName: 'base_sepolia',
+  //     destName: 'sepolia'
+  //   }
+  // },
+  // 'polygon-amoy': {
+  //   name: 'Polygon Amoy',
+  //   chainId: 80002,
+  //   rpcUrl: 'https://rpc-amoy.polygon.technology',
+  //   explorer: 'https://www.oklink.com/amoy',
+  //   contracts: {
+  //    ccip: '0x0000000000000000000000000000000000000000',
+  //     usdc: '0x0000000000000000000000000000000000000000',
+  //     fees: '0x0000000000000000000000000000000000000000',
+  //     cctp:'',
+  //     destination: '0x',
+  //     decimal: 6
+  //   },
+  //   ccipNames: {
+  //     sourceName: 'polygon-testnet-amoy',
+  //     destName: 'ethereum-testnet-sepolia'
+  //   }
+  // },
+  // 'sonieum-minato': {
+  //   name: 'Sonieum Minato',
+  //   chainId: 1946,
+  //   rpcUrl: 'https://rpc.minato.sonieum.com',
+  //   explorer: 'https://soneium-minato.blockscout.com/',
+  //   contracts: {
+  //    ccip: '0x0000000000000000000000000000000000000000',
+  //     usdc: '0x0000000000000000000000000000000000000000',
+  //     fees: '0x0000000000000000000000000000000000000000',
+  //     cctp:'',
+  //     destination: '0x',
+  //     decimal: 18
+  //   },
+  //   ccipNames: {
+  //     sourceName: 'ethereum-testnet-sepolia-soneium-1',
+  //     destName: 'ethereum-testnet-sepolia'
+  //   }
+  // }
 };
