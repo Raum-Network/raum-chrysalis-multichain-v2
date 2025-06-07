@@ -122,11 +122,20 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
 
       try {
         setBridgeProtocol(selectedProtocol!);
-        await stake(amount);
         setAllLogs([
           ...newLogs,
           {
             message: `Staking ${amount} USDC using ${selectedProtocol} protocol...`,
+            type: 'info',
+            timestamp: new Date()
+          }
+        ]);
+
+        await stake(amount);
+        setAllLogs([
+          ...newLogs,
+          {
+            message: `Staking Completed. Staked ${amount} USDC using ${selectedProtocol} protocol...`,
             type: 'success',
             timestamp: new Date()
           }
