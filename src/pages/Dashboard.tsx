@@ -185,20 +185,20 @@ const Dashboard = () => {
           value={stakingData.stakedAmount.toFixed(4)} 
           suffix="ETH"
           icon={<CreditCard size={18} />} 
-          change={{ value: 2.5, isPositive: true }}
+          // change={{ value: 2.5, isPositive: true }}
         />
         <StatBox 
           title="Your Rewards" 
           value="--"
           suffix="ETH"
           icon={<DollarSign size={18} />} 
-          change={{ value: 5.2, isPositive: true }}
+          // change={{ value: 5.2, isPositive: true }}
         />
         <StatBox 
           title="Current APR" 
           value={`${stakingData.apr}%`}
           icon={<BarChart3 size={18} />} 
-          change={{ value: 0.3, isPositive: true }}
+          // change={{ value: 0.3, isPositive: true }}
         />
         <StatBox 
           title="Next Reward" 
@@ -231,7 +231,7 @@ const Dashboard = () => {
               <h3 className="text-sm mb-2">Rewards Overview</h3>
               <div className="flex items-end mb-3">
                 <span className="text-2xl font-medium">--</span>
-                <span className="ml-1 text-sm opacity-70">ETH</span>
+                <span className="ml-1 text-sm opacity-70"></span>
               </div>
               
               <div className="grid grid-cols-2 gap-2 mt-4">

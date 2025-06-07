@@ -10,7 +10,7 @@ const Home = () => {
   
   const terminalLogs: { message: string; type: 'success' | 'info' | 'error' | 'warning' | 'command'; timestamp: Date; }[] = [
     {
-      message: 'Chrysalis v0.1.0 initialized',
+      message: 'Chrysalis Testnet initialized',
       type: 'success',
       timestamp: new Date()
     },
@@ -20,7 +20,7 @@ const Home = () => {
       timestamp: new Date()
     },
     {
-      message: 'Running on Mainnet',
+      message: 'Running on Testnet',
       type: 'success',
       timestamp: new Date()
     }

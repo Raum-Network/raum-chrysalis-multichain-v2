@@ -359,7 +359,7 @@ const Stake = () => {
       <div className="mb-6">
         <h1 className="text-2xl mb-1">Stake Asset</h1>
         <p className="text-sm opacity-70">
-          Stake your USDC using CCIP/CCTP and receive LST in return
+          Stake your USDC using CCIP/CCTP and receive LST + APR in return
         </p>
       </div>
 
@@ -415,7 +415,7 @@ const Stake = () => {
             
             <div className="flex items-center justify-center">
               <ArrowRightLeft size={24} className="mr-2" />
-              <span className="text-sm opacity-80">1 USDC = 1 rUSDC</span>
+              <span className="text-sm opacity-80">1 rnstETH = 1 stETH</span>
             </div>
           </div>
         </Window>

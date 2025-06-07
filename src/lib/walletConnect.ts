@@ -10,7 +10,7 @@ import {
   useSwitchChain
 } from 'wagmi';
 import { createConfig, http } from 'wagmi';
-import { polygonAmoy, arbitrumSepolia, baseSepolia , soneiumMinato } from 'wagmi/chains';
+import {  arbitrumSepolia, baseSepolia } from 'wagmi/chains';
 import { getDefaultConfig } from 'connectkit';
 import { useEffect } from 'react';
 import { erc20Abi } from 'viem';
@@ -20,12 +20,11 @@ import { SUPPORTED_NETWORKS, Networks } from '../config/contract';
 // Config with all supported chains
 export const config = createConfig(
   getDefaultConfig({
-    chains: [arbitrumSepolia, baseSepolia, polygonAmoy, soneiumMinato],
+    chains: [arbitrumSepolia, baseSepolia],
     transports: {
       [arbitrumSepolia.id]: http('https://sepolia-rollup.arbitrum.io/rpc'),
       [baseSepolia.id]: http('https://sepolia.base.org'),
-      [polygonAmoy.id]: http('https://polygon-amoy.drpc.org'),
-      [soneiumMinato.id]: http('https://rpc.minato.soneium.org'),
+
     },
     walletConnectProjectId: "ffd25e3cc20b883d266134ce525caf88",
     appName: "Chrysalis - SteadyStake",
@@ -42,6 +41,31 @@ export function useWallet() {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
 
+  // Add effect to monitor network changes
+  useEffect(() => {
+    const checkAndSwitchNetwork = async () => {
+      if (isConnected) {
+        const provider = window.ethereum;
+        if (provider) {
+          const currentChainId = await provider.request({ method: 'eth_chainId' });
+          const isSupportedNetwork = Object.values(SUPPORTED_NETWORKS).some(
+            network => network.chainId === parseInt(currentChainId, 16)
+          );
+
+          if (!isSupportedNetwork) {
+            try {
+              await switchChain({ chainId: SUPPORTED_NETWORKS['arbitrum-sepolia'].chainId });
+            } catch (error) {
+              console.error('Failed to switch network:', error);
+            }
+          }
+        }
+      }
+    };
+
+    checkAndSwitchNetwork();
+  }, [isConnected, switchChain]);
+
   // Get contract addresses for current network
   const getCurrentNetworkConfig = () => {
     const network = Object.entries(SUPPORTED_NETWORKS).find(
@@ -52,7 +76,6 @@ export function useWallet() {
       key: network ? network[0] : 'arbitrum-sepolia'
     };
   };
-
 
   const networkConfig = getCurrentNetworkConfig().config;
   const USDC_CONTRACT_ADDRESS = networkConfig.contracts.usdc;
@@ -94,6 +117,25 @@ export function useWallet() {
 
   const handleConnect = async () => {
     try {
+      // Get the current chain ID from the wallet before connecting
+      const provider = window.ethereum;
+      if (provider) {
+        const currentChainId = await provider.request({ method: 'eth_chainId' });
+        const isSupportedNetwork = Object.values(SUPPORTED_NETWORKS).some(
+          network => network.chainId === parseInt(currentChainId, 16)
+        );
+
+        console.log('Current chain ID:', parseInt(currentChainId, 16), 'Is supported:', isSupportedNetwork);
+
+        if (!isSupportedNetwork) {
+          try {
+            await switchChain({ chainId: SUPPORTED_NETWORKS['arbitrum-sepolia'].chainId });
+          } catch (error) {
+            console.error('Failed to switch network:', error);
+          }
+        }
+      }
+
       await connect({ connector: config.connectors[0] });
       const formattedBalance = balance();
       const feesFormattedBalance = (feesBalance!) / BigInt(10 ** 18);
@@ -154,23 +196,6 @@ export function useWallet() {
     connect: handleConnect,
     disconnect: handleDisconnect,
     switchNetwork: handleSwitchNetwork,
+    getFormattedBalance
   };
-}
-
-// Update your component to use the hook
-export function WalletComponent() {
-  const { 
-    isConnected, 
-    chainId,
-    switchNetwork
-  } = useWallet();
-
-  useEffect(() => {
-    // Default to Arbitrum Sepolia if not connected to a supported network
-    if (isConnected && !Object.values(SUPPORTED_NETWORKS).some(net => net.chainId === chainId)) {
-     console.error('Unsupported network. Switching to Arbitrum Sepolia.');
-    }
-  }, [chainId, isConnected, switchNetwork]);
-
-  return null;
 }

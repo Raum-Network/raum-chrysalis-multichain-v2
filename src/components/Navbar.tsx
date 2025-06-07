@@ -23,9 +23,9 @@ const Navbar = () => {
             key={link.path}
             to={link.path}
             className={({ isActive }) =>
-              `px-3 py-1 rounded flex items-center space-x-1 transition-colors ${
+              `px-3 py-1.5 rounded flex items-center space-x-1 transition-all duration-200 ${
                 isActive 
-                  ? 'bg-amber-700 text-beige-100' 
+                  ? 'bg-amber-700 text-beige-100 border-2 border-amber-500 transform scale-105 shadow-lg' 
                   : 'hover:bg-amber-700/30'
               }`
             }
