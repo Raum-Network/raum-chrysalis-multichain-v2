@@ -77,7 +77,7 @@ const ConnectButton = () => {
               {/* Desktop view */}
               <div className="hidden md:block">
                 <div className="text-green-400">Connected: {address}</div>
-                <div className="text-green-400">Balance: {Number(balance).toFixed(2)} ETH</div>
+                <div className="text-green-400">Balance: {Number(balance).toFixed(4)} ETH</div>
                 <div className="text-green-400">Network: {network}</div>
                 <div className="text-green-400">Chain ID: {chainId}</div>
               </div>

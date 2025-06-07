@@ -77,7 +77,7 @@ const Dashboard = () => {
       timestamp: new Date()
     },
     {
-      message: 'Data loaded successfully',
+      message: 'Enter commands to execute actions',
       type: 'success',
       timestamp: new Date()
     }

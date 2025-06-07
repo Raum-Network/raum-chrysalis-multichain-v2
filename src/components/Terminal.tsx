@@ -25,7 +25,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
   const [stakeAmount, setStakeAmount] = useState<string>('');
   const terminalRef = useRef<HTMLDivElement>(null);
   const { getFormattedBalance, chainId } = useWallet();
-  const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, usdcBalance } = useStaking();
+  const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, usdcBalance , linkBalance } = useStaking();
 
   useEffect(() => {
     // Auto-scroll to bottom when logs update
@@ -95,7 +95,24 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
     }
 
     if (stakeState === 'amount') {
-      const amount = parseFloat(command.trim());
+      const inputValue = command.trim();
+      
+      // Check if input has more than 6 decimal places
+      const parts = inputValue.split('.');
+      if (parts[1] && parts[1].length > 6) {
+        setAllLogs([
+          ...newLogs,
+          {
+            message: 'Amount can only have up to 6 decimal places',
+            type: 'error',
+            timestamp: new Date()
+          }
+        ]);
+        setCommand('');
+        return;
+      }
+
+      const amount = parseFloat(inputValue);
       if (isNaN(amount) || amount <= 0) {
         setAllLogs([
           ...newLogs,
@@ -114,6 +131,19 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
           ...newLogs,
           {
             message: `Insufficient balance. Your current USDC balance is ${usdcBalance.toFixed(2)} USDC`,
+            type: 'error',
+            timestamp: new Date()
+          }
+        ]);
+        setCommand('');
+        return;
+      }
+
+      if (linkBalance < 10 && bridgeProtocol === "CCIP") {
+        setAllLogs([
+          ...newLogs,
+          {
+            message: `Insufficient LINK balance. Your current LINK balance is ${linkBalance.toFixed(2)} LINK`,
             type: 'error',
             timestamp: new Date()
           }
@@ -181,7 +211,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       let responseMessage = 'Command not recognized';
 
       if (command.toLowerCase().includes('help')) {
-        responseMessage = 'Available commands: help, stake, balance';
+        responseMessage = 'Available commands: stake, balance';
       } else if (command.toLowerCase().includes('stake')) {
         setStakeState('protocol');
         const isBaseSepolia = chainId === SUPPORTED_NETWORKS['base-sepolia'].chainId;

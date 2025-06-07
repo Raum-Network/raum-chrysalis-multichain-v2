@@ -13,7 +13,7 @@ import { getLidoAPY } from '../services/api';
 
 const Stake = () => {
   const { isConnected, balance, connect, networkConfig } = useWallet();
-  const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, checkAllowance, isApproving, usdcBalance } = useStaking();
+  const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, checkAllowance, isApproving, usdcBalance , linkBalance } = useStaking();
   const [stakeAmount, setStakeAmount] = useState(0);
   const [hasAllowance, setHasAllowance] = useState(false);
   const [stakeView, setStakeView] = useState<'form' | 'confirming' | 'success'>('form');
@@ -282,14 +282,17 @@ const Stake = () => {
         disabled={
           stakeAmount <= 0 || 
           stakeAmount > usdcBalance || 
+          bridgeProtocol === "CCIP" && linkBalance < 10 || 
           isStaking || 
-          isApproving
+          isApproving ||
+          currentStake?.status === 'IN_PROGRESS'
         }
         fullWidth
       >
         {isApproving ? 'Approving...' :
-         isStaking ? 'Staking in Progress...' : 
+         isStaking || currentStake?.status === 'IN_PROGRESS' ? 'Staking in Progress...' : 
          !hasAllowance ? `Approve for ${bridgeProtocol}` :
+          bridgeProtocol === "CCIP" && linkBalance < 10 ? 'Insufficient Link Balance' :
          `Stake with ${bridgeProtocol}`}
       </Button>
 

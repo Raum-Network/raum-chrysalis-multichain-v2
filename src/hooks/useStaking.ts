@@ -41,6 +41,13 @@ export function useStaking() {
     args: [address!, bridgeProtocol === 'CCIP' ? STAKE_CONTRACT_ADDRESS : STAKE_CCTP_CONTRACT_ADDRESS],
   });
 
+  const { data: linkBalance } = useReadContract({
+    address: LINK_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [address!],
+  });
+
 
   const { data: linkAllowance, refetch: refetchLinkAllowance } = useReadContract({
     address: LINK_ADDRESS,
@@ -165,6 +172,7 @@ export function useStaking() {
     bridgeProtocol,
     setBridgeProtocol,
     usdcBalance: usdcBalance ? Number(usdcBalance) / 10 ** 6 : 0,
+    linkBalance: linkBalance ? Number(linkBalance) / 10 ** 18 : 0,
     hasAllowance: bridgeProtocol === 'CCIP' 
       ? (usdcAllowance && linkAllowance 
         ? (usdcAllowance >= BigInt(stakeAmount * 10 ** 6) && linkAllowance >= BigInt(10 * 10 ** 18)) 

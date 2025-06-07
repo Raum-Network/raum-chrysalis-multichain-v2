@@ -50,8 +50,20 @@ const AmountInput: React.FC<AmountInputProps> = ({
     
     // Remove leading zeros
     const cleanValue = newValue.replace(/^0+/, '') || '0';
-    setInputValue(cleanValue);
     
+    // Limit to 6 decimal places
+    const parts = cleanValue.split('.');
+    if (parts[1] && parts[1].length > 6) {
+      const limitedValue = `${parts[0]}.${parts[1].slice(0, 6)}`;
+      setInputValue(limitedValue);
+      const numValue = parseFloat(limitedValue);
+      if (!isNaN(numValue)) {
+        onChange(Math.max(min, Math.min(max, numValue)));
+      }
+      return;
+    }
+    
+    setInputValue(cleanValue);
     const numValue = parseFloat(cleanValue);
     if (!isNaN(numValue)) {
       onChange(Math.max(min, Math.min(max, numValue)));
