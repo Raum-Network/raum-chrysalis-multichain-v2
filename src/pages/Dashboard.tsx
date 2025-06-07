@@ -77,7 +77,7 @@ const Dashboard = () => {
       timestamp: new Date()
     },
     {
-      message: 'Enter commands to execute actions',
+      message: 'Type "help" to see available commands',
       type: 'success',
       timestamp: new Date()
     }
@@ -266,7 +266,7 @@ const Dashboard = () => {
           </div>
         </Window>
         
-        <Window title="Activity Log">
+        <Window title="Activity Console">
           <Terminal logs={initialLogs} interactive={true} />
         </Window>
       </div>

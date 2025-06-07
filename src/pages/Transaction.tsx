@@ -702,7 +702,7 @@ const Transactions = () => {
       <Window title="Transaction History">
         <div className="p-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
-            <div className="flex items-center space-x-2">
+            {/* <div className="flex items-center space-x-2">
               <Filter size={16} />
               <select
                 value={filter}
@@ -717,7 +717,7 @@ const Transactions = () => {
                 <option value="completed">Completed</option>
                 <option value="failed">Failed</option>
               </select>
-            </div>
+            </div> */}
 
             <div className="relative">
               <input

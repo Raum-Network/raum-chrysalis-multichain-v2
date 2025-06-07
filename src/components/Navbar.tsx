@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, BarChart3, PiggyBank, History, DropletIcon } from 'lucide-react';
+import { Home, BarChart3, DollarSign, History, DropletIcon } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import ConnectButton from './ConnectButton';
 import { useTheme } from '../context/ThemeContext';
@@ -11,7 +11,7 @@ const Navbar = () => {
   const links = [
     { name: 'Home', path: '/', icon: <Home size={18} /> },
     { name: 'Dashboard', path: '/dashboard', icon: <BarChart3 size={18} /> },
-    { name: 'Stake', path: '/stake', icon: <PiggyBank size={18} /> },
+    { name: 'Stake', path: '/stake', icon: <DollarSign size={18} /> },
     { name: 'Transactions', path: '/transactions', icon: <History size={18} /> },
     { name: 'Faucet', path: 'https://faucet.raum.network', icon: <DropletIcon size={18} />, external: true },
   ];
