@@ -33,7 +33,7 @@ class SepoliaContract {
   async getBalance(address: string): Promise<string> {
     try {
       const balance = await this.contract.stakedAmount(address);
-      return balance.toString();
+      return (Number(balance) / (1e18)).toString();
     } catch (error) {
       console.error('Error getting balance:', error);
       return '0';
@@ -43,10 +43,9 @@ class SepoliaContract {
   async getBalanceCCTP(address: string): Promise<string> {
     try {
       const balance = await this.contractCCTP.stakedAmount(address);
-      console.log(balance , "balance")
-      return balance.toString();
+      return (Number(balance) / 1e18).toString();
     } catch (error) {
-      console.error('Error getting CCTP balance:', error);
+      // console.log('Error getting CCTP balance:', error);
       return '0';
     }
   }

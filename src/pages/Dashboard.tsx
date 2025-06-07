@@ -30,7 +30,6 @@ const Dashboard = () => {
           setStakedBalance((Number(balance) + Number(cctpBalance)).toString());
           
           const apy = await getLidoAPY();
-          console.log(apy);
           setLidoAPY(apy);
         } catch (error) {
           console.error('Error fetching data:', error);
@@ -190,7 +189,7 @@ const Dashboard = () => {
         />
         <StatBox 
           title="Your Rewards" 
-          value={stakingData.totalRewards} 
+          value="--"
           suffix="ETH"
           icon={<DollarSign size={18} />} 
           change={{ value: 5.2, isPositive: true }}
@@ -203,7 +202,7 @@ const Dashboard = () => {
         />
         <StatBox 
           title="Next Reward" 
-          value={stakingData.nextReward}
+          value="--"
           icon={<Clock size={18} />} 
         />
       </div>
@@ -231,7 +230,7 @@ const Dashboard = () => {
             <div className="border border-amber-700/30 rounded-md p-3 bg-amber-900/20">
               <h3 className="text-sm mb-2">Rewards Overview</h3>
               <div className="flex items-end mb-3">
-                <span className="text-2xl font-medium">{stakingData.totalRewards}</span>
+                <span className="text-2xl font-medium">--</span>
                 <span className="ml-1 text-sm opacity-70">ETH</span>
               </div>
               
@@ -242,7 +241,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <h4 className="text-xs opacity-70 mb-1">Next Reward</h4>
-                  <div className="text-lg">{stakingData.nextReward}</div>
+                  <div className="text-lg">--</div>
                 </div>
               </div>
             </div>
@@ -252,11 +251,11 @@ const Dashboard = () => {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
                   <h4 className="text-xs opacity-70 mb-1">Total Stakers</h4>
-                  <div className="text-lg">{stakingData.stakers.toLocaleString()}</div>
+                  <div className="text-lg">--</div>
                 </div>
                 <div>
                   <h4 className="text-xs opacity-70 mb-1">Total ETH Staked</h4>
-                  <div className="text-lg">{stakingData.totalStaked.toLocaleString()}</div>
+                  <div className="text-lg">--</div>
                 </div>
                 <div>
                   <h4 className="text-xs opacity-70 mb-1">Protocol Health</h4>

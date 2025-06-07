@@ -66,7 +66,7 @@ const Home = () => {
               animate={{ opacity: 0.8 }}
               transition={{ delay: 0.4, duration: 0.5 }}
             >
-              A 70's inspired liquid staking platform <br />with a futuristic twist
+              A Cross-Chain liquid staking platform <br />with minimal complexities
             </motion.p>
 
             <div className="mb-8">

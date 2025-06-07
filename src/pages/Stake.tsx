@@ -9,6 +9,7 @@ import { Progress } from '../components/Progress';
 import { ArrowRightLeft, Loader2, ChevronRight, CheckCircle2, XCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SUPPORTED_NETWORKS } from '../config/contract';
+import { getLidoAPY } from '../services/api';
 
 const Stake = () => {
   const { isConnected, balance, connect, networkConfig } = useWallet();
@@ -20,6 +21,7 @@ const Stake = () => {
   const [currentStake, setCurrentStake] = useState<StakeStatus | null>(null);
   const [showTransactionBox, setShowTransactionBox] = useState(false);
   const [showSuccessDelay, setShowSuccessDelay] = useState(false);
+  const [lidoAPY, setLidoAPY] = useState<number | null>(null);
 
   const getExplorerUrl = (txHash: string) => {
     const network = Object.values(SUPPORTED_NETWORKS).find(net => net.chainId === networkConfig.chainId);
@@ -72,6 +74,21 @@ const Stake = () => {
     const unsubscribe = stakeManager.subscribeToStatus(handleStatusUpdate);
     return () => unsubscribe();
   }, [bridgeProtocol]);
+
+  useEffect(() => {
+    const fetchLidoAPY = async () => {
+      try {
+        const apy = await getLidoAPY();
+        setLidoAPY(apy);
+      } catch (error) {
+        console.error('Error fetching Lido APY:', error);
+      }
+    };
+
+    fetchLidoAPY();
+    const interval = setInterval(fetchLidoAPY, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const handleStakeSubmit = async () => {
     if (stakeAmount <= 0) return;
@@ -371,10 +388,10 @@ const Stake = () => {
         <Window title="Staking Information">
           <div className="space-y-4 p-2">
             <div className="p-3 rounded-md border border-amber-700/40 bg-amber-900/10">
-              <h3 className="text-sm font-medium mb-2">About rUSDC</h3>
+              <h3 className="text-sm font-medium mb-2">About stETH</h3>
               <p className="text-sm opacity-80 leading-relaxed">
-                rUSDC is a token that represents your staked USDC in the Chrysalis protocol. 
-                You can transfer or trade rUSDC like any other token while continuing to earn staking rewards.
+              stETH is a token that represents your staked USDC in the LIDO protocol. 
+              You can transfer or trade stETH like any other token while continuing to earn staking rewards.
               </p>
             </div>
             
@@ -383,15 +400,15 @@ const Stake = () => {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="opacity-70">Total USDC Staked</span>
-                  <span>24,582,410 USDC</span>
+                  <span>-- USDC</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-70">Current APR</span>
-                  <span className="text-green-400">4.8%</span>
+                  <span className="text-green-400">{lidoAPY ? `${lidoAPY.toFixed(2)}%` : '--'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-70">Total Stakers</span>
-                  <span>1,452</span>
+                  <span>--</span>
                 </div>
               </div>
             </div>
