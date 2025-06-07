@@ -50,20 +50,14 @@ async function checkMessageReceipt(
 
     if (!sourceNonce) return null;
 
-    // Process each transaction to find the matching nonce
     for (const log of destLogs) {
       try {
-        // console.log(log.transactionHash , "desthash")
         if (log.topics[0] === "0x58200b4c34ae05ee816d710053fff3fb75af4395915d3d2a771b24aa10e3cc5d") {
         
           const destTopic = log.topics[2];
           const destNonce = BigInt(destTopic).toString();
-
-          console.log(destNonce === sourceNonce)
-         
           if (destNonce.toString() === sourceNonce.toString()) {
-            console.log(destNonce , sourceNonce , "matching")
-            console.log(log.transactionHash , sourceEvent.transactionHash)
+           
             return log.transactionHash;
           }
         }
@@ -87,10 +81,8 @@ export const fetchCCTPTransactions = async (userAddress: string): Promise<CCTPTr
 
     // Get the current block number for destination chain
     const currentBlock = await sepoliaProvider.getBlockNumber();
-    const blocksInAWeek = Math.floor((6 * 24 * 60 * 60) / 12);
+    const blocksInAWeek = Math.floor((7 * 24 * 60 * 60) / 12);
     const fromBlock = currentBlock - blocksInAWeek;
-
-    console.log(fromBlock)
 
     // Fetch all destination transactions once
     const destFilter = {
@@ -104,7 +96,9 @@ export const fetchCCTPTransactions = async (userAddress: string): Promise<CCTPTr
     for (const [networkKey, network] of Object.entries(SUPPORTED_NETWORKS)) {
       if (!network.contracts.cctp) continue; // Skip networks without CCTP contract
 
-      const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+      const provider = new ethers.JsonRpcProvider(network.publicRpc
+
+      );
 
       const contract = new ethers.Contract(
         network.contracts.cctp,
@@ -113,7 +107,7 @@ export const fetchCCTPTransactions = async (userAddress: string): Promise<CCTPTr
       );
 
       try {
-        const allEvents = await contract.queryFilter(contract.filters.DepositForBurn(userAddress), 0, 'latest');
+        const allEvents = await contract.queryFilter(contract.filters.DepositForBurn(userAddress), await provider.getBlockNumber() - ((45 * 24 * 60 * 60 * 3) ), 'latest');
 
         // Filter by sender address manually
         const userEvents = allEvents.filter(e =>
@@ -148,7 +142,7 @@ export const fetchCCTPTransactions = async (userAddress: string): Promise<CCTPTr
 
         allTransactions.push(...networkTransactions);
       } catch (error) {
-        console.error(`Error fetching CCTP transactions for ${network.name}:`, error);
+        // console.log(`Error fetching CCTP transactions for ${network.name}:`, error);
         // Continue with other networks even if one fails
         continue;
       }

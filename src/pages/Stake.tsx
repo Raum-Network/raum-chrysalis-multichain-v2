@@ -142,7 +142,7 @@ const Stake = () => {
             className={`
               p-3 rounded-md border transition-all duration-200
               ${bridgeProtocol === protocol 
-                ? 'border-amber-500 bg-amber-900/30 shadow-lg shadow-amber-900/20' 
+                ? 'bg-gray-800 text-green-500 border-green-500/30' 
                 : 'border-amber-700/40 bg-amber-900/10 hover:bg-amber-900/20'
               }
             `}
@@ -199,8 +199,6 @@ const Stake = () => {
             <span>Expected Time: {currentStake.expectedTime}</span>
           </div>
 
-          <Progress value={getProgressValue()} />
-
           {currentStake.sourceTxHash && (
             <div className="text-sm break-all">
               <span className="text-amber-500">Source Tx:</span>
@@ -247,8 +245,8 @@ const Stake = () => {
           {/* Show countdown for CCTP transactions */}
           {bridgeProtocol === 'CCTP' && currentStake.status === 'SUCCESS' && !showSuccessDelay && (
             <div className="mt-4 text-sm text-center">
-              <p>Showing transaction details for 30 seconds...</p>
-              <p className="text-xs opacity-70">You will be redirected to the dashboard view shortly</p>
+              {/* <p>Showing transaction details for 30 seconds...</p>
+              <p className="text-xs opacity-70">You will be redirected to the dashboard view shortly</p> */}
             </div>
           )}
         </div>
@@ -388,10 +386,10 @@ const Stake = () => {
         <Window title="Staking Information">
           <div className="space-y-4 p-2">
             <div className="p-3 rounded-md border border-amber-700/40 bg-amber-900/10">
-              <h3 className="text-sm font-medium mb-2">About stETH</h3>
+              <h3 className="text-sm font-medium mb-2">About rnstETH</h3>
               <p className="text-sm opacity-80 leading-relaxed">
-              stETH is a token that represents your staked USDC in the LIDO protocol. 
-              You can transfer or trade stETH like any other token while continuing to earn staking rewards.
+              rnstETH is a token that represents your staked USDC in the LIDO protocol. 
+              You can transfer or trade rnstETH like any other token while continuing to earn staking rewards.
               </p>
             </div>
             

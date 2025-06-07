@@ -109,6 +109,7 @@ export function useStaking() {
         await approveToken(amount);
       }
 
+      console.log(`0x000000000000000000000000${ networkConfig.contracts.cctpDestinationCaller}`)
       const stakeAmountInWei = amount * 10 ** 6;
 
       if (bridgeProtocol === 'CCIP') {
@@ -122,7 +123,7 @@ export function useStaking() {
           setStakeStatus
         );
       } else {
-        const cctpDestinationCaller = networkConfig.contracts.cctpDestinationCaller?.replace('0x', '') || '';
+        const cctpDestinationCaller = networkConfig.contracts.cctpDestinationCaller;
         await stakeManager.stakeCCTP(
           stakeAmountInWei,
           0,
@@ -148,8 +149,6 @@ export function useStaking() {
     try {
       const balance = await stakedUserBalance.getBalance(address);
       const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
-      console.log(balance , "balance")
-      console.log(cctpBalance , "cctpBalance")
       return (Number(balance) + Number(cctpBalance)).toString();
     } catch (error) {
       console.error("Error:", error);

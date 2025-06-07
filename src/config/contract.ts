@@ -2,6 +2,7 @@ export type NetworkConfig = {
   name: string;
   chainId: number;
   rpcUrl: string;
+  publicRpc:string;
   explorer: string;
   contracts: {
     ccip: string;
@@ -25,7 +26,8 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
   'arbitrum-sepolia': {
     name: 'Arbitrum Sepolia',
     chainId: 421614,
-    rpcUrl: 'https://sepolia-rollup.arbitrum.io/rpc',
+    publicRpc:"https://sepolia-rollup.arbitrum.io/rpc",
+    rpcUrl: 'https://arbitrum-sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64',
     explorer: 'https://sepolia.arbiscan.io',
     contracts: {
       ccip: '0x01851b172b1b0a5709deec827a88732dba00c467',
@@ -45,6 +47,7 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     name: 'Base Sepolia',
     chainId: 84532,
     rpcUrl: 'https://sepolia.base.org',
+    publicRpc:'https://sepolia.base.org',
     explorer: 'https://sepolia.basescan.org',
     contracts: {
       ccip: '0x45057d6CC1608C7E3B13570A29078848A8794D9e',

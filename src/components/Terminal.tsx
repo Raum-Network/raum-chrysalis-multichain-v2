@@ -3,6 +3,7 @@ import { Send } from 'lucide-react';
 import { useWallet } from '../lib/walletConnect';
 import { useStaking } from '../hooks/useStaking';
 import { SUPPORTED_NETWORKS } from '../config/contract';
+import stakeManager, { StakeStatus } from '../lib/stakeManager';
 
 interface Log {
   message: string;
@@ -69,6 +70,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       // For other chains, allow both CCIP and CCTP
       if (protocol === 'CCIP' || protocol === 'CCTP') {
         setSelectedProtocol(protocol);
+        setBridgeProtocol(protocol);
         setStakeState('amount');
         setAllLogs([
           ...newLogs,
@@ -121,7 +123,6 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       }
 
       try {
-        setBridgeProtocol(selectedProtocol!);
         setAllLogs([
           ...newLogs,
           {
@@ -130,7 +131,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
             timestamp: new Date()
           }
         ]);
-
+        
         await stake(amount);
         setAllLogs([
           ...newLogs,
@@ -140,6 +141,22 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
             timestamp: new Date()
           }
         ]);
+
+        // Subscribe to stake status updates
+        const unsubscribe = stakeManager.subscribeToStatus((status: StakeStatus) => {
+          if (status.status === 'SUCCESS' && selectedProtocol === 'CCTP' && status.destinationTxHash) {
+            setAllLogs(prevLogs => [
+              ...prevLogs,
+              {
+                message: `CCTP Transaction Success! Destination TX Hash: ${status.destinationTxHash}`,
+                type: 'success',
+                timestamp: new Date()
+              }
+            ]);
+            unsubscribe();
+          }
+        });
+
         setStakeState('idle');
         setSelectedProtocol(null);
       } catch (error) {

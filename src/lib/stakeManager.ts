@@ -284,6 +284,7 @@ class StakeManager {
 
   private async pollTransactionReceipt(txHash: string, maxRetries = 10, interval = 2000) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
+
       const receipt = await this.web3.eth.getTransactionReceipt(txHash);
       if (receipt) {
         return receipt;
@@ -395,7 +396,7 @@ class StakeManager {
       
       const contract = new this.sepoliaWeb3.eth.Contract(
         ReceiverAbiCCTP,
-        this.networkConfig.contracts.ccip as `0x${string}`
+        `0x${this.networkConfig.contracts.cctpDestinationCaller}` as `0x${string}`
       );
 
       const hookData = await contract.methods.getHookData(
@@ -409,7 +410,7 @@ class StakeManager {
 
       const txData = {
         from: account.address,
-        to: this.networkConfig.contracts.ccip as `0x${string}`,
+        to: `0x${this.networkConfig.contracts.cctpDestinationCaller}` as `0x${string}`,
         data: tx.encodeABI(),
         gas,
         gasPrice,

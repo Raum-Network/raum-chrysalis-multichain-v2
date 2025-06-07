@@ -31,7 +31,8 @@ const Layout = () => {
           <span className="hidden sm:inline font-bold">Chrysalis</span>
           <span className="sm:hidden font-bold">Chrysalis</span>
           <span className="mx-2">|</span>
-          <span className="text-xs">Testnet</span>
+          <span className="text-xs">Testnet&nbsp;</span>
+          <span className="hidden sm:inline text-xs">v0.1.0</span>
         </div>
         <div className="flex items-center">
           <Clock size={14} className="mr-1" />

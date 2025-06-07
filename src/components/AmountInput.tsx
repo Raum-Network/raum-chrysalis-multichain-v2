@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Minus } from 'lucide-react';
 
 interface AmountInputProps {
@@ -23,6 +23,11 @@ const AmountInput: React.FC<AmountInputProps> = ({
   className
 }) => {
   const [focused, setFocused] = useState(false);
+  const [inputValue, setInputValue] = useState(value.toString());
+
+  useEffect(() => {
+    setInputValue(value.toString());
+  }, [value]);
 
   const handleIncrement = () => {
     const newValue = Math.min(max, value + step);
@@ -35,11 +40,21 @@ const AmountInput: React.FC<AmountInputProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = parseFloat(e.target.value);
-    if (isNaN(newValue)) {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    
+    if (newValue === '') {
       onChange(0);
-    } else {
-      onChange(Math.max(min, Math.min(max, newValue)));
+      return;
+    }
+    
+    // Remove leading zeros
+    const cleanValue = newValue.replace(/^0+/, '') || '0';
+    setInputValue(cleanValue);
+    
+    const numValue = parseFloat(cleanValue);
+    if (!isNaN(numValue)) {
+      onChange(Math.max(min, Math.min(max, numValue)));
     }
   };
 
@@ -63,8 +78,9 @@ const AmountInput: React.FC<AmountInputProps> = ({
         </button>
         
         <input
-          type="number"
-          value={value}
+          type="text"
+          inputMode="decimal"
+          value={inputValue}
           onChange={handleInputChange}
           min={min}
           max={max}
