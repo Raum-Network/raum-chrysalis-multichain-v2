@@ -98,13 +98,20 @@ const ConnectButton = () => {
         />
       </div>
       <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
         onClick={handleConnect}
-        className="bg-amber-700 hover:bg-amber-600 text-beige-100 rounded-md px-4 py-1 text-sm flex items-center"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        className={`
+          flex items-center justify-center px-4 py-2 rounded-md
+          ${isConnected 
+            ? 'bg-amber-700 text-beige-100' 
+            : 'bg-amber-900/30 text-amber-500 hover:bg-amber-900/50'
+          }
+          transition-all duration-200
+        `}
       >
-        <Wallet size={16} className="mr-2" />
-        <span>Connect</span>
+        <Wallet size={16} className="md:mr-2" />
+        <span className="hidden md:inline">Connect</span>
       </motion.button>
     </div>
   );
