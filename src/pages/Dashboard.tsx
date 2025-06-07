@@ -16,7 +16,7 @@ import { useStaking } from '../hooks/useStaking';
 
 const Dashboard = () => {
   const {usdcBalance} =  useStaking();
-  const { isConnected, address, balance, connect } = useWallet();
+  const { isConnected, address, balance, connect , chainId } = useWallet();
   const [stakedBalance, setStakedBalance] = useState<string>('0');
   const [lidoAPY, setLidoAPY] = useState<number | null>(null);
 
@@ -41,7 +41,7 @@ const Dashboard = () => {
     fetchData();
     const interval = setInterval(fetchData, 30000); 
     return () => clearInterval(interval);
-  }, [address]);
+  }, [address , chainId]);
 
   useEffect(() => {
     const handleStakeUpdate = async (status: StakeStatus) => {

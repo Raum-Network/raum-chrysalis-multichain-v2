@@ -2,6 +2,16 @@ import { ethers } from 'ethers';
 import { SUPPORTED_NETWORKS } from '../config/contract';
 import stakeCCTPABI from '../lib/abi/ChrysalisSenderCCTP.json';
 
+// ABI for MessageReceived event
+const MESSAGE_RECEIVED_ABI = [
+  "event MessageReceived(address caller, uint32 sourceDomain, uint64 nonce, bytes32 sender, bytes messageBody)"
+];
+
+// ABI for DepositForBurn event
+const DEPOSIT_FOR_BURN_ABI = [
+  "event DepositForBurn(uint64 nonce,address burnToken, uint256 amount, address depositor, bytes32 mintRecipient, uint32 destinationDomain, bytes32 destinationTokenMessenger, bytes32 destinationCaller)"
+];
+
 export interface CCTPTransaction {
   hash: string;
   from: string;
@@ -12,48 +22,140 @@ export interface CCTPTransaction {
   attestation?: string;
   blockTimestamp?: number;
   status: 'PENDING' | 'IN_PROGRESS' | 'SUCCESS' | 'FAILURE';
+  sourceNetworkName?: string;
+  destTransactionHash?: string; // Added for destination transaction hash
+}
+
+// Function to check message receipt and match nonces
+async function checkMessageReceipt(
+  event: ethers.EventLog,
+  sourceProvider: ethers.Provider,
+  destProvider: ethers.Provider,
+  destLogs: ethers.Log[]
+): Promise<string | null> {
+  try {
+    // Get the source transaction receipt
+    const sourceReceipt = await sourceProvider.getTransactionReceipt(event.transactionHash);
+    if (!sourceReceipt) return null;
+
+    // Find the DepositForBurn event by its topic
+    const DEPOSIT_FOR_BURN_TOPIC = "0x2fa9ca894982930190727e75500a97d8dc500233a5065e0f3126c48fbe0343c0";
+    const sourceEvent = sourceReceipt.logs.find(log => log.topics[0] === DEPOSIT_FOR_BURN_TOPIC);
+
+    if (!sourceEvent) return null;
+
+   
+    const nonceTopic = sourceEvent.topics[1];
+    const sourceNonce = BigInt(nonceTopic).toString();
+
+    if (!sourceNonce) return null;
+
+    // Process each transaction to find the matching nonce
+    for (const log of destLogs) {
+      try {
+        // console.log(log.transactionHash , "desthash")
+        if (log.topics[0] === "0x58200b4c34ae05ee816d710053fff3fb75af4395915d3d2a771b24aa10e3cc5d") {
+        
+          const destTopic = log.topics[2];
+          const destNonce = BigInt(destTopic).toString();
+
+          console.log(destNonce === sourceNonce)
+         
+          if (destNonce.toString() === sourceNonce.toString()) {
+            console.log(destNonce , sourceNonce , "matching")
+            console.log(log.transactionHash , sourceEvent.transactionHash)
+            return log.transactionHash;
+          }
+        }
+      } catch (error) {
+        console.error('Error processing transaction:', error);
+        continue;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error checking message receipt:', error);
+    return null;
+  }
 }
 
 export const fetchCCTPTransactions = async (userAddress: string): Promise<CCTPTransaction[]> => {
   try {
-    const network = SUPPORTED_NETWORKS['arbitrum-sepolia'];
-    const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+    const allTransactions: CCTPTransaction[] = [];
+    const sepoliaProvider = new ethers.JsonRpcProvider('https://sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64');
 
-    const contract = new ethers.Contract(
-      network.contracts.cctp!,
-      stakeCCTPABI,
-      provider
-    );
+    // Get the current block number for destination chain
+    const currentBlock = await sepoliaProvider.getBlockNumber();
+    const blocksInAWeek = Math.floor((6 * 24 * 60 * 60) / 12);
+    const fromBlock = currentBlock - blocksInAWeek;
 
-    // Use DepositForBurnWithCaller instead of DepositForBurn
-    const allEvents = await contract.queryFilter(contract.filters.DepositForBurn(userAddress), 0, 'latest');
+    console.log(fromBlock)
 
-    
-    // Filter by sender address manually
-    const userEvents = allEvents.filter(e =>
-      // console.log(e.args, userAddress),
-      (e as ethers.EventLog).args[0].toLowerCase() === userAddress.toLowerCase()
-    );
+    // Fetch all destination transactions once
+    const destFilter = {
+      address: '0x7865fAfC2db2093669d92c0F33AeEF291086BEFD',
+      fromBlock: fromBlock,
+      toBlock: 'latest'
+    };
+    const destLogs = await sepoliaProvider.getLogs(destFilter);
 
-    const transactions: CCTPTransaction[] = await Promise.all(
-      userEvents.map(async (event) => {
-        const block = await event.getBlock();
-        const tx = await event.getTransaction();
+    // Fetch transactions from all supported networks
+    for (const [networkKey, network] of Object.entries(SUPPORTED_NETWORKS)) {
+      if (!network.contracts.cctp) continue; // Skip networks without CCTP contract
 
-        return {
-          hash: tx.hash,
-          from: tx.from,
-          to: network.contracts.cctp!,
-          amount: ((event as ethers.EventLog).args[1]).toString() || '0',
-          timestamp: block.timestamp * 1000,
-          // messageBytes: event.args?.messageBytes || undefined,
-          status: 'SUCCESS'
-        };
-      })
-    );
+      const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+
+      const contract = new ethers.Contract(
+        network.contracts.cctp,
+        stakeCCTPABI,
+        provider
+      );
+
+      try {
+        const allEvents = await contract.queryFilter(contract.filters.DepositForBurn(userAddress), 0, 'latest');
+
+        // Filter by sender address manually
+        const userEvents = allEvents.filter(e =>
+          (e as ethers.EventLog).args[0].toLowerCase() === userAddress.toLowerCase()
+        );
+
+        const networkTransactions = await Promise.all(
+          userEvents.map(async (event) => {
+            const block = await event.getBlock();
+            const eventLog = event as ethers.EventLog;
+
+            // Check for message receipt on destination chain using pre-fetched logs
+            const destTxHash = await checkMessageReceipt(
+              eventLog,
+              provider,
+              sepoliaProvider,
+              destLogs
+            );
+
+            return {
+              hash: eventLog.transactionHash,
+              from: eventLog.args[0],
+              to: network.contracts.cctp!,
+              amount: eventLog.args[1].toString() || '0',
+              timestamp: block.timestamp * 1000,
+              status: destTxHash ? 'SUCCESS' as const : 'IN_PROGRESS' as const,
+              sourceNetworkName: network.name,
+              destTransactionHash: destTxHash || undefined
+            };
+          })
+        );
+
+        allTransactions.push(...networkTransactions);
+      } catch (error) {
+        console.error(`Error fetching CCTP transactions for ${network.name}:`, error);
+        // Continue with other networks even if one fails
+        continue;
+      }
+    }
 
     // Sort by timestamp descending (newest first)
-    return transactions.sort((a, b) => b.timestamp - a.timestamp);
+    return allTransactions.sort((a, b) => b.timestamp - a.timestamp);
 
   } catch (error) {
     console.error('Error fetching CCTP transactions:', error);

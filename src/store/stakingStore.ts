@@ -80,14 +80,26 @@ const getNetworkDecimals = (chainName: string): number => {
 };
 
 const getNetworkName = (chainName: string): string => {
-  const networkKey = Object.keys(SUPPORTED_NETWORKS).find(key => 
-    SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].ccipNames.sourceName.toLowerCase() === chainName.toLowerCase() ||
-    SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].ccipNames.destName.toLowerCase() === chainName.toLowerCase()
-  );
+  
+  
+  const networkKey = Object.keys(SUPPORTED_NETWORKS).find(key => {
+    const sourceName = SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].ccipNames.sourceName.toLowerCase();
+    const destName = SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].ccipNames.destName.toLowerCase();
+    const inputName = chainName.toLowerCase();
+    
+    
+    return sourceName === inputName || destName === inputName;
+  });
+  
+  
   
   if (networkKey) {
-    return SUPPORTED_NETWORKS[networkKey as keyof typeof SUPPORTED_NETWORKS].name;
+    const networkName = SUPPORTED_NETWORKS[networkKey as keyof typeof SUPPORTED_NETWORKS].name;
+   
+    return networkName;
   }
+  
+ 
   return 'Unknown Network';
 };
 
@@ -159,13 +171,20 @@ export const useStakingStore = create<StakingStore>()(
       fetchTransactions: async (address: string) => {
         try {
           const transactions = await getCCIPTransactions(address);
-          const processedTransactions = transactions?.map((tx: Transaction) => ({
-            ...tx,
-            sourceNetworkName: getNetworkName(tx.sourceNetworkName || 'Arbitrum Sepolia'),
-            destNetworkName: getNetworkName(tx.destNetworkName || 'Sepolia'),
-            sourceDecimals: getNetworkDecimals(tx.sourceNetworkName || 'Arbitrum Sepolia'),
-            destDecimals: getNetworkDecimals(tx.destNetworkName || 'Sepolia')
-          })) || [];
+          
+          
+          const processedTransactions = transactions?.map((tx: Transaction) => (
+            
+            {
+              ...tx,
+              sourceNetworkName: getNetworkName(tx.sourceNetworkName || 'Arbitrum Sepolia'),
+              destNetworkName: 'Sepolia',
+              sourceDecimals: getNetworkDecimals(tx.sourceNetworkName || 'Arbitrum Sepolia'),
+              destDecimals: getNetworkDecimals('Sepolia')
+            }
+          )) || [];
+          
+          
           set({ transactions: processedTransactions });
         } catch (error) {
           console.error('Error fetching transactions:', error);

@@ -48,9 +48,9 @@ const Layout = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar - Hidden on mobile */}
-        <div className="hidden sm:block">
+        {/* <div className="hidden sm:block">
           <Sidebar />
-        </div>
+        </div> */}
 
         {/* Main content */}
         <div className="flex-1 overflow-hidden p-4 sm:p-6">

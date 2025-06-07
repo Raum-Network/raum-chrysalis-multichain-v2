@@ -215,43 +215,51 @@ const Transactions = () => {
       }],
       protocol: 'CCIP',
       sourceNetworkName: currentStatus.sourceNetworkName || 'Arbitrum Sepolia',
-      destNetworkName: currentStatus.destNetworkName || 'Sepolia',
+      destNetworkName: 'Sepolia',
       sourceDecimals: currentStatus.sourceDecimals || 6,
-      destDecimals: currentStatus.destDecimals || 6
+      destDecimals: 6
     }] : []),
     ...filteredTransactions
       .filter(tx => {
-        // Find the network that matches the sourceNetworkName
-        const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === tx.sourceNetworkName
-        );
         
-        // For now, all destination chains are Ethereum Sepolia
-        const destNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia' // Using Arbitrum Sepolia as it has the correct destination name
-        );
-        return sourceNetwork && destNetwork;
+        
+        // Check if the source network exists in SUPPORTED_NETWORKS
+        const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => {
+         
+          return network.name === tx.sourceNetworkName || 
+                 network.ccipNames.sourceName === tx.sourceNetworkName ||
+                 network.ccipNames.destName === tx.sourceNetworkName;
+        });
+        
+        
+        
+        // Only return true if we found a matching network
+        return sourceNetwork !== undefined;
       })
       .map(tx => {
+     
+        
+        // Find the source network configuration
         const [sourceKey, sourceNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === tx.sourceNetworkName
+          network.name === tx.sourceNetworkName || 
+          network.ccipNames.sourceName === tx.sourceNetworkName ||
+          network.ccipNames.destName === tx.sourceNetworkName
         ) || [null, null];
         
-        // For now, all destination chains are Ethereum Sepolia
-        const [destKey, destNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia' // Using Arbitrum Sepolia as it has the correct destination name
-        ) || [null, null];
+        
 
-        if (!sourceNetwork || !destNetwork) {
+        // If no source network found, skip this transaction
+        if (!sourceNetwork) {
+          
           return null;
         }
 
-        return {
+        const mappedTx = {
           ...tx,
           protocol: 'CCIP',
           blockTimestamp: tx.blockTimestamp,
-          sourceNetworkName: sourceNetwork.name,
-          destNetworkName: 'Sepolia', // Always set destination to Sepolia
+          sourceNetworkName: sourceNetwork.name, // Use the network's display name
+          destNetworkName: 'Sepolia',
           sourceDecimals: sourceNetwork.contracts.decimal || 6,
           destDecimals: 6, // Sepolia always uses 6 decimals
           destTransactionHash: tx.destTransactionHash || '',
@@ -263,6 +271,9 @@ const Transactions = () => {
             }
           }))
         };
+        
+        
+        return mappedTx;
       })
       .filter(Boolean), // Remove any null entries
     ...cctpTransactions
@@ -274,28 +285,27 @@ const Transactions = () => {
                tx.to.toLowerCase().includes(searchQuery.toLowerCase());
       })
       .filter(tx => {
-        // Find the network that matches Arbitrum Sepolia as source
+        // Find the network that matches the source network
         const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia'
+          network.name === tx.sourceNetworkName || 
+          network.ccipNames.sourceName === tx.sourceNetworkName ||
+          network.ccipNames.destName === tx.sourceNetworkName
         );
-        // For now, all destination chains are Ethereum Sepolia
-        const destNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia'
-        );
-        return sourceNetwork && destNetwork;
+        
+        // Only show transactions from supported networks
+        return sourceNetwork !== undefined;
       })
       .map(tx => {
-        // Find the network that matches Arbitrum Sepolia as source
+        // Find the network that matches the source network
         const [sourceKey, sourceNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia'
-        ) || [null, null];
-        
-        // For now, all destination chains are Ethereum Sepolia
-        const [destKey, destNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia'
+          network.name === tx.sourceNetworkName || 
+          network.ccipNames.sourceName === tx.sourceNetworkName ||
+          network.ccipNames.destName === tx.sourceNetworkName
         ) || [null, null];
 
-        if (!sourceNetwork || !destNetwork) {
+        // Skip if no matching network found
+        if (!sourceNetwork) {
+          console.log('Skipping CCTP transaction - no matching network found');
           return null;
         }
 
@@ -308,13 +318,13 @@ const Transactions = () => {
           origin: tx.from,
           receiver: tx.to,
           sourceTxHash: tx.hash,
-          destTransactionHash: tx.hash, // For CCTP, we use the same hash
+          destTransactionHash: tx.destTransactionHash || '', // Use the destTransactionHash from CCTP transaction
           tokenAmounts: [{
             amount: tx.amount,
             token: { symbol: 'USDC', decimals: sourceNetwork.contracts.decimal || 6 }
           }],
           protocol: 'CCTP',
-          sourceNetworkName: sourceNetwork.name,
+          sourceNetworkName: sourceNetwork.name, // Use the network's display name
           destNetworkName: 'Sepolia', // Always set destination to Sepolia
           sourceDecimals: sourceNetwork.contracts.decimal || 6,
           destDecimals: 6 // Sepolia always uses 6 decimals
@@ -390,6 +400,22 @@ const Transactions = () => {
   useEffect(() => {
     fetchedPagesRef.current.clear();
   }, [transactions]);
+
+  // Update the TransactionModal component to use the correct explorer URLs
+  const getExplorerUrl = (txHash: string, networkName: string) => {
+    switch (networkName.toLowerCase()) {
+      case 'arbitrum sepolia':
+        return `https://sepolia.arbiscan.io/tx/${txHash}`;
+      case 'base sepolia':
+        return `https://sepolia.basescan.org/tx/${txHash}`;
+      case 'polygon amoy':
+        return `https://www.oklink.com/amoy/tx/${txHash}`;
+      case 'sepolia':
+        return `https://sepolia.etherscan.io/tx/${txHash}`;
+      default:
+        return `https://sepolia.arbiscan.io/tx/${txHash}`;
+    }
+  };
 
   // Update the TransactionModal component
   const TransactionModal = ({ transaction }: { transaction: any }) => (
@@ -530,7 +556,7 @@ const Transactions = () => {
             <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
               <div className="text-xs opacity-70 mb-1">Source Transaction</div>
               <a
-                href={`https://sepolia.arbiscan.io/tx/${transaction.sourceTxHash}`}
+                href={getExplorerUrl(transaction.sourceTxHash, transaction.sourceNetworkName)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-1 hover:text-amber-400"
@@ -545,7 +571,7 @@ const Transactions = () => {
             <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
               <div className="text-xs opacity-70 mb-1">Destination Transaction</div>
               <a
-                href={`https://sepolia.etherscan.io/tx/${transaction.destTransactionHash}`}
+                href={getExplorerUrl(transaction.destTransactionHash, transaction.destNetworkName)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-1 hover:text-amber-400"

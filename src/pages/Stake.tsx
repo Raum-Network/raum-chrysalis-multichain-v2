@@ -8,16 +8,47 @@ import AmountInput from '../components/AmountInput';
 import { Progress } from '../components/Progress';
 import { ArrowRightLeft, Loader2, ChevronRight, CheckCircle2, XCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SUPPORTED_NETWORKS } from '../config/contract';
 
 const Stake = () => {
-  const { isConnected, balance, connect } = useWallet();
-  const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, hasAllowance, isApproving, usdcBalance } = useStaking();
+  const { isConnected, balance, connect, networkConfig } = useWallet();
+  const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, checkAllowance, isApproving, usdcBalance } = useStaking();
   const [stakeAmount, setStakeAmount] = useState(0);
+  const [hasAllowance, setHasAllowance] = useState(false);
   const [stakeView, setStakeView] = useState<'form' | 'confirming' | 'success'>('form');
   const [error, setError] = useState<string | null>(null);
   const [currentStake, setCurrentStake] = useState<StakeStatus | null>(null);
   const [showTransactionBox, setShowTransactionBox] = useState(false);
   const [showSuccessDelay, setShowSuccessDelay] = useState(false);
+
+  const getExplorerUrl = (txHash: string) => {
+    const network = Object.values(SUPPORTED_NETWORKS).find(net => net.chainId === networkConfig.chainId);
+    if (!network) return `https://sepolia.arbiscan.io/tx/${txHash}`;
+    
+    switch (network.name.toLowerCase()) {
+      case 'arbitrum sepolia':
+        return `https://sepolia.arbiscan.io/tx/${txHash}`;
+      case 'base sepolia':
+        return `https://sepolia.basescan.org/tx/${txHash}`;
+      case 'polygon amoy':
+        return `https://www.oklink.com/amoy/tx/${txHash}`;
+      default:
+        return `https://sepolia.arbiscan.io/tx/${txHash}`;
+    }
+  };
+
+  // Check allowance whenever stakeAmount changes
+  useEffect(() => {
+    const checkAllowanceStatus = async () => {
+      if (stakeAmount > 0) {
+        const hasAllowance = await checkAllowance(stakeAmount);
+        setHasAllowance(hasAllowance);
+      } else {
+        setHasAllowance(false);
+      }
+    };
+    checkAllowanceStatus();
+  }, [stakeAmount, checkAllowance]);
 
   // Subscribe to StakeManager updates
   useEffect(() => {
@@ -26,7 +57,7 @@ const Stake = () => {
       setShowTransactionBox(true);
       
       if (status.status === 'SUCCESS') {
-        // For CCTP transactions, delay the success view
+       
         if (bridgeProtocol === 'CCTP') {
           setTimeout(() => {
             setShowSuccessDelay(true);
@@ -67,35 +98,54 @@ const Stake = () => {
     setShowSuccessDelay(false); // Reset the delay state
   };
 
-  const renderProtocolSelector = () => (
-    <div className="grid grid-cols-2 gap-4 mb-4">
-      {['CCIP', 'CCTP'].map((protocol) => (
-        <button
-          key={protocol}
-          onClick={() => setBridgeProtocol(protocol as "CCIP" | "CCTP")}
-          className={`
-            p-3 rounded-md border transition-all duration-200
-            ${bridgeProtocol === protocol 
-              ? 'border-amber-500 bg-amber-900/30 shadow-lg shadow-amber-900/20' 
-              : 'border-amber-700/40 bg-amber-900/10 hover:bg-amber-900/20'
-            }
-          `}
-        >
-          <div className="flex flex-col items-center space-y-2">
-            <span className="text-sm font-medium">
-              {protocol === 'CCIP' ? 'Chainlink CCIP' : 'Circle CCTP'}
-            </span>
-            <span className="text-xs opacity-70">
-              {protocol === 'CCIP' 
-                ? 'Cross-Chain Interoperability Protocol' 
-                : 'Cross-Chain Transfer Protocol'
+  const renderProtocolSelector = () => {
+    // For Base Sepolia, only show CCIP
+    if (networkConfig.name === 'Base Sepolia') {
+      return (
+        <div className="mb-4">
+          <button
+            className="p-3 rounded-md border border-amber-500 bg-amber-900/30 shadow-lg shadow-amber-900/20 w-full"
+          >
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-sm font-medium">Chainlink CCIP</span>
+              <span className="text-xs opacity-70">Cross-Chain Interoperability Protocol</span>
+            </div>
+          </button>
+        </div>
+      );
+    }
+
+    // For other networks, show both CCIP and CCTP
+    return (
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        {['CCIP', 'CCTP'].map((protocol) => (
+          <button
+            key={protocol}
+            onClick={() => setBridgeProtocol(protocol as "CCIP" | "CCTP")}
+            className={`
+              p-3 rounded-md border transition-all duration-200
+              ${bridgeProtocol === protocol 
+                ? 'border-amber-500 bg-amber-900/30 shadow-lg shadow-amber-900/20' 
+                : 'border-amber-700/40 bg-amber-900/10 hover:bg-amber-900/20'
               }
-            </span>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
+            `}
+          >
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-sm font-medium">
+                {protocol === 'CCIP' ? 'Chainlink CCIP' : 'Circle CCTP'}
+              </span>
+              <span className="text-xs opacity-70">
+                {protocol === 'CCIP' 
+                  ? 'Cross-Chain Interoperability Protocol' 
+                  : 'Cross-Chain Transfer Protocol'
+                }
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   const renderTransactionBox = () => {
     if (!currentStake || !showTransactionBox) return null;
@@ -138,7 +188,7 @@ const Stake = () => {
             <div className="text-sm break-all">
               <span className="text-amber-500">Source Tx:</span>
               <a 
-                href={`https://sepolia.arbiscan.io/tx/${currentStake.sourceTxHash}`}
+                href={getExplorerUrl(currentStake.sourceTxHash)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-2 text-amber-400 hover:text-amber-300"

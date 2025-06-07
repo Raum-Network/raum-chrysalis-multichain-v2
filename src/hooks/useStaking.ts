@@ -5,19 +5,25 @@ import { erc20Abi } from 'viem';
 import stakeManager, { StakeStatus } from '../lib/stakeManager';
 import stakedUserBalance from '../lib/sepoliaContract';
 
-const USDC_ADDRESS = "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d";
-const LINK_ADDRESS = "0xb1D4538B4571d411F07960EF2838Ce337FE1E80E";
-const STAKE_CONTRACT_ADDRESS = "0x01851B172B1B0A5709DEEC827A88732Dba00C467";
-const STAKE_CCTP_CONTRACT_ADDRESS = "0x907D0cCc4e0Fa0EbDa7a0BDbFae592027607c22B";
-
 export function useStaking() {
-  const { address } = useWallet();
+  const { address, networkConfig, chainId } = useWallet();
   const [stakeStatus, setStakeStatus] = useState<StakeStatus | null>(null);
   const [isStaking, setIsStaking] = useState(false);
   const [bridgeProtocol, setBridgeProtocol] = useState<"CCIP" | "CCTP">("CCIP");
   const [isApproving, setIsApproving] = useState(false);
+  const [stakeAmount, setStakeAmount] = useState<number>(0);
   
   const { writeContractAsync } = useWriteContract();
+
+  // Get contract addresses from network config
+  const USDC_ADDRESS = networkConfig.contracts.usdc as `0x${string}`;
+  const LINK_ADDRESS = networkConfig.contracts.fees as `0x${string}`;
+  const STAKE_CONTRACT_ADDRESS = networkConfig.contracts.ccip as `0x${string}`;
+  const STAKE_CCTP_CONTRACT_ADDRESS = networkConfig.contracts.cctp as `0x${string}`;
+
+  // Update StakeManager and SepoliaContract with current chainId
+  stakeManager.updateChainId(chainId);
+  stakedUserBalance.updateChainId(chainId);
 
   // Read USDC balance
   const { data: usdcBalance } = useReadContract({
@@ -34,6 +40,7 @@ export function useStaking() {
     functionName: "allowance",
     args: [address!, bridgeProtocol === 'CCIP' ? STAKE_CONTRACT_ADDRESS : STAKE_CCTP_CONTRACT_ADDRESS],
   });
+
 
   const { data: linkAllowance, refetch: refetchLinkAllowance } = useReadContract({
     address: LINK_ADDRESS,
@@ -95,6 +102,7 @@ export function useStaking() {
     
     try {
       setIsStaking(true);
+      setStakeAmount(amount);
       const hasAllowance = await checkAllowance(amount);
       
       if (!hasAllowance) {
@@ -106,7 +114,7 @@ export function useStaking() {
       if (bridgeProtocol === 'CCIP') {
         await stakeManager.stake(
           "16015286601757825753",
-          "0x185915e86A5DD567FC8D381914503cb517e51317",
+          networkConfig.contracts.destination as `0x${string}`,
           stakeAmountInWei,
           "999999",
           writeContractAsync,
@@ -114,12 +122,13 @@ export function useStaking() {
           setStakeStatus
         );
       } else {
+        const cctpDestinationCaller = networkConfig.contracts.cctpDestinationCaller?.replace('0x', '') || '';
         await stakeManager.stakeCCTP(
           stakeAmountInWei,
           0,
-          '0x0000000000000000000000000267Cf87951fB8e6BE909025cCC67f8DDE991eA7',
+          `0x000000000000000000000000${cctpDestinationCaller}`,
           USDC_ADDRESS,
-          '0x0000000000000000000000000267Cf87951fB8e6BE909025cCC67f8DDE991eA7',
+          `0x000000000000000000000000${cctpDestinationCaller}`,
           address,
           writeContractAsync,
           () => {},
@@ -139,6 +148,8 @@ export function useStaking() {
     try {
       const balance = await stakedUserBalance.getBalance(address);
       const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
+      console.log(balance , "balance")
+      console.log(cctpBalance , "cctpBalance")
       return (Number(balance) + Number(cctpBalance)).toString();
     } catch (error) {
       console.error("Error:", error);
@@ -157,13 +168,14 @@ export function useStaking() {
     usdcBalance: usdcBalance ? Number(usdcBalance) / 10 ** 6 : 0,
     hasAllowance: bridgeProtocol === 'CCIP' 
       ? (usdcAllowance && linkAllowance 
-        ? (usdcAllowance >= BigInt(10 * 10 ** 6) && linkAllowance >= BigInt(10 * 10 ** 18)) 
+        ? (usdcAllowance >= BigInt(stakeAmount * 10 ** 6) && linkAllowance >= BigInt(10 * 10 ** 18)) 
         : false)
       : (usdcAllowance 
-        ? usdcAllowance >= BigInt(10 * 10 ** 6) 
+        ? usdcAllowance >= BigInt(stakeAmount * 10 ** 6) 
         : false),
     checkAllowance,
     getStakedBalance,
-    stakeManager
+    stakeManager,
+    setStakeAmount
   };
 }
