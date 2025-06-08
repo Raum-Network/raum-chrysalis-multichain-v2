@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SUPPORTED_NETWORKS, Networks } from '../config/contract';
 import { useTheme } from '../context/ThemeContext';
@@ -26,7 +26,14 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
         `}
       >
         <span className="text-sm">{currentNetworkConfig.name}</span>
-        <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        {/* Desktop Chevron */}
+        <ChevronDown size={16} 
+          className={`hidden sm:block transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+        />
+        {/* Mobile Chevron */}
+        <ChevronUp size={16} 
+          className={`sm:hidden transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+        />
       </button>
 
       <AnimatePresence>

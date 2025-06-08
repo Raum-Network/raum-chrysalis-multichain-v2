@@ -206,7 +206,7 @@ const Stake = () => {
                 href={getExplorerUrl(currentStake.sourceTxHash)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-2 text-amber-400 hover:text-amber-300"
+                className="ml-2 text-amber-400 hover:text-green-500"
               >
                 {currentStake.sourceTxHash}
               </a>
@@ -221,7 +221,7 @@ const Stake = () => {
                 href={`https://ccip.chain.link/msg/${currentStake.ccipMessageId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-2 text-amber-400 hover:text-amber-300"
+                className="ml-2 text-amber-400 hover:text-green-500"
               >
                 {currentStake.ccipMessageId}
               </a>
@@ -235,7 +235,7 @@ const Stake = () => {
                 href={`https://sepolia.etherscan.io/tx/${currentStake.destinationTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-2 text-amber-400 hover:text-amber-300"
+                className="ml-2 text-amber-400 hover:text-green-500"
               >
                 {currentStake.destinationTxHash}
               </a>
