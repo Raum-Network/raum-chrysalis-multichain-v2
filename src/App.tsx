@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState , useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { WalletProvider } from './context/WalletContext';
 import Layout from './components/Layout';
@@ -13,10 +13,20 @@ import { config } from '../src/lib/walletConnect'
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ConnectKitProvider } from 'connectkit';
 import { Helmet, HelmetProvider } from 'react-helmet-async';
+import ReactGA from 'react-ga4';
 
-const queryClient = new QueryClient()
+
+const queryClient = new QueryClient();
 
 function App() {
+
+  useEffect(() => {
+        ReactGA.initialize("G-8W93XDYHK5");
+        // Send pageview with a custom path
+        ReactGA.send({ hitType: "pageview", page: "/dashboard", title: "Dashboard" });
+        ReactGA.send({ hitType: "pageview", page: "/transactions", title: "Transactions" });
+        ReactGA.send({ hitType: "pageview", page: "/stake", title: "Stake" });
+    }, [])
   return (
     <HelmetProvider>
       <WagmiProvider config={config}>

@@ -10,6 +10,7 @@ import { ArrowRightLeft, Loader2, ChevronRight, CheckCircle2, XCircle, X } from 
 import { motion, AnimatePresence } from 'framer-motion';
 import { SUPPORTED_NETWORKS } from '../config/contract';
 import { getLidoAPY } from '../services/api';
+import ReactGA from 'react-ga4';
 
 const Stake = () => {
   const { isConnected, balance, connect, networkConfig } = useWallet();
@@ -95,6 +96,11 @@ const Stake = () => {
     setError(null);
 
     try {
+      ReactGA.event({
+            category: 'Social Links',
+            action: 'Click',
+            label: "Staking USDC",
+        });
       await stake(stakeAmount);
     } catch (error) {
       console.error('Staking failed:', error);
