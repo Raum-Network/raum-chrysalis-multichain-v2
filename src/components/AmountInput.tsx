@@ -16,7 +16,7 @@ const AmountInput: React.FC<AmountInputProps> = ({
   value,
   onChange,
   min = 0,
-  max = 100,
+  max = 10000000,
   step = 0.1,
   label,
   suffix,

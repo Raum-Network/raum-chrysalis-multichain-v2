@@ -268,7 +268,6 @@ const Stake = () => {
             value={stakeAmount}
             onChange={setStakeAmount}
             min={0}
-            max={usdcBalance}
             step={0.01}
             label={`Stake Amount (${bridgeProtocol})`}
             suffix="USDC"

@@ -22,7 +22,8 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
           className={`
             flex items-center space-x-2 px-3 py-1.5 rounded-md
             border border-green-500/40 bg-black/90
-            hover:bg-green-500/20 transition-colors 
+            transition-colors hover:text-black/90
+            hover:border-black/90 hover:bg-gray-100/10
             text-green-500
           `}
         >
@@ -39,7 +40,7 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
 
         {/* Tally Button for Mobile */}
         <button
-          className="md:hidden flex items-center space-x-2 px-3 py-1.5 rounded-md border border-green-500/40 bg-black/90 hover:bg-green-500/20 transition-colors text-green-500"
+          className="md:hidden flex items-center space-x-2 px-3 py-1.5 rounded-md border border-green-500/40 bg-black/90 hover:bg-gray-100/10 transition-colors text-green-500"
           data-tally-open="3q7V77"
           data-tally-align-left="1"
           data-tally-overlay="1"
@@ -84,7 +85,8 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
                     }}
                     className={`
                       w-full px-4 py-2 text-sm flex items-center justify-between
-                      hover:bg-green-100/10 transition-colors
+                      hover:text-black/90
+                      hover: border border-black/90 hover:bg-gray-100/10 hover:border-black/90 transition-colors
                       ${currentNetwork === network ? 'bg-gray-800' : 'bg-gray-800'}
                       rounded-md mb-1
                       last:mb-0

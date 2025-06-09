@@ -8,7 +8,7 @@ import { Networks } from '../config/contract';
 
 const ConnectButton = () => {
   const { isConnected, address, balance, network, chainId, switchNetwork, disconnect } = useWallet();
-  const [showTooltip, setShowTooltip] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleDisconnect = () => {
     disconnect();
@@ -30,21 +30,19 @@ const ConnectButton = () => {
 
         <div className="relative">
           <div
-            className="flex items-center space-x-2 px-2 py-1 rounded-ßmd bg-green-900/30 border border-green-700/40"
-            onMouseEnter={() => setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
+            onClick={() => setIsOpen(!isOpen)}
+            className="flex items-center space-x-2 px-3 py-1.5 rounded-md
+                      border border-green-500/40 bg-black/90
+                      hover:text-black/90
+                      hover: border border-black/90 hover:bg-gray-100/10 hover:border-black/90
+                      transition-all duration-200 
+                      text-green-500 cursor-pointer"
           >
             <div className="pulse-dot"></div>
-            <span className="hidden md:inline text-xs text-black-400">{truncateAddress(address || '')}</span>
-            <button
-              onClick={handleDisconnect}
-              className="ml-1 p-1 rounded-full hover:bg-red-900/50"
-            >
-              <LogOut size={14} className="text-red-400" />
-            </button>
+            <span className="text-sm hidden md:inline">{truncateAddress(address || '')}</span>
           </div>
 
-          {showTooltip && (
+          {isOpen && (
             <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
@@ -78,6 +76,17 @@ const ConnectButton = () => {
                 <div className="text-green-400">Network: {network}</div>
                 <div className="text-green-400">Chain ID: {chainId}</div>
               </div>
+
+              {/* Disconnect button */}
+              <div className="mt-1 pt-1 border-t border-amber-700/40">
+                <button
+                  onClick={handleDisconnect}
+                  className="flex items-center space-x-2 text-red-400 hover:text-red-500 transition-colors"
+                >
+                  <LogOut size={16} />
+                  <span>Disconnect</span>
+                </button>
+              </div>
             </motion.div>
           )}
         </div>
@@ -103,8 +112,10 @@ const ConnectButton = () => {
               onClick={show}
               className={`
                 flex items-center justify-center px-3 py-1.5 rounded-md
-                border border-green-500/40 bg-black/90 hover:bg-green-500/20 
+                border border-green-500/40 bg-black/90 hover:text-black/90
+                      hover: border border-black/90 hover:bg-gray-100/10 hover:border-black/90
                 transition-colors text-green-500 transition-all duration-40
+                
               `}
             >
               <span className="text-sm">{isConnecting ? "Connecting..." : "Connect"}</span>
