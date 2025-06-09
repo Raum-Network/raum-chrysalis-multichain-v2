@@ -16,25 +16,40 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
 
   return (
     <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`
-          flex items-center space-x-2 px-3 py-1.5 rounded-md
-          border border-green-500/40 bg-black/90
-          hover:bg-green-500/20 transition-colors 
-          text-green-500
-        `}
-      >
-        <span className="text-sm">{currentNetworkConfig.name}</span>
-        {/* Desktop Chevron */}
-        <ChevronDown size={16} 
-          className={`hidden sm:block transition-transform ${isOpen ? 'rotate-180' : ''}`} 
-        />
-        {/* Mobile Chevron */}
-        <ChevronUp size={16} 
-          className={`sm:hidden transition-transform ${isOpen ? 'rotate-180' : ''}`} 
-        />
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={`
+            flex items-center space-x-2 px-3 py-1.5 rounded-md
+            border border-green-500/40 bg-black/90
+            hover:bg-green-500/20 transition-colors 
+            text-green-500
+          `}
+        >
+          <span className="text-sm">{currentNetworkConfig.name}</span>
+          {/* Desktop Chevron */}
+          <ChevronDown size={16} 
+            className={`hidden sm:block transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+          />
+          {/* Mobile Chevron */}
+          <ChevronUp size={16} 
+            className={`sm:hidden transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+          />
+        </button>
+
+        {/* Tally Button for Mobile */}
+        <button
+          className="md:hidden flex items-center space-x-2 px-3 py-1.5 rounded-md border border-green-500/40 bg-black/90 hover:bg-green-500/20 transition-colors text-green-500"
+          data-tally-open="3q7V77"
+          data-tally-align-left="1"
+          data-tally-overlay="1"
+          data-tally-emoji-text="👋"
+          data-tally-emoji-animation="bounce"
+          data-tally-auto-close="3000"
+        >
+          <span className="text-sm">Contact Us</span>
+        </button>
+      </div>
 
       <AnimatePresence>
         {isOpen && (
@@ -57,7 +72,6 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
                 sm:top-full sm:right-0 sm:mt-2
                 bottom-full right-0 mb-2
                 backdrop-blur-md
-               
               `}
             >
               <div className="py-1 px-1">

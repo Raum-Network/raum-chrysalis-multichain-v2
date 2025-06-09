@@ -291,7 +291,7 @@ const Stake = () => {
       >
         {isApproving ? 'Approving...' :
          isStaking || currentStake?.status === 'IN_PROGRESS' ? 'Staking in Progress...' : 
-         !hasAllowance ? `Approve for ${bridgeProtocol}` :
+         !hasAllowance ? `Approve and Stake in ${bridgeProtocol}` :
           bridgeProtocol === "CCIP" && linkBalance < 10 ? 'Insufficient Link Balance' :
          `Stake with ${bridgeProtocol}`}
       </Button>
