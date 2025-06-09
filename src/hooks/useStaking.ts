@@ -95,7 +95,7 @@ export function useStaking() {
     
     const amountInWei = BigInt(amount * 10 ** 6);
     const hasUsdcAllowance = (usdcAllowance || BigInt(0)) >= amountInWei;
-    console.log('USDC Allowance:', usdcAllowance, 'Required:', amountInWei);
+   
     if (bridgeProtocol === 'CCIP') {
       const hasLinkAllowance = (linkAllowance || BigInt(0)) >= BigInt(10 * 10 ** 18);
       return hasUsdcAllowance && hasLinkAllowance;
@@ -116,7 +116,7 @@ export function useStaking() {
         await approveToken(amount);
       }
 
-      console.log(`0x000000000000000000000000${ networkConfig.contracts.cctpDestinationCaller}`)
+      
       const stakeAmountInWei = amount * 10 ** 6;
 
       if (bridgeProtocol === 'CCIP') {
