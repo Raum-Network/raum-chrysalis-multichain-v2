@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 import { 
   useAccount, 
   useBalance, 
-  useConnect, 
+  useConnect,
   useDisconnect, 
   useReadContract,
   useContractWrite,
@@ -28,8 +28,8 @@ export const config = createConfig(
     },
     walletConnectProjectId: "ffd25e3cc20b883d266134ce525caf88",
     appName: "Chrysalis - SteadyStake",
-    appUrl: "https://steadystake.chrysalis.raum.network",
-    appIcon: "https://family.co/logo.png",
+    appUrl: "https://chrysalis.raum.network",
+    appIcon: "https://raw.githubusercontent.com/Zypheraum/rnlabs-frontend/refs/heads/main/public/RN-logo-white.svg",
     enableFamily: false,
   })
 );
