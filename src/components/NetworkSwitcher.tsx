@@ -7,18 +7,29 @@ import { useTheme } from '../context/ThemeContext';
 interface NetworkSwitcherProps {
   currentNetwork: Networks;
   onNetworkChange: (network: Networks) => void;
+  onOpen?: () => void; // New callback prop
 }
 
-const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherProps) => {
+const NetworkSwitcher = ({ currentNetwork, onNetworkChange, onOpen }: NetworkSwitcherProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { theme } = useTheme();
   const currentNetworkConfig = SUPPORTED_NETWORKS[currentNetwork];
+
+  const handleToggle = () => {
+    const newIsOpen = !isOpen;
+    setIsOpen(newIsOpen);
+    
+    // Call onOpen callback when opening the dropdown
+    if (newIsOpen && onOpen) {
+      onOpen();
+    }
+  };
 
   return (
     <div className="relative">
       <div className="flex items-center gap-2">
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleToggle}
           className={`
             flex items-center space-x-2 px-3 py-1.5 rounded-md
             border border-green-500/40 bg-black/90

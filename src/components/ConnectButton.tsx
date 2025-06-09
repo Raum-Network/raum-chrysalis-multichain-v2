@@ -18,6 +18,10 @@ const ConnectButton = () => {
     return addr.slice(0, 6) + '...' + addr.slice(-4);
   };
 
+  const handleNetworkSwitcherOpen = () => {
+    setIsOpen(false); // Close the connected modal when network switcher opens
+  };
+
   if (isConnected) {
     return (
       <div className="flex items-center space-x-2">
@@ -25,6 +29,7 @@ const ConnectButton = () => {
           <NetworkSwitcher
             currentNetwork={network as Networks}
             onNetworkChange={switchNetwork}
+            onOpen={handleNetworkSwitcherOpen}
           />
         </div>
 
@@ -78,7 +83,7 @@ const ConnectButton = () => {
               </div>
 
               {/* Disconnect button */}
-              <div className="mt-1 pt-1 border-t border-amber-700/40">
+              <div className="mt-1 pt-1 border-t border-green-700/40">
                 <button
                   onClick={handleDisconnect}
                   className="flex items-center space-x-2 text-red-400 hover:text-red-500 transition-colors"
@@ -101,6 +106,7 @@ const ConnectButton = () => {
         <NetworkSwitcher
           currentNetwork={network as Networks}
           onNetworkChange={switchNetwork}
+          onOpen={handleNetworkSwitcherOpen}
         />
       </div>
       <ConnectKitButton.Custom>
