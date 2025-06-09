@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useWallet } from '../lib/walletConnect';
 import Terminal from '../components/Terminal';
+import { ConnectKitButton } from 'connectkit';
 
 const Home = () => {
   const { isConnected, connect } = useWallet();
@@ -42,7 +43,6 @@ const Home = () => {
   };
 
   return (
-    <>
     <div className="h-full">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
         <motion.div 
@@ -96,14 +96,17 @@ const Home = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
               >
-                <Button
-                  size="lg"
-                  variant="primary"
-                  onClick={connect}
-                  icon={<Wallet size={18} />}
-                >
-                  Connect Wallet to Start
-                </Button>
+                <ConnectKitButton.Custom>
+                  {({ show }) => (
+                    <Button 
+                      size="lg" 
+                      variant="primary"
+                      onClick={show}
+                    >
+                      Connect Wallet To Start
+                    </Button>
+                  )}
+                </ConnectKitButton.Custom>
               </motion.div>
             )}
           </div>
@@ -160,7 +163,6 @@ const Home = () => {
         <span>Contact Us</span>
       </motion.button>
     </div>
-    </>
   );
 };
 

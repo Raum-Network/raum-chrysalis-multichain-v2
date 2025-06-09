@@ -11,9 +11,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SUPPORTED_NETWORKS } from '../config/contract';
 import { getLidoAPY } from '../services/api';
 import ReactGA from 'react-ga4';
+import { ConnectKitButton } from 'connectkit';
 
 const Stake = () => {
-  const { isConnected, balance, connect, networkConfig } = useWallet();
+  const { isConnected, balance, connect, networkConfig , address } = useWallet();
   const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, checkAllowance, isApproving, usdcBalance , linkBalance } = useStaking();
   const [stakeAmount, setStakeAmount] = useState(0);
   const [hasAllowance, setHasAllowance] = useState(false);
@@ -99,7 +100,7 @@ const Stake = () => {
       ReactGA.event({
             category: 'Social Links',
             action: 'Click',
-            label: "Staking USDC",
+            label: `Staking USDC ${address} on ${networkConfig.name} using ${bridgeProtocol}`,
         });
       await stake(stakeAmount);
     } catch (error) {
@@ -353,9 +354,15 @@ const Stake = () => {
       <div className="h-full flex flex-col items-center justify-center">
         <div className="text-center mb-6">
           <h1 className="text-2xl mb-2">Connect Your Wallet</h1>
-          <p className="opacity-70">Please connect your wallet to stake</p>
+          <p className="opacity-70">Please connect your wallet to start staking</p>
         </div>
-        <Button onClick={connect} size="lg">Connect Wallet</Button>
+        <ConnectKitButton.Custom>
+          {({ show }) => (
+            <Button onClick={show} size="lg">
+              Connect Wallet
+            </Button>
+          )}
+        </ConnectKitButton.Custom>
       </div>
     );
   }

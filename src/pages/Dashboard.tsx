@@ -12,6 +12,7 @@ import stakedUserBalance from '../lib/sepoliaContract';
 import { getLidoAPY } from '../services/api';
 import stakeManager, { StakeStatus } from '../lib/stakeManager';
 import { useStaking } from '../hooks/useStaking';
+import { ConnectKitButton } from 'connectkit';
 
 
 const Dashboard = () => {
@@ -157,7 +158,13 @@ const Dashboard = () => {
           <h1 className="text-2xl mb-2">Connect Your Wallet</h1>
           <p className="opacity-70">Please connect your wallet to view your dashboard</p>
         </div>
-        <Button onClick={connect} size="lg">Connect Wallet</Button>
+        <ConnectKitButton.Custom>
+          {({ show }) => (
+            <Button onClick={show} size="lg">
+              Connect Wallet
+            </Button>
+          )}
+        </ConnectKitButton.Custom>
       </div>
     );
   }

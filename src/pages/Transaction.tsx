@@ -12,6 +12,7 @@ import { CCTPTransaction, fetchCCTPTransactions } from '../services/cctpTransact
 import { SUPPORTED_NETWORKS } from '../config/contract';
 import { ethers } from 'ethers';
 import stakedUserBalance from '../lib/sepoliaContract';
+import { ConnectKitButton } from 'connectkit';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -687,7 +688,13 @@ const Transactions = () => {
           <h1 className="text-2xl mb-2">Connect Your Wallet</h1>
           <p className="opacity-70">Please connect your wallet to view transactions</p>
         </div>
-        <Button onClick={connect} size="lg">Connect Wallet</Button>
+        <ConnectKitButton.Custom>
+          {({ show }) => (
+            <Button onClick={show} size="lg">
+              Connect Wallet
+            </Button>
+          )}
+        </ConnectKitButton.Custom>
       </div>
     );
   }
