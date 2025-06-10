@@ -23,6 +23,17 @@ const Dashboard = () => {
   const [lidoAPY, setLidoAPY] = useState<number | null>(null);
 
   useEffect(() => {
+
+    if(address) {
+    ReactGA.event({
+      category: 'Wallet',
+      action: 'Click',
+      label: `Connected Wallet ${address}`
+    });
+  }
+  } , [address])
+
+  useEffect(() => {
     const fetchData = async () => {
       if (address) {
         try {
@@ -162,11 +173,7 @@ const Dashboard = () => {
         <ConnectKitButton.Custom>
           {({ show , address }) => (
             <Button onClick={() => {
-              ReactGA.event({
-                category: 'Wallet',
-                action: 'Click',
-                label: `Connected Wallet ${address}`
-              });
+              
               show?.();
             }} size="lg">
               Connect Wallet

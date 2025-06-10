@@ -78,6 +78,17 @@ const Stake = () => {
   }, [bridgeProtocol]);
 
   useEffect(() => {
+
+    if(address) {
+    ReactGA.event({
+      category: 'Wallet',
+      action: 'Click',
+      label: `Connected Wallet ${address}`
+    });
+  }
+  } , [address])
+
+  useEffect(() => {
     const fetchLidoAPY = async () => {
       try {
         const apy = await getLidoAPY();

@@ -112,6 +112,17 @@ const Transactions = () => {
     return (Number(amount) / Math.pow(10, decimals)).toFixed(decimals);
   };
 
+  useEffect(() => {
+
+    if(address) {
+    ReactGA.event({
+      category: 'Wallet',
+      action: 'Click',
+      label: `Connected Wallet ${address}`
+    });
+  }
+  } , [address])
+
   // Update the useEffect to load both types of transactions together
   useEffect(() => {
     const loadTransactions = async () => {
@@ -692,11 +703,7 @@ const Transactions = () => {
         <ConnectKitButton.Custom>
           {({ show , address }) => (
             <Button onClick={() => {
-              ReactGA.event({
-                category: 'Wallet',
-                action: 'Click',
-                label: `Connected Wallet ${address}`
-              });
+              
               show?.();
             }} size="lg">
               Connect Wallet

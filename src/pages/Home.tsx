@@ -5,9 +5,11 @@ import { Link } from 'react-router-dom';
 import { useWallet } from '../lib/walletConnect';
 import Terminal from '../components/Terminal';
 import { ConnectKitButton } from 'connectkit';
+import ReactGA from 'react-ga4';
+import { useEffect } from 'react';
 
 const Home = () => {
-  const { isConnected, connect } = useWallet();
+  const { isConnected, connect , address } = useWallet();
   
   const terminalLogs: { message: string; type: 'success' | 'info' | 'error' | 'warning' | 'command'; timestamp: Date; }[] = [
     {
@@ -42,7 +44,24 @@ const Home = () => {
     show: { opacity: 1, y: 0 }
   };
 
+  useEffect(() => {
+
+    if(address) {
+    ReactGA.event({
+      category: 'Wallet',
+      action: 'Click',
+      label: `Connected Wallet ${address}`
+    });
+  }
+  } , [address])
+
+
+  
+
   return (
+
+
+    
     <div className="h-full">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
         <motion.div 
@@ -97,11 +116,14 @@ const Home = () => {
                 transition={{ delay: 0.6, duration: 0.5 }}
               >
                 <ConnectKitButton.Custom>
-                  {({ show }) => (
+                  {({ show , address }) => (
                     <Button 
                       size="lg" 
                       variant="primary"
-                      onClick={show}
+                      onClick={() => {
+                        
+                        show?.();
+                      }}
                     >
                       Connect Wallet To Start
                     </Button>

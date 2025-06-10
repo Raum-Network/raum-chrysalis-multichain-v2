@@ -24,6 +24,13 @@ const ConnectButton = () => {
   };
 
   if (isConnected) {
+
+    ReactGA.event({
+      category: 'Wallet',
+      action: 'Click',
+      label: address ? `Connected Wallet ${address}` : 'Connect Wallet Button'
+    });
+    
     return (
       <div className="flex items-center space-x-2">
         <div className="hidden sm:block">
@@ -120,7 +127,7 @@ const ConnectButton = () => {
                 ReactGA.event({
                   category: 'Wallet',
                   action: 'Click',
-                  label: `Connected Wallet ${address}`
+                  label: address ? `Connected Wallet ${address}` : 'Connect Wallet Button'
                 });
                 show?.();
               }}
