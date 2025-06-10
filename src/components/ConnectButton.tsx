@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import NetworkSwitcher from './NetworkSwitcher';
 import { Networks } from '../config/contract';
+import ReactGA from 'react-ga4';
 
 const ConnectButton = () => {
   const { isConnected, address, balance, network, chainId, switchNetwork, disconnect } = useWallet();
@@ -115,7 +116,14 @@ const ConnectButton = () => {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={show}
+              onClick={() => {
+                ReactGA.event({
+                  category: 'Wallet',
+                  action: 'Click',
+                  label: `Connected Wallet ${address}`
+                });
+                show?.();
+              }}
               className={`
                 flex items-center justify-center px-3 py-1.5 rounded-md
                 border border-green-500/40 bg-black/90 hover:text-black/90

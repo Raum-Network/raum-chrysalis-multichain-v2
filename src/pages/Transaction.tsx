@@ -13,6 +13,7 @@ import { SUPPORTED_NETWORKS } from '../config/contract';
 import { ethers } from 'ethers';
 import stakedUserBalance from '../lib/sepoliaContract';
 import { ConnectKitButton } from 'connectkit';
+import ReactGA from 'react-ga4';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -689,8 +690,15 @@ const Transactions = () => {
           <p className="opacity-70">Please connect your wallet to view transactions</p>
         </div>
         <ConnectKitButton.Custom>
-          {({ show }) => (
-            <Button onClick={show} size="lg">
+          {({ show , address }) => (
+            <Button onClick={() => {
+              ReactGA.event({
+                category: 'Wallet',
+                action: 'Click',
+                label: `Connected Wallet ${address}`
+              });
+              show?.();
+            }} size="lg">
               Connect Wallet
             </Button>
           )}

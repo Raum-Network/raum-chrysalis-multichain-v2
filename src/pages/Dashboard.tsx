@@ -13,6 +13,7 @@ import { getLidoAPY } from '../services/api';
 import stakeManager, { StakeStatus } from '../lib/stakeManager';
 import { useStaking } from '../hooks/useStaking';
 import { ConnectKitButton } from 'connectkit';
+import ReactGA from 'react-ga4';
 
 
 const Dashboard = () => {
@@ -159,8 +160,15 @@ const Dashboard = () => {
           <p className="opacity-70">Please connect your wallet to view your dashboard</p>
         </div>
         <ConnectKitButton.Custom>
-          {({ show }) => (
-            <Button onClick={show} size="lg">
+          {({ show , address }) => (
+            <Button onClick={() => {
+              ReactGA.event({
+                category: 'Wallet',
+                action: 'Click',
+                label: `Connected Wallet ${address}`
+              });
+              show?.();
+            }} size="lg">
               Connect Wallet
             </Button>
           )}
