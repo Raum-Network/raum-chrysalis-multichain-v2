@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Stake from './pages/Stake';
 import Rewards from './pages/Rewards';
 import Transactions from './pages/Transaction';
+import NotFound from './pages/NotFound';
 import { ThemeProvider } from './context/ThemeContext';
 import { WagmiConfig, WagmiProvider } from 'wagmi'
 import { config } from '../src/lib/walletConnect'
@@ -52,6 +53,7 @@ function App() {
                       <Route path="stake" element={<Stake />} />
                       <Route path="rewards" element={<Rewards />} />
                       <Route path="transactions" element={<Transactions />} />
+                      <Route path="*" element={<NotFound />} />
                     </Route>
                   </Routes>
                 </BrowserRouter>
