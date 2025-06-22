@@ -200,7 +200,7 @@ const Dashboard = () => {
         />
         <StatBox 
           title="Your Rewards" 
-          value={stakingData.totalRewards} 
+          value="--"
           suffix="ETH"
           icon={<DollarSign size={18} />} 
           change={{ value: 5.2, isPositive: true }}
@@ -213,7 +213,7 @@ const Dashboard = () => {
         />
         <StatBox 
           title="Next Reward" 
-          value={stakingData.nextReward}
+          value="--"
           icon={<Clock size={18} />} 
         />
       </div>
@@ -252,7 +252,7 @@ const Dashboard = () => {
             <div className="border border-amber-700/30 rounded-md p-3 bg-amber-900/20">
               <h3 className="text-sm mb-2">Rewards Overview</h3>
               <div className="flex items-end mb-3">
-                <span className="text-2xl font-medium">{stakingData.totalRewards}</span>
+                <span className="text-2xl font-medium">--</span>
                 <span className="ml-1 text-sm opacity-70">ETH</span>
               </div>
               

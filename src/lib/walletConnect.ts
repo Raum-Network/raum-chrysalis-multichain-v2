@@ -154,6 +154,7 @@ export function useWallet() {
     connect: handleConnect,
     disconnect: handleDisconnect,
     switchNetwork: handleSwitchNetwork,
+    usdcbalance
   };
 }
 

@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send } from 'lucide-react';
+import { useWallet } from '../lib/walletConnect';
+import { useStaking } from '../hooks/useStaking';
+import { SUPPORTED_NETWORKS } from '../config/contract';
+import stakeManager, { StakeStatus } from '../lib/stakeManager';
 
 interface Log {
   message: string;
@@ -16,7 +20,12 @@ interface TerminalProps {
 const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalProps) => {
   const [allLogs, setAllLogs] = useState<Log[]>(logs);
   const [command, setCommand] = useState('');
+  const [stakeState, setStakeState] = useState<'idle' | 'protocol' | 'amount'>('idle');
+  const [selectedProtocol, setSelectedProtocol] = useState<'CCIP' | 'CCTP' | null>(null);
+  const [stakeAmount, setStakeAmount] = useState<string>('');
   const terminalRef = useRef<HTMLDivElement>(null);
+  const {  chainId } = useWallet();
+  const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, usdcBalance  } = useStaking();
 
   useEffect(() => {
     // Auto-scroll to bottom when logs update
@@ -25,7 +34,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
     }
   }, [allLogs]);
 
-  const handleCommandSubmit = (e: React.FormEvent) => {
+  const handleCommandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!command.trim()) return;
 
@@ -39,20 +48,134 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       }
     ];
 
-    // Simulate response
+    // Handle different states of staking process
+    if (stakeState === 'protocol') {
+      // Automatically set protocol to CCTP
+      setSelectedProtocol('CCTP');
+      setBridgeProtocol('CCTP');
+      setStakeState('amount');
+      setAllLogs([
+        ...newLogs,
+        {
+          message: `Current protocol is CCTP. Please enter the amount of USDC to stake:`,
+          type: 'info',
+          timestamp: new Date()
+        }
+      ]);
+      setCommand('');
+      return;
+    }
+
+    if (stakeState === 'amount') {
+      const inputValue = command.trim();
+      
+      // Check if input has more than 6 decimal places
+      const parts = inputValue.split('.');
+      if (parts[1] && parts[1].length > 6) {
+        setAllLogs([
+          ...newLogs,
+          {
+            message: 'Amount can only have up to 6 decimal places',
+            type: 'error',
+            timestamp: new Date()
+          }
+        ]);
+        setCommand('');
+        return;
+      }
+
+      const amount = parseFloat(inputValue);
+      if (isNaN(amount) || amount <= 0) {
+        setAllLogs([
+          ...newLogs,
+          {
+            message: 'Invalid amount. Please enter a valid number:',
+            type: 'error',
+            timestamp: new Date()
+          }
+        ]);
+        setCommand('');
+        return;
+      }
+
+      if (amount > usdcBalance ) {
+        setAllLogs([
+          ...newLogs,
+          {
+            message: `Insufficient balance. Your current USDC balance is ${usdcBalance.toFixed(2)} USDC`,
+            type: 'error',
+            timestamp: new Date()
+          }
+        ]);
+        setCommand('');
+        return;
+      }
+
+      try {
+        setAllLogs([
+          ...newLogs,
+          {
+            message: `Staking ${amount} USDC using ${selectedProtocol} protocol...`,
+            type: 'info',
+            timestamp: new Date()
+          }
+        ]);
+        
+        await stake(amount);
+        setAllLogs([
+          ...newLogs,
+          {
+            message: `Staking Completed. Staked ${amount} USDC using ${selectedProtocol} protocol...`,
+            type: 'success',
+            timestamp: new Date()
+          }
+        ]);
+
+        // Subscribe to stake status updates
+        const unsubscribe = stakeManager.subscribeToStatus((status: StakeStatus) => {
+          if (status.status === 'SUCCESS' && selectedProtocol === 'CCTP' && status.destinationTxHash) {
+            setAllLogs(prevLogs => [
+              ...prevLogs,
+              {
+                message: `CCTP Transaction Success! Destination TX Hash: ${status.destinationTxHash}`,
+                type: 'success',
+                timestamp: new Date()
+              }
+            ]);
+            unsubscribe();
+          }
+        });
+
+        setStakeState('idle');
+        setSelectedProtocol(null);
+      } catch (error) {
+        setAllLogs([
+          ...newLogs,
+          {
+            message: `Staking failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            type: 'error',
+            timestamp: new Date()
+          }
+        ]);
+        setStakeState('idle');
+        setSelectedProtocol(null);
+      }
+      setCommand('');
+      return;
+    }
+
+    // Handle regular commands
     setTimeout(() => {
       let responseType: Log['type'] = 'info';
       let responseMessage = 'Command not recognized';
 
       if (command.toLowerCase().includes('help')) {
-        responseMessage = 'Available commands: help, stake, rewards, balance';
+        responseMessage = 'Available commands: stake, balance';
       } else if (command.toLowerCase().includes('stake')) {
-        responseMessage = 'Staking operation initiated. Confirm in your wallet.';
-        responseType = 'success';
+        setStakeState('protocol');
       } else if (command.toLowerCase().includes('balance')) {
-        responseMessage = 'Current balance: 1.2345 ETH';
-      } else if (command.toLowerCase().includes('rewards')) {
-        responseMessage = 'Your pending rewards: 0.0123 ETH';
+        responseMessage = `Current USDC balance: ${usdcBalance} USDC`;
+        responseType = 'success';
       }
 
       setAllLogs([
@@ -117,7 +240,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
             value={command}
             onChange={(e) => setCommand(e.target.value)}
             className="flex-1 bg-gray-800 px-2 py-1 text-xs font-mono focus:outline-none text-yellow-100"
-            placeholder="Type command..."
+            placeholder={stakeState === 'protocol' ? 'Current protocol is CCTP...' : stakeState === 'amount' ? 'Enter amount...' : 'Type command...'}
           />
           <button 
             type="submit" 
