@@ -70,6 +70,7 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
                       text-green-500
                     `}
                   >
+                    
                     {SUPPORTED_NETWORKS[network].name}
                     {currentNetwork === network && (
                       <CheckCircle2 size={16} className="text-green-500" />
