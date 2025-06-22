@@ -10,7 +10,7 @@ import {
   useSwitchChain
 } from 'wagmi';
 import { createConfig, http } from 'wagmi';
-import { polygonAmoy, arbitrumSepolia, baseSepolia , soneiumMinato } from 'wagmi/chains';
+import { polygonAmoy, arbitrumSepolia , soneiumMinato, optimismSepolia } from 'wagmi/chains';
 import { getDefaultConfig } from 'connectkit';
 import { useEffect } from 'react';
 import { erc20Abi } from 'viem';
@@ -20,10 +20,10 @@ import { SUPPORTED_NETWORKS, Networks } from '../config/contract';
 // Config with all supported chains
 export const config = createConfig(
   getDefaultConfig({
-    chains: [arbitrumSepolia, baseSepolia, polygonAmoy, soneiumMinato],
+    chains: [arbitrumSepolia, polygonAmoy, soneiumMinato, optimismSepolia],
     transports: {
       [arbitrumSepolia.id]: http('https://sepolia-rollup.arbitrum.io/rpc'),
-      [baseSepolia.id]: http('https://sepolia.base.org'),
+      [optimismSepolia.id]: http('https://optimism-sepolia.drpc.org'),
       [polygonAmoy.id]: http('https://polygon-amoy.drpc.org'),
       [soneiumMinato.id]: http('https://rpc.minato.soneium.org'),
     },
@@ -166,6 +166,7 @@ export function WalletComponent() {
   } = useWallet();
 
   useEffect(() => {
+    console.log(chainId);
     // Default to Arbitrum Sepolia if not connected to a supported network
     if (isConnected && !Object.values(SUPPORTED_NETWORKS).some(net => net.chainId === chainId)) {
      console.error('Unsupported network. Switching to Arbitrum Sepolia.');

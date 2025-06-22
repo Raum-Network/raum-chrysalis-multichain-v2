@@ -77,13 +77,12 @@ interface Transaction {
 }
 
 const Transactions = () => {
-  const { isConnected, connect, address } = useWallet();
+  const { isConnected, connect, address, chainId } = useWallet();
   const { theme } = useTheme();
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed' | 'failed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTx, setSelectedTx] = useState<any | null>(null);
-  const { transactions, fetchTransactions } = useStakingStore();
   const [currentStatus, setCurrentStatus] = useState<StakeStatus | null>(null);
   const [currentTxState, setCurrentTxState] = useState<string>('1'); // Default to IN_PROGRESS
   const [bridgingInfo, setBridgingInfo] = useState<Record<string, string | null>>({});
@@ -91,16 +90,22 @@ const Transactions = () => {
   const [cctpTransactions, setCctpTransactions] = useState<CCTPTransaction[]>([]);
   const fetchedPagesRef = useRef<Set<number>>(new Set());
 
+  // Helper to get explorer URL for the current network
+  const explorerUrl = chainId
+    ? Object.values(SUPPORTED_NETWORKS).find(n => n.chainId === chainId)?.explorer || 'https://sepolia.arbiscan.io'
+    : 'https://sepolia.arbiscan.io';
+
   // Helper functions
-  const getStatusIcon = (state: TransactionState) => {
-    switch (state) {
-      case MessageState.SUCCESS:
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'SUCCESS':
         return <CheckCircle2 size={16} className="text-green-400" />;
-      case MessageState.IN_PROGRESS:
+      case 'IN_PROGRESS':
         return <Clock size={16} className="text-amber-400" />;
-      case MessageState.FAILURE:
-      case MessageState.UNTOUCHED:
+      case 'FAILURE':
         return <XCircle size={16} className="text-red-400" />;
+      case 'PENDING':
+        return <Clock size={16} className="text-amber-400" />;
       default:
         return <Clock size={16} className="text-amber-400" />;
     }
@@ -110,21 +115,15 @@ const Transactions = () => {
     return (Number(amount) / Math.pow(10, decimals)).toFixed(decimals);
   };
 
-  // Update the useEffect to load both types of transactions together
   useEffect(() => {
     const loadTransactions = async () => {
       if (address) {
         setIsLoading(true);
         try {
-          // Load both types of transactions in parallel
-          const [ccipResult, cctpResult] = await Promise.all([
-            fetchTransactions(address),
-            fetchCCTPTransactions(address)
-          ]);
-          
+          const cctpResult = await fetchCCTPTransactions(address, chainId);
           setCctpTransactions(cctpResult);
         } catch (error) {
-          console.error('Error fetching transactions:', error);
+          console.error('Error fetching CCTP transactions:', error);
         } finally {
           setIsLoading(false);
         }
@@ -132,267 +131,39 @@ const Transactions = () => {
     };
 
     loadTransactions();
-    
-    // Polling for updates every 30 seconds
     const interval = setInterval(loadTransactions, 30000);
     return () => clearInterval(interval);
-  }, [address, fetchTransactions]);
+  }, [address, chainId]);
 
-  // Add effect to listen for status updates from StakeManager
-  useEffect(() => {
-    const handleStatusUpdate = (status: StakeStatus) => {
-      setCurrentStatus(status);
-    };
-
-    // Subscribe to status updates
-    const unsubscribe = stakeManager.subscribeToStatus(handleStatusUpdate);
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
-  // Effect to fetch CCIP status for current transaction
-  useEffect(() => {
-    const fetchCurrentTxStatus = async () => {
-      if (currentStatus?.ccipMessageId) {
-        try {
-          const response = await getCCIPStatus(currentStatus.ccipMessageId);
-          setCurrentTxState(response.state.toString());
-        } catch (error) {
-          console.error('Error fetching CCIP status:', error);
-          setCurrentTxState('1'); // Default to IN_PROGRESS on error
-        }
-      }
-    };
-
-    if ( currentStatus?.ccipMessageId && currentStatus?.status === null) {
-      fetchCurrentTxStatus();
-      
-      const interval = setInterval(fetchCurrentTxStatus, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [currentStatus?.ccipMessageId, currentStatus?.status]);
-
-  // Update the filter logic in filteredTransactions
-  const filteredTransactions = [...transactions]
+  // Filtering and pagination for CCTP transactions
+  const filteredTransactions = cctpTransactions
     .filter(tx => {
       if (filter === 'all') return true;
       switch (filter) {
         case 'completed':
-          return tx.state === 2;
+          return tx.status === 'SUCCESS';
         case 'pending':
-          return tx.state === 1
+          return tx.status === 'IN_PROGRESS' || tx.status === 'PENDING';
         case 'failed':
-          return tx.state === 3
+          return tx.status === 'FAILURE';
         default:
           return true;
       }
     })
-    .filter(tx => 
-      searchQuery === '' || 
-      tx.messageId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.sender?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.receiver?.toLowerCase().includes(searchQuery.toLowerCase())
+    .filter(tx =>
+      searchQuery === '' ||
+      tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.to.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-  // Update the transaction mapping for current stake
-  const allTransactions = [
-    ...(currentStatus?.status === 'IN_PROGRESS' ? [{
-      messageId: currentStatus.ccipMessageId || 'Pending...',
-      state: currentTxState === '2' ? MessageState.SUCCESS :
-             currentTxState === '3' ? MessageState.FAILURE :
-             currentTxState === '1' ? MessageState.IN_PROGRESS : 
-             MessageState.UNTOUCHED,
-      blockTimestamp: currentStatus.timestamp || Date.now(),
-      origin: currentStatus.origin || address,
-      receiver: currentStatus.receiver,
-      sourceTxHash: currentStatus.sourceTxHash,
-      destTransactionHash: currentStatus.destinationTxHash || '',
-      tokenAmounts: [{
-        amount: currentStatus.amount?.toString() || '0',
-        token: { symbol: 'USDC', decimals: currentStatus.sourceDecimals || 6 }
-      }],
-      protocol: 'CCIP',
-      sourceNetworkName: currentStatus.sourceNetworkName || 'Arbitrum Sepolia',
-      destNetworkName: currentStatus.destNetworkName || 'Sepolia',
-      sourceDecimals: currentStatus.sourceDecimals || 6,
-      destDecimals: currentStatus.destDecimals || 6
-    }] : []),
-    ...filteredTransactions
-      .filter(tx => {
-        // Find the network that matches the sourceNetworkName
-        const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === tx.sourceNetworkName
-        );
-        
-        // For now, all destination chains are Ethereum Sepolia
-        const destNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia' // Using Arbitrum Sepolia as it has the correct destination name
-        );
-        return sourceNetwork && destNetwork;
-      })
-      .map(tx => {
-        const [sourceKey, sourceNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === tx.sourceNetworkName
-        ) || [null, null];
-        
-        // For now, all destination chains are Ethereum Sepolia
-        const [destKey, destNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia' // Using Arbitrum Sepolia as it has the correct destination name
-        ) || [null, null];
-
-        if (!sourceNetwork || !destNetwork) {
-          return null;
-        }
-
-        return {
-          ...tx,
-          protocol: 'CCIP',
-          blockTimestamp: tx.blockTimestamp,
-          sourceNetworkName: sourceNetwork.name,
-          destNetworkName: 'Sepolia', // Always set destination to Sepolia
-          sourceDecimals: sourceNetwork.contracts.decimal || 6,
-          destDecimals: 6, // Sepolia always uses 6 decimals
-          destTransactionHash: tx.destTransactionHash || '',
-          tokenAmounts: tx.tokenAmounts?.map(token => ({
-            amount: token.amount,
-            token: {
-              ...token.token,
-              decimals: sourceNetwork.contracts.decimal || 6
-            }
-          }))
-        };
-      })
-      .filter(Boolean), // Remove any null entries
-    ...cctpTransactions
-      .filter(tx => {
-        // Only include CCTP transactions if there's no search query or if they match the search
-        if (searchQuery === '') return true;
-        return tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
-               tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-               tx.to.toLowerCase().includes(searchQuery.toLowerCase());
-      })
-      .filter(tx => {
-        // Find the network that matches Arbitrum Sepolia as source
-        const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia'
-        );
-        // For now, all destination chains are Ethereum Sepolia
-        const destNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia'
-        );
-        return sourceNetwork && destNetwork;
-      })
-      .map(tx => {
-        // Find the network that matches Arbitrum Sepolia as source
-        const [sourceKey, sourceNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia'
-        ) || [null, null];
-        
-        // For now, all destination chains are Ethereum Sepolia
-        const [destKey, destNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === 'Arbitrum Sepolia'
-        ) || [null, null];
-
-        if (!sourceNetwork || !destNetwork) {
-          return null;
-        }
-
-        return {
-          messageId: tx.hash,
-          state: tx.status === 'SUCCESS' ? MessageState.SUCCESS :
-                 tx.status === 'FAILURE' ? MessageState.FAILURE :
-                 MessageState.IN_PROGRESS,
-          blockTimestamp: tx.timestamp,
-          origin: tx.from,
-          receiver: tx.to,
-          sourceTxHash: tx.hash,
-          destTransactionHash: tx.hash, // For CCTP, we use the same hash
-          tokenAmounts: [{
-            amount: tx.amount,
-            token: { symbol: 'USDC', decimals: sourceNetwork.contracts.decimal || 6 }
-          }],
-          protocol: 'CCTP',
-          sourceNetworkName: sourceNetwork.name,
-          destNetworkName: 'Sepolia', // Always set destination to Sepolia
-          sourceDecimals: sourceNetwork.contracts.decimal || 6,
-          destDecimals: 6 // Sepolia always uses 6 decimals
-        };
-      })
-      .filter(Boolean) // Remove any null entries
-  ]
-  .filter((tx): tx is NonNullable<typeof tx> => tx !== null) // Type guard to remove nulls
-  .sort((a, b) => {
-    const timestampA = a.blockTimestamp ? new Date(a.blockTimestamp).getTime() : 0;
-    const timestampB = b.blockTimestamp ? new Date(b.blockTimestamp).getTime() : 0;
-    return timestampB - timestampA;
-  });
-
-  // Update pagination to use allTransactions
-  const totalPages = Math.ceil(allTransactions.length / ITEMS_PER_PAGE);
-  const paginatedTransactions = allTransactions.slice(
+  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
+  const paginatedTransactions = filteredTransactions.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  // Update the useEffect to prevent infinite fetching
-  useEffect(() => {
-    const fetchBridgingInfo = async () => {
-      // Skip if we've already fetched for this page
-      if (fetchedPagesRef.current.has(currentPage)) {
-        return;
-      }
-
-      const currentPageTransactions = paginatedTransactions;
-      if (currentPageTransactions.length > 0) {
-        const bridgingInfo: Record<string, string | null> = {};
-        for (const tx of currentPageTransactions) {
-          if (tx.messageId) {
-           
-            
-            try {
-              const provider = await stakedUserBalance.getProvider();
-              const receipt = await provider.getTransactionReceipt(tx.destTransactionHash);
-              
-
-              const ccipLog = receipt?.logs.find(log => log.topics[0] === "0xd0c3c799bf9e2639de44391e7f524d229b2b55f5b1ea94b2bf7da42f7243dddd");
-              
-              
-              const rawData = ccipLog?.data;
-              
-              if (rawData) {
-                const decoded = abiCoder.decode([tupleType], rawData);
-                const bridgingMessageId = decoded[0][12];
-                
-                bridgingInfo[tx.messageId] = bridgingMessageId;
-              } else {
-                
-                bridgingInfo[tx.messageId] = null;
-              }
-            } catch (error) {
-              console.error('Error fetching bridging message ID:', error);
-              bridgingInfo[tx.messageId] = null;
-            }
-          }
-        }
-        
-        setBridgingInfo(prev => ({ ...prev, ...bridgingInfo }));
-        // Mark this page as fetched
-        fetchedPagesRef.current.add(currentPage);
-      }
-    };
-
-    fetchBridgingInfo();
-  }, [currentPage, paginatedTransactions.length]); // Only run when page changes or transactions length changes
-
-  // Reset fetched pages when transactions change
-  useEffect(() => {
-    fetchedPagesRef.current.clear();
-  }, [transactions]);
-
-  // Update the TransactionModal component
-  const TransactionModal = ({ transaction }: { transaction: any }) => (
+  const TransactionModal = ({ transaction }: { transaction: CCTPTransaction }) => (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -412,16 +183,15 @@ const Transactions = () => {
       >
         <div className="flex justify-between items-start">
           <div>
-            <h3 className="text-xl font-medium mb-1">Transaction Details</h3>
+            <h3 className="text-xl font-medium mb-1">CCTP Transaction Details</h3>
             <div className="flex items-center space-x-2 text-sm">
               <div className="flex items-center space-x-1">
-                {getStatusIcon(transaction.state)}
+                {getStatusIcon(transaction.status)}
                 <span className="capitalize">
-                  {transaction.state === MessageState.SUCCESS && 'Completed'}
-                  {transaction.state === MessageState.IN_PROGRESS && 'In Progress'}
-                  {transaction.state === MessageState.FAILURE && 'Failed'}
-                  {transaction.state === MessageState.UNTOUCHED && 'Failed'}
-                  {transaction.state === null && 'In Progress'}
+                  {transaction.status === 'SUCCESS' && 'Completed'}
+                  {transaction.status === 'IN_PROGRESS' && 'In Progress'}
+                  {transaction.status === 'FAILURE' && 'Failed'}
+                  {transaction.status === 'PENDING' && 'Pending'}
                 </span>
               </div>
             </div>
@@ -435,219 +205,88 @@ const Transactions = () => {
         </div>
 
         <div className="grid gap-4 text-sm">
-          {transaction.tokenAmounts?.map((token: any, index: number) => (
-            <div key={index} className={`
-              p-3 rounded border border-amber-700/30
-              ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
-            `}>
-              <div className="text-xs opacity-70 mb-1">Amount</div>
-              <div className="text-xl font-medium">
-                {formatAmount(token.amount, transaction.sourceDecimals || token.token.decimals)} {'USDC'}
-              </div>
+          <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
+            <div className="text-xs opacity-70 mb-1">Amount</div>
+            <div className="text-xl font-medium">
+              {formatAmount(transaction.amount, 6)} {'USDC'}
             </div>
-          ))}
+          </div>
 
           <div className="grid gap-3">
-            <div className={`
-              p-3 rounded border border-amber-700/30
-              ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
-            `}>
-              <div className="text-xs opacity-70 mb-1">Message ID</div>
+            <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
+              <div className="text-xs opacity-70 mb-1">Hash</div>
               <a
-                href={transaction.protocol === 'CCIP' 
-                  ? `https://ccip.chain.link/msg/${transaction.messageId}`
-                  : `https://sepolia.arbiscan.io/tx/${transaction.hash || transaction.messageId}`
-                }
+                href={`${explorerUrl}/tx/${transaction.hash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-1 hover:text-amber-400"
               >
-                <span className="break-all">{transaction.messageId}</span>
+                <span className="break-all">{transaction.hash}</span>
                 <ArrowUpRight size={14} />
               </a>
             </div>
-
-            <div className={`
-              p-3 rounded border border-amber-700/30
-              ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
-            `}>
+            <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
               <div className="text-xs opacity-70 mb-1">From</div>
-              <div className="break-all">{transaction.origin || transaction.sender || 'Pending...'}</div>
+              <div className="break-all">{transaction.from}</div>
             </div>
-
-            <div className={`
-              p-3 rounded border border-amber-700/30
-              ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
-            `}>
+            <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
               <div className="text-xs opacity-70 mb-1">To</div>
-              <div className="break-all">{transaction.receiver || 'Pending...'}</div>
+              <div className="break-all">{transaction.to}</div>
             </div>
           </div>
 
-          <div className={`
-            p-3 rounded border border-amber-700/30
-            ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
-          `}>
-            <div className="text-xs opacity-70 mb-1">Source Chain</div>
-            <div className="flex items-center space-x-2">
-              <span>{transaction.sourceNetworkName || 'Arbitrum Sepolia'}</span>
-              {transaction.protocol === 'CCIP' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">
-                  CCIP
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className={`
-            p-3 rounded border border-amber-700/30
-            ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
-          `}>
-            <div className="text-xs opacity-70 mb-1">Destination Chain</div>
-            <div className="flex items-center space-x-2">
-              <span>{transaction.destNetworkName || 'Sepolia'}</span>
-              {transaction.protocol === 'CCIP' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">
-                  CCIP
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className={`
-            p-3 rounded border border-amber-700/30
-            ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
-          `}>
+          <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
             <div className="text-xs opacity-70 mb-1">Timestamp</div>
             <div>
-              {transaction.blockTimestamp ? new Date(transaction.blockTimestamp).toLocaleString() : 'Pending...'}
+              {transaction.timestamp ? new Date(transaction.timestamp).toLocaleString() : 'Pending...'}
             </div>
           </div>
-        </div>
-
-        <div className="grid gap-3">
-          {transaction.sourceTxHash && (
-            <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
-              <div className="text-xs opacity-70 mb-1">Source Transaction</div>
-              <a
-                href={`https://sepolia.arbiscan.io/tx/${transaction.sourceTxHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center space-x-1 hover:text-amber-400"
-              >
-                <span className="break-all">{transaction.sourceTxHash}</span>
-                <ArrowUpRight size={14} />
-              </a>
-            </div>
-          )}
-
-          {transaction.destTransactionHash && (
-            <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
-              <div className="text-xs opacity-70 mb-1">Destination Transaction</div>
-              <a
-                href={`https://sepolia.etherscan.io/tx/${transaction.destTransactionHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center space-x-1 hover:text-amber-400"
-              >
-                <span className="break-all">{transaction.destTransactionHash}</span>
-                <ArrowUpRight size={14} />
-              </a>
-            </div>
-          )}
-
-          {transaction.protocol === 'CCIP' && (
-            <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
-              <div className="text-xs opacity-70 mb-1">Bridging Information</div>
-              {bridgingInfo[transaction.messageId] ? (
-                <a
-                  href={`https://ccip.chain.link/msg/${bridgingInfo[transaction.messageId]}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center space-x-1 hover:text-amber-400"
-                >
-                  <span className="break-all">{bridgingInfo[transaction.messageId]}</span>
-                  <ArrowUpRight size={14} />
-                </a>
-              ) : transaction.destTransactionHash ? (
-                <a
-                  href={`https://sepolia.etherscan.io/tx/${transaction.destTransactionHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center space-x-1 hover:text-amber-400"
-                >
-                  <span className="break-all">{transaction.destTransactionHash}</span>
-                  <ArrowUpRight size={14} />
-                </a>
-              ) : (
-                <div className="text-sm opacity-70">No bridging information available</div>
-              )}
-            </div>
-          )}
         </div>
       </motion.div>
     </motion.div>
   );
 
-  // Update the table header to include Protocol column
   const tableHeader = (
     <tr className="bg-amber-900/30 border-b border-amber-700/30">
       <th className="px-4 py-2 text-left text-sm font-medium">Status</th>
       <th className="px-4 py-2 text-left text-sm font-medium">Amount</th>
-      <th className="px-4 py-2 text-left text-sm font-medium">Protocol</th>
       <th className="px-4 py-2 text-left text-sm font-medium">Date</th>
-      <th className="px-4 py-2 text-left text-sm font-medium">Message ID</th>
+      <th className="px-4 py-2 text-left text-sm font-medium">Hash</th>
     </tr>
   );
 
-  // Update the table row to include Protocol column
-  const tableRows = paginatedTransactions.map((tx: any) => (
+  const tableRows = paginatedTransactions.map((tx: CCTPTransaction) => (
     <tr 
-      key={tx.messageId || tx.hash} 
+      key={tx.hash} 
       className="border-b border-amber-700/30 hover:bg-amber-900/20 cursor-pointer"
       onClick={() => setSelectedTx(tx)}
     >
       <td className="px-4 py-3">
         <div className="flex items-center space-x-2">
-          {getStatusIcon(tx.state)}
+          {getStatusIcon(tx.status)}
           <span className="capitalize">
-            {tx.state === MessageState.SUCCESS && 'Completed'}
-            {tx.state === MessageState.IN_PROGRESS && 'In Progress'}
-            {(tx.state === MessageState.FAILURE || tx.state === MessageState.UNTOUCHED) && 'Failed'}
-            {tx.state === null && 'In Progress'}
+            {tx.status === 'SUCCESS' && 'Completed'}
+            {tx.status === 'IN_PROGRESS' && 'In Progress'}
+            {tx.status === 'FAILURE' && 'Failed'}
+            {tx.status === 'PENDING' && 'Pending'}
           </span>
         </div>
       </td>
       <td className="px-4 py-3">
-        {tx.tokenAmounts?.map((token: any, index: number) => (
-          <div key={index}>
-            {formatAmount(token.amount, tx.sourceDecimals || token.token.decimals)} {'USDC'}
-          </div>
-        ))}
-      </td>
-      <td className="px-4 py-3">
-        <span className={`
-          px-2 py-1 rounded-full text-xs
-          ${tx.protocol === 'CCIP' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}
-        `}>
-          {tx.protocol}
-        </span>
+        {formatAmount(tx.amount, 6)} {'USDC'}
       </td>
       <td className="px-4 py-3 text-sm opacity-70">
-        {tx.blockTimestamp ? new Date(tx.blockTimestamp).toLocaleString() : 'Pending...'}
+        {tx.timestamp ? new Date(tx.timestamp).toLocaleString() : 'Pending...'}
       </td>
       <td className="px-4 py-3">
         <a 
-          href={tx.protocol === 'CCIP' 
-            ? `https://ccip.chain.link/msg/${tx.messageId}`
-            : `https://sepolia.arbiscan.io/tx/${tx.hash || tx.messageId}`
-          }
+          href={`${explorerUrl}/tx/${tx.hash}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center space-x-1 hover:text-amber-400"
           onClick={e => e.stopPropagation()}
         >
-          <span className="text-sm">{tx.hash || tx.messageId}</span>
+          <span className="text-sm">{tx.hash}</span>
           <ArrowUpRight size={14} />
         </a>
       </td>
@@ -669,14 +308,14 @@ const Transactions = () => {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl mb-1">Transactions</h1>
-        <p className="text-sm opacity-70">View your transaction history</p>
+        <h1 className="text-2xl mb-1">CCTP Transactions</h1>
+        <p className="text-sm opacity-70">View your CCTP transaction history</p>
       </div>
 
-      <Window title="Transaction History">
+      <Window title="CCTP Transaction History">
         <div className="p-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
-            <div className="flex items-center space-x-2">
+            {/* <div className="flex items-center space-x-2">
               <Filter size={16} />
               <select
                 value={filter}
@@ -691,12 +330,12 @@ const Transactions = () => {
                 <option value="completed">Completed</option>
                 <option value="failed">Failed</option>
               </select>
-            </div>
+            </div> */}
 
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search by message ID or address..."
+                placeholder="Search by hash or address..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -727,16 +366,16 @@ const Transactions = () => {
                   </table>
                 </div>
 
-                {filteredTransactions.length === 0 && currentStatus?.status !== 'IN_PROGRESS' && (
+                {filteredTransactions.length === 0 && (
                   <div className="text-center py-8">
-                    <p className="text-sm opacity-70">No transactions found</p>
+                    <p className="text-sm opacity-70">No CCTP transactions found</p>
                   </div>
                 )}
 
                 {filteredTransactions.length > 0 && (
                   <div className="flex items-center justify-between px-4 py-3 bg-amber-900/20 border-t border-amber-700/30">
                     <div className="text-sm opacity-70">
-                      Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, allTransactions.length)} of {allTransactions.length} transactions
+                      Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredTransactions.length)} of {filteredTransactions.length} transactions
                     </div>
                     <div className="flex items-center space-x-2">
                       <button

@@ -18,19 +18,26 @@ const Dashboard = () => {
   const {usdcBalance} =  useStaking();
   const { isConnected, address, balance, connect } = useWallet();
   const [stakedBalance, setStakedBalance] = useState<string>('0');
+  const [totalStakers, setStakers] = useState<string>('0');
+  const [totalUsdc, setUsdcStaked] = useState<number>(0);
   const [lidoAPY, setLidoAPY] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       if (address) {
         try {
-          const balance = await stakedUserBalance.getBalance(address);
+          // const balance = await stakedUserBalance.getBalance(address);
           const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
           
-          setStakedBalance((Number(balance) + Number(cctpBalance)).toString());
+          const totalStakers = await stakedUserBalance.getStakersCount();
           
+          const totalUsdcStaked = await stakedUserBalance.totalUsdcStaked();
+
+          // Update staked balance
+          setStakedBalance(( Number(cctpBalance)).toString());
+          setStakers(totalStakers);
+          setUsdcStaked(totalUsdcStaked);
           const apy = await getLidoAPY();
-          console.log(apy);
           setLidoAPY(apy);
         } catch (error) {
           console.error('Error fetching data:', error);
@@ -47,12 +54,15 @@ const Dashboard = () => {
     const handleStakeUpdate = async (status: StakeStatus) => {
       if (status.destinationTxHash && address) {
         try {
-          // Fetch updated balances
-          const balance = await stakedUserBalance.getBalance(address);
-          const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
           
+          const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
+          const totalStakers = await stakedUserBalance.getStakersCount();
+          
+          const totalUsdcStaked = await stakedUserBalance.totalUsdcStaked();
           // Update staked balance
-          setStakedBalance((Number(balance) + Number(cctpBalance)).toString());
+          setStakedBalance(( Number(cctpBalance)).toString());
+          setStakers(totalStakers);
+          setUsdcStaked(totalUsdcStaked);
         } catch (error) {
           console.error('Error updating staked balance:', error);
         }
@@ -90,8 +100,8 @@ const Dashboard = () => {
     totalRewards: 0.125,
     apr: lidoAPY || 4.8,
     nextReward: '3d 14h',
-    stakers: 1452,
-    totalStaked: 24582
+    stakers: totalStakers,
+    totalStaked: totalUsdc
   };
 
   const tiers = [
@@ -207,6 +217,17 @@ const Dashboard = () => {
           icon={<Clock size={18} />} 
         />
       </div>
+      
+      {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+        <div className="p-6 rounded-lg bg-amber-900/20 border border-amber-700/30 flex flex-col items-center">
+          <div className="text-3xl font-bold mb-2">{stakingData.stakers.toLocaleString()}</div>
+          <div className="text-sm opacity-70">Total Stakers</div>
+        </div>
+        <div className="p-6 rounded-lg bg-amber-900/20 border border-amber-700/30 flex flex-col items-center">
+          <div className="text-3xl font-bold mb-2">{(Number(stakingData.totalStaked) ).toLocaleString()} ETH</div>
+          <div className="text-sm opacity-70">Total ETH Staked</div>
+        </div>
+      </div> */}
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-2">
         <Window title="Staking Summary" className="lg:col-span-2">

@@ -12,11 +12,6 @@ import ReceiverAbiCCTP from './abi/ChrysalisReceiverCCTP.json';
 import { getCCIPStatus, getCCTPAttestation } from '../services/api';
 import { SUPPORTED_NETWORKS } from '../config/contract';
 
-const publicClient = createPublicClient({
-  chain: arbitrumSepolia,
-  transport: http()
-})
-
 const abiCoder = new ethers.AbiCoder();
 
 const tupleType = `tuple(
@@ -36,13 +31,6 @@ const tupleType = `tuple(
 )`;
 
 let userAddress: string;
-
-const STAKE_CONTRACT_ADDRESS = '0x01851B172B1B0A5709DEEC827A88732Dba00C467';
-const STAKE_CCTP_CONTRACT_ADDRESS = '0x907D0cCc4e0Fa0EbDa7a0BDbFae592027607c22B';
-const web3 = new Web3('https://arbitrum-sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64');
-const sepoliaWeb3 = new Web3('https://sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64');
-const RECEIVER_CONTRACT_ADDRESS = '0x91730db0d18005aa0e11d686a90560bd376a4825';
-const RECEIVER_CONTRACT_ADDRESS_CCTP = '0x0267Cf87951fB8e6BE909025cCC67f8DDE991eA7';
 
 export type StakeStatus = {
   sourceTxHash: string;
@@ -75,115 +63,156 @@ class StakeManager {
   private statusSubscribers: ((status: StakeStatus) => void)[] = [];
   private timerInterval: NodeJS.Timeout | null = null;
   private pollingTimeout: NodeJS.Timeout | null = null;
+  private web3!: Web3;
+  private sepoliaWeb3!: Web3;
+  private networkConfig!: typeof SUPPORTED_NETWORKS[keyof typeof SUPPORTED_NETWORKS];
+  private publicClient: any;
 
   statusInterval: any;
 
-  constructor() {}
+  constructor(chainId: number) {
+    this.updateChainId(chainId);
+  }
+
+  updateChainId(chainId: number) {
+
+    // Find the network config based on chainId
+    const network = Object.values(SUPPORTED_NETWORKS).find(net => net.chainId === chainId);
+    this.networkConfig = network || SUPPORTED_NETWORKS['arbitrum-sepolia'];
+    
+    // Initialize Web3 instances with the appropriate RPC URLs
+    this.web3 = new Web3(this.networkConfig.rpcUrl);
+    this.sepoliaWeb3 = new Web3('https://sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64');
+
+    // Create a new public client for the current network
+    this.publicClient = createPublicClient({
+      chain: {
+        id: this.networkConfig.chainId,
+        name: this.networkConfig.name,
+        network: this.networkConfig.name.toLowerCase().replace(' ', '-'),
+        nativeCurrency: {
+          name: 'Ether',
+          symbol: 'ETH',
+          decimals: 18,
+        },
+        rpcUrls: {
+          default: {
+            http: [this.networkConfig.rpcUrl],
+          },
+          public: {
+            http: [this.networkConfig.rpcUrl],
+          },
+        },
+      },
+      transport: http()
+    });
+  }
 
   private isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-  public async stake(
-    destinationChainSelector: string,
-    receiver: string,
-    amount: number,
-    gasLimit: string,
-    writeContractAsync: any,
-    simulateTransaction:any,
-    onStatusUpdate: (status: StakeStatus) => void
-  ): Promise<void> {
-    try {
-      const txHashStake = await writeContractAsync({
-        address: STAKE_CONTRACT_ADDRESS,
-        abi: stakeABI,
-        functionName: 'handleStakingAction',
-        args: [
-          destinationChainSelector,
-          receiver,
-          amount,
-          gasLimit
-        ]
-      });
-
-      const initialTimestamp = Date.now();
-
-      this.currentStatus = {
-        sourceTxHash: txHashStake,
-        ccipMessageId: null,
-        destinationTxHash: null,
-        status: 'IN_PROGRESS',
-        bridgingMessageId: null,
-        timestamp: initialTimestamp,
-        timeElapsed: '',
-        expectedTime: "40m 00s",
-        isCommitted: false,
-        isBlessed: false,
-        sourceNetworkName: 'Arbitrum Sepolia',
-        destNetworkName: 'Sepolia'
-      };
-
-      onStatusUpdate(this.currentStatus);
-
-      this.startTimer(initialTimestamp, onStatusUpdate);
-
-      const receipt = await publicClient.waitForTransactionReceipt(
-        { hash: txHashStake }
-      )
-
-      userAddress = receipt.from;
-
-      const simulationData = await simulateContract(config, {
-        address: STAKE_CONTRACT_ADDRESS,
-        abi: stakeABI,
-        functionName: 'handleStakingAction',
-        args: [
-          destinationChainSelector,
-          receiver,
-          amount,
-          gasLimit
-        ],
-        blockNumber: BigInt(receipt.blockNumber) - BigInt(1), 
-        account: receipt.from,
-        value: BigInt(0),
-      });
-
-      const messageId = simulationData?.result;
-
-      if (!messageId) {
-        throw new Error('MessageId not found in simulation');
-      }
+  // public async stake(
+  //   destinationChainSelector: string,
+  //   receiver: string,
+  //   amount: number,
+  //   gasLimit: string,
+  //   writeContractAsync: any,
+  //   simulateTransaction:any,
+  //   onStatusUpdate: (status: StakeStatus) => void
+  // ): Promise<void> {
+  //   try {
+  //     const txHashStake = await writeContractAsync({
+  //       address: this.networkConfig.contracts.ccip as `0x${string}`,
+  //       abi: stakeABI,
+  //       functionName: 'handleStakingAction',
+  //       args: [
+  //         destinationChainSelector,
+  //         receiver,
+  //         amount,
+  //         gasLimit
+  //       ]
+  //     });
       
-      this.currentStatus = {
-        ...this.currentStatus,
-        ccipMessageId: messageId,
-        status: 'IN_PROGRESS',
-        origin: userAddress,
-        receiver: receiver,
-        amount: amount,
-        sourceNetworkName: 'Arbitrum Sepolia',
-        destNetworkName: 'Sepolia'
-      };
-      this.updateStatus(this.currentStatus, onStatusUpdate);
 
-      // Start background polling
-      this.startPollingStatus(txHashStake, messageId, initialTimestamp, onStatusUpdate);
+  //     const initialTimestamp = Date.now();
 
-      // Hide status after 30 seconds
-      setTimeout(() => {
-        if (this.currentStatus) {
-          this.currentStatus = {
-            ...this.currentStatus,
-            hideOnStakePage: true
-          };
-          onStatusUpdate(this.currentStatus);
-        }
-      }, 30000);
+  //     this.currentStatus = {
+  //       sourceTxHash: txHashStake,
+  //       ccipMessageId: null,
+  //       destinationTxHash: null,
+  //       status: 'IN_PROGRESS',
+  //       bridgingMessageId: null,
+  //       timestamp: initialTimestamp,
+  //       timeElapsed: '',
+  //       expectedTime: "40m 00s",
+  //       isCommitted: false,
+  //       isBlessed: false,
+  //       sourceNetworkName: this.networkConfig.name,
+  //       destNetworkName: 'Sepolia'
+  //     };
 
-    } catch (error) {
-      this.stopTimer();
-      console.error('Staking failed:', error);
-      throw error;
-    }
-  }
+  //     onStatusUpdate(this.currentStatus);
+
+  //     this.startTimer(initialTimestamp, onStatusUpdate);
+
+  //     const receipt = await this.publicClient.waitForTransactionReceipt(
+  //       { hash: txHashStake }
+  //     )
+
+  //     userAddress = receipt.from;
+
+  //     const simulationData = await simulateContract(config, {
+  //       address: this.networkConfig.contracts.ccip as `0x${string}`,
+  //       abi: stakeABI,
+  //       functionName: 'handleStakingAction',
+  //       args: [
+  //         destinationChainSelector,
+  //         receiver,
+  //         amount,
+  //         gasLimit
+  //       ],
+  //       blockNumber: BigInt(receipt.blockNumber) - BigInt(1), 
+  //       account: receipt.from,
+  //       value: BigInt(0),
+  //     });
+
+  //     const messageId = simulationData?.result;
+
+  //     if (!messageId) {
+  //       throw new Error('MessageId not found in simulation');
+  //     }
+      
+  //     this.currentStatus = {
+  //       ...this.currentStatus,
+  //       ccipMessageId: messageId,
+  //       status: 'IN_PROGRESS',
+  //       origin: userAddress,
+  //       receiver: receiver,
+  //       amount: amount,
+  //       sourceNetworkName: this.networkConfig.name,
+  //       destNetworkName: 'Sepolia'
+  //     };
+  //     this.updateStatus(this.currentStatus, onStatusUpdate);
+
+  //     // Start background polling
+  //     this.startPollingStatus(txHashStake, messageId, initialTimestamp, onStatusUpdate);
+
+  //     // Hide status after 30 seconds
+  //     setTimeout(() => {
+  //       if (this.currentStatus) {
+  //         this.currentStatus = {
+  //           ...this.currentStatus,
+  //           hideOnStakePage: true
+  //         };
+  //         onStatusUpdate(this.currentStatus);
+  //       }
+  //     }, 30000);
+
+  //   } catch (error) {
+  //     this.stopTimer();
+  //     console.error('Staking failed:', error);
+  //     throw error;
+  //   }
+  // }
 
   public async stakeCCTP(
     amount: number,
@@ -197,8 +226,9 @@ class StakeManager {
     onStatusUpdate: (status: StakeStatus) => void
   ): Promise<void> {
     try {
+      
       const txHashStake = await writeContractAsync({
-        address: STAKE_CCTP_CONTRACT_ADDRESS,
+        address: this.networkConfig.contracts.cctp as `0x${string}`,
         abi: stakeCCTPABI,
         functionName: 'depositForBurnWithCaller',
         args: [amount, destinationDomain, mintReceipient, burnToken, destinationCaller]
@@ -229,12 +259,12 @@ class StakeManager {
       this.startTimer(initialTimestamp, onStatusUpdate);
 
       const receipt = await this.pollTransactionReceipt(txHashStake);
-      const eventTopic = web3.utils.keccak256('MessageSent(bytes)');
+      const eventTopic = this.web3.utils.keccak256('MessageSent(bytes)');
       const log = receipt.logs.find((l: any) => l.topics[0] === eventTopic);
 
       if (log && log.data) {
-        const messageBytes = web3.eth.abi.decodeParameters(['bytes'], log.data)[0];
-        const messageHash = web3.utils.keccak256(messageBytes as string);
+        const messageBytes = this.web3.eth.abi.decodeParameters(['bytes'], log.data)[0];
+        const messageHash = this.web3.utils.keccak256(messageBytes as string);
           
         // Update status with messageBytes
         this.currentStatus = {
@@ -256,9 +286,13 @@ class StakeManager {
 
   private async pollTransactionReceipt(txHash: string, maxRetries = 10, interval = 2000) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-      const receipt = await web3.eth.getTransactionReceipt(txHash);
-      if (receipt) {
-        return receipt;
+      try {
+        const receipt = await this.web3.eth.getTransactionReceipt(txHash);
+        if (receipt) {
+          return receipt;
+        }
+      } catch (err) {
+        console.warn(`Attempt ${attempt + 1}: Error fetching receipt:`, err);
       }
       await new Promise((r) => setTimeout(r, interval));
     }
@@ -273,7 +307,7 @@ class StakeManager {
     onStatusUpdate: (status: StakeStatus) => void,
     maxRetries = 30
   ) {
-    // Add initial delay of 3 seconds before starting attestation polling
+    
     console.log('Waiting 3 seconds before starting attestation polling...');
     await new Promise(resolve => setTimeout(resolve, 3000));
     
@@ -302,7 +336,8 @@ class StakeManager {
             onStatusUpdate(this.currentStatus);
 
             if (attestationResponse.status === 'complete') {
-                await this.callSepoliaContract(messageBytes, attestationResponse.attestation, amount, address, onStatusUpdate);
+                const sourceDomain = String(this.networkConfig.sourceDomain);
+                await this.callSepoliaContract(messageBytes, attestationResponse.attestation, amount, address, sourceDomain, onStatusUpdate);
                 break;
             }
         } catch (error: any) {
@@ -353,6 +388,7 @@ class StakeManager {
     attestation: string,
     amount: number,
     address: string,
+    sourceDomain:string,
     onStatusUpdate: (status: StakeStatus) => void
   ) {
     try {
@@ -360,35 +396,36 @@ class StakeManager {
         throw new Error("Private key is undefined");
       }
 
-      const account = sepoliaWeb3.eth.accounts.privateKeyToAccount(
+      const account = this.sepoliaWeb3.eth.accounts.privateKeyToAccount(
         import.meta.env.VITE_PRIVATE_KEY
       );
-      sepoliaWeb3.eth.accounts.wallet.add(account);
+      this.sepoliaWeb3.eth.accounts.wallet.add(account);
       
-      const contract = new sepoliaWeb3.eth.Contract(
+      const contract = new this.sepoliaWeb3.eth.Contract(
         ReceiverAbiCCTP,
-        RECEIVER_CONTRACT_ADDRESS_CCTP
+        `${this.networkConfig.contracts.destination}` as `0x${string}`
       );
 
       const hookData = await contract.methods.getHookData(
         amount,
-        address.toLowerCase()
+        address.toLowerCase(),
+        sourceDomain
       ).call();
 
       const tx = contract.methods.receiveUSDC(hookData, messageBytes, attestation);
       const gas = await tx.estimateGas({ from: account.address });
-      const gasPrice = await sepoliaWeb3.eth.getGasPrice();
+      const gasPrice = await this.sepoliaWeb3.eth.getGasPrice();
 
       const txData = {
         from: account.address,
-        to: RECEIVER_CONTRACT_ADDRESS_CCTP,
+        to: `${this.networkConfig.contracts.destination}` as `0x${string}`,
         data: tx.encodeABI(),
         gas,
         gasPrice,
       };
 
       const signedTx = await account.signTransaction(txData);
-      const receipt = await sepoliaWeb3.eth.sendSignedTransaction(
+      const receipt = await this.sepoliaWeb3.eth.sendSignedTransaction(
         signedTx.rawTransaction!
       );
 
@@ -635,4 +672,4 @@ class StakeManager {
   }
 }
 
-export default new StakeManager();
+export default new StakeManager(421614); // Default to Arbitrum Sepolia

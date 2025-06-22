@@ -16,6 +16,7 @@ export type NetworkConfig = {
     sourceName: string;
     destName: string;
   };
+  sourceDomain: number;
 };
 
 export type Networks = 'arbitrum-sepolia' | 'op-sepolia' | 'polygon-amoy' 
@@ -31,49 +32,52 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       cctp:'0x907D0cCc4e0Fa0EbDa7a0BDbFae592027607c22B',
       usdc: '0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d',
       fees: '0xb1D4538B4571d411F07960EF2838Ce337FE1E80E',
-      destination: '0x482AA74Ba6A5cb04F81638171Ebd1b169FE11c4c',
+      destination: '0x4EFF55608e01E7C4592dDB38F77E1ae1fE49fF73',
       decimal: 6
     },
     ccipNames: {
       sourceName: 'ethereum-testnet-sepolia-arbitrum-1',
       destName: 'ethereum-testnet-sepolia'
-    }
+    },
+    sourceDomain: 3
   },
   'op-sepolia': {
     name: 'Optimism Sepolia',
     chainId: 11155420,
-    rpcUrl: 'https://optimism-sepolia.drpc.org',
+    rpcUrl: 'https://optimism-sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64',
     explorer: 'https://sepolia-optimism.etherscan.io',
     contracts: {
       ccip: '0x0000000000000000000000000000000000000000',
       usdc: '0x5fd84259d66Cd46123540766Be93DFE6D43130D7',
       fees: '0x0000000000000000000000000000000000000000',
       cctp:'0x459922d991923FcA7948dbee715C8dEBeF53948d',
-      destination: '0x482AA74Ba6A5cb04F81638171Ebd1b169FE11c4c',
+      destination: '0x4EFF55608e01E7C4592dDB38F77E1ae1fE49fF73',
       decimal: 6
     },
     ccipNames: {
       sourceName: 'op_sepolia',
       destName: 'sepolia'
-    }
+    },
+    sourceDomain: 2
   },
   'polygon-amoy': {
     name: 'Polygon Amoy',
     chainId: 80002,
-    rpcUrl: 'https://rpc-amoy.polygon.technology',
+    rpcUrl: 'https://polygon-amoy.infura.io/v3/cea2942c462d447983f9f20783cd2f64',
     explorer: 'https://www.oklink.com/amoy',
     contracts: {
      ccip: '0x0000000000000000000000000000000000000000',
       usdc: '0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582',
       fees: '0x0000000000000000000000000000000000000000',
       cctp:'0xfe92035cce244c9e14289a2c2cde06cb2d4ee756',
-      destination: '0x482AA74Ba6A5cb04F81638171Ebd1b169FE11c4c',
+      destination: '0x4EFF55608e01E7C4592dDB38F77E1ae1fE49fF73',
       decimal: 6
     },
     ccipNames: {
       sourceName: 'polygon-testnet-amoy',
       destName: 'ethereum-testnet-sepolia'
-    }
+    },
+    sourceDomain: 7
   },
 
 };

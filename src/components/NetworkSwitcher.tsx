@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SUPPORTED_NETWORKS, Networks } from '../config/contract';
 import { useTheme } from '../context/ThemeContext';
@@ -7,27 +7,61 @@ import { useTheme } from '../context/ThemeContext';
 interface NetworkSwitcherProps {
   currentNetwork: Networks;
   onNetworkChange: (network: Networks) => void;
+  onOpen?: () => void; // New callback prop
 }
 
-const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherProps) => {
+const NetworkSwitcher = ({ currentNetwork, onNetworkChange, onOpen }: NetworkSwitcherProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { theme } = useTheme();
   const currentNetworkConfig = SUPPORTED_NETWORKS[currentNetwork];
 
+  const handleToggle = () => {
+    const newIsOpen = !isOpen;
+    setIsOpen(newIsOpen);
+    
+    // Call onOpen callback when opening the dropdown
+    if (newIsOpen && onOpen) {
+      onOpen();
+    }
+  };
+
   return (
     <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`
-          flex items-center space-x-2 px-3 py-1.5 rounded-md
-          border border-green-500/40 bg-black/90
-          hover:bg-green-500/20 transition-colors 
-          text-green-500
-        `}
-      >
-        <span className="text-sm">{currentNetworkConfig.name}</span>
-        <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleToggle}
+          className={`
+            flex items-center space-x-2 px-3 py-1.5 rounded-md
+            border border-green-500/40 bg-black/90
+            transition-colors hover:text-black/90
+            hover:border-black/90 hover:bg-gray-100/10
+            text-green-500
+          `}
+        >
+          <span className="text-sm">{currentNetworkConfig.name}</span>
+          {/* Desktop Chevron */}
+          <ChevronDown size={16} 
+            className={`hidden sm:block transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+          />
+          {/* Mobile Chevron */}
+          <ChevronUp size={16} 
+            className={`sm:hidden transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+          />
+        </button>
+
+        {/* Tally Button for Mobile */}
+        <button
+          className="md:hidden flex items-center space-x-2 px-3 py-1.5 rounded-md border border-green-500/40 bg-black/90 hover:bg-gray-100/10 transition-colors text-green-500"
+          data-tally-open="3q7V77"
+          data-tally-align-left="1"
+          data-tally-overlay="1"
+          data-tally-emoji-text="👋"
+          data-tally-emoji-animation="bounce"
+          data-tally-auto-close="3000"
+        >
+          <span className="text-sm">Contact Us</span>
+        </button>
+      </div>
 
       <AnimatePresence>
         {isOpen && (
@@ -50,7 +84,6 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
                 sm:top-full sm:right-0 sm:mt-2
                 bottom-full right-0 mb-2
                 backdrop-blur-md
-               
               `}
             >
               <div className="py-1 px-1">
@@ -63,14 +96,14 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange }: NetworkSwitcherPro
                     }}
                     className={`
                       w-full px-4 py-2 text-sm flex items-center justify-between
-                      hover:bg-green-100/10 transition-colors
+                      hover:text-black/90
+                      hover: border border-black/90 hover:bg-gray-100/10 hover:border-black/90 transition-colors
                       ${currentNetwork === network ? 'bg-gray-800' : 'bg-gray-800'}
                       rounded-md mb-1
                       last:mb-0
                       text-green-500
                     `}
                   >
-                    
                     {SUPPORTED_NETWORKS[network].name}
                     {currentNetwork === network && (
                       <CheckCircle2 size={16} className="text-green-500" />

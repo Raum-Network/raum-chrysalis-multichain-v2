@@ -8,9 +8,12 @@ import AmountInput from '../components/AmountInput';
 import { Progress } from '../components/Progress';
 import { ArrowRightLeft, Loader2, ChevronRight, CheckCircle2, XCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SUPPORTED_NETWORKS } from '../config/contract';
+import { getLidoAPY } from '../services/api';
+import stakedUserBalance from '../lib/sepoliaContract';
 
 const Stake = () => {
-  const { isConnected, balance, connect } = useWallet();
+  const { isConnected, balance, connect, chainId } = useWallet();
   const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, hasAllowance, isApproving, usdcBalance } = useStaking();
   const [stakeAmount, setStakeAmount] = useState(0);
   const [stakeView, setStakeView] = useState<'form' | 'confirming' | 'success'>('form');
@@ -18,6 +21,14 @@ const Stake = () => {
   const [currentStake, setCurrentStake] = useState<StakeStatus | null>(null);
   const [showTransactionBox, setShowTransactionBox] = useState(false);
   const [showSuccessDelay, setShowSuccessDelay] = useState(false);
+  const [totalStakers, setTotalStakers] = useState<string>('0');
+  const [totalUsdc, setTotalUsdc] = useState<number>(0);
+  const [lidoAPY, setLidoAPY] = useState<number | null>(null);
+
+  // Helper to get explorer URL for the current network
+  const explorerUrl = chainId
+    ? Object.values(SUPPORTED_NETWORKS).find(n => n.chainId === chainId)?.explorer || 'https://sepolia.arbiscan.io'
+    : 'https://sepolia.arbiscan.io';
 
   // Subscribe to StakeManager updates
   useEffect(() => {
@@ -41,6 +52,22 @@ const Stake = () => {
     const unsubscribe = stakeManager.subscribeToStatus(handleStatusUpdate);
     return () => unsubscribe();
   }, [bridgeProtocol]);
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const stakers = await stakedUserBalance.getStakersCount();
+        const usdcStaked = await stakedUserBalance.totalUsdcStaked();
+        const apy = await getLidoAPY();
+        setTotalStakers(stakers);
+        setTotalUsdc(usdcStaked);
+        setLidoAPY(apy);
+      } catch (error) {
+        // Optionally handle error
+      }
+    }
+    fetchStats();
+  }, []);
 
   const handleStakeSubmit = async () => {
     if (stakeAmount <= 0) return;
@@ -86,9 +113,7 @@ const Stake = () => {
               Circle CCTP
             </span>
             <span className="text-xs opacity-70">
-             
                 Cross-Chain Transfer Protocol
-              
             </span>
           </div>
         </button>
@@ -137,7 +162,7 @@ const Stake = () => {
             <div className="text-sm break-all">
               <span className="text-amber-500">Source Tx:</span>
               <a 
-                href={`https://sepolia.arbiscan.io/tx/${currentStake.sourceTxHash}`}
+                href={`${explorerUrl}/tx/${currentStake.sourceTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-2 text-amber-400 hover:text-amber-300"
@@ -332,15 +357,15 @@ const Stake = () => {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="opacity-70">Total USDC Staked</span>
-                  <span>24,582,410 USDC</span>
+                  <span>{totalUsdc}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-70">Current APR</span>
-                  <span className="text-green-400">4.8%</span>
+                  <span className="text-green-400">{lidoAPY}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-70">Total Stakers</span>
-                  <span>1,452</span>
+                  <span>{totalStakers}</span>
                 </div>
               </div>
             </div>

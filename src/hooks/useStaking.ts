@@ -1,17 +1,13 @@
-import { useState } from 'react';
+import { useState , useEffect } from 'react';
 import { useWallet } from '../lib/walletConnect';
 import { useWriteContract, useReadContract } from 'wagmi';
 import { erc20Abi } from 'viem';
 import stakeManager, { StakeStatus } from '../lib/stakeManager';
 import stakedUserBalance from '../lib/sepoliaContract';
-
-const USDC_ADDRESS = "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d";
-const LINK_ADDRESS = "0xb1D4538B4571d411F07960EF2838Ce337FE1E80E";
-const STAKE_CONTRACT_ADDRESS = "0x01851B172B1B0A5709DEEC827A88732Dba00C467";
-const STAKE_CCTP_CONTRACT_ADDRESS = "0x907D0cCc4e0Fa0EbDa7a0BDbFae592027607c22B";
+import { SUPPORTED_NETWORKS } from '../config/contract';
 
 export function useStaking() {
-  const { address } = useWallet();
+  const { address, network, networkConfig , chainId } = useWallet();
   const [stakeStatus, setStakeStatus] = useState<StakeStatus | null>(null);
   const [isStaking, setIsStaking] = useState(false);
   const [bridgeProtocol, setBridgeProtocol] = useState<"CCIP" | "CCTP">("CCTP");
@@ -19,9 +15,21 @@ export function useStaking() {
   
   const { writeContractAsync } = useWriteContract();
 
+  const currentNetworkConfig = networkConfig;
+  const USDC_ADDRESS = currentNetworkConfig.contracts.usdc;
+  const LINK_ADDRESS = currentNetworkConfig.contracts.fees;
+  const STAKE_CONTRACT_ADDRESS = currentNetworkConfig.contracts.ccip;
+  const STAKE_CCTP_CONTRACT_ADDRESS = currentNetworkConfig.contracts.cctp;
+
+  useEffect(() => {
+    if (chainId) {
+      stakeManager.updateChainId(chainId);
+    }
+  }, [chainId]);
+
   // Read USDC balance
   const { data: usdcBalance } = useReadContract({
-    address: USDC_ADDRESS,
+    address: USDC_ADDRESS as `0x${string}`,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: [address!],
@@ -29,17 +37,17 @@ export function useStaking() {
 
   // Read allowances
   const { data: usdcAllowance, refetch: refetchUsdcAllowance } = useReadContract({
-    address: USDC_ADDRESS,
+    address: USDC_ADDRESS as `0x${string}`,
     abi: erc20Abi,
     functionName: "allowance",
-    args: [address!, bridgeProtocol === 'CCIP' ? STAKE_CONTRACT_ADDRESS : STAKE_CCTP_CONTRACT_ADDRESS],
+    args: [address!, bridgeProtocol === 'CCIP' ? STAKE_CONTRACT_ADDRESS as `0x${string}` : STAKE_CCTP_CONTRACT_ADDRESS as `0x${string}`],
   });
 
   const { data: linkAllowance, refetch: refetchLinkAllowance } = useReadContract({
-    address: LINK_ADDRESS,
+    address: LINK_ADDRESS as `0x${string}`,
     abi: erc20Abi,
     functionName: "allowance",
-    args: [address!, STAKE_CONTRACT_ADDRESS],
+    args: [address!, STAKE_CONTRACT_ADDRESS as `0x${string}`],
   });
 
   const approveToken = async (amount: number) => {
@@ -51,20 +59,20 @@ export function useStaking() {
       
       // Approve USDC
       await writeContractAsync({
-        address: USDC_ADDRESS,
+        address: USDC_ADDRESS as `0x${string}`,
         abi: erc20Abi,
         functionName: "approve",
-        args: [bridgeProtocol === 'CCIP' ? STAKE_CONTRACT_ADDRESS : STAKE_CCTP_CONTRACT_ADDRESS, amountInWei],
+        args: [bridgeProtocol === 'CCIP' ? STAKE_CONTRACT_ADDRESS as `0x${string}` : STAKE_CCTP_CONTRACT_ADDRESS as `0x${string}`, amountInWei],
       });
       await refetchUsdcAllowance();
 
       // For CCIP, also approve LINK
       if (bridgeProtocol === 'CCIP') {
         await writeContractAsync({
-          address: LINK_ADDRESS,
+          address: LINK_ADDRESS as `0x${string}`,
           abi: erc20Abi,
           functionName: "approve",
-          args: [STAKE_CONTRACT_ADDRESS, BigInt(10 * 10 ** 18)],
+          args: [STAKE_CONTRACT_ADDRESS as `0x${string}`, BigInt(10 * 10 ** 18)],
         });
         await refetchLinkAllowance();
       }
@@ -104,22 +112,22 @@ export function useStaking() {
       const stakeAmountInWei = amount * 10 ** 6;
 
       if (bridgeProtocol === 'CCIP') {
-        await stakeManager.stake(
-          "16015286601757825753",
-          "0x185915e86A5DD567FC8D381914503cb517e51317",
-          stakeAmountInWei,
-          "999999",
-          writeContractAsync,
-          () => {},
-          setStakeStatus
-        );
+        // await stakeManager.stake(
+        //   "16015286601757825753",
+        //   "0x185915e86A5DD567FC8D381914503cb517e51317",
+        //   stakeAmountInWei,
+        //   "999999",
+        //   writeContractAsync,
+        //   () => {},
+        //   setStakeStatus
+        // );
       } else {
         await stakeManager.stakeCCTP(
           stakeAmountInWei,
           0,
-          '0x0000000000000000000000000267Cf87951fB8e6BE909025cCC67f8DDE991eA7',
+          '0x0000000000000000000000004EFF55608e01E7C4592dDB38F77E1ae1fE49fF73',
           USDC_ADDRESS,
-          '0x0000000000000000000000000267Cf87951fB8e6BE909025cCC67f8DDE991eA7',
+          '0x0000000000000000000000004EFF55608e01E7C4592dDB38F77E1ae1fE49fF73',
           address,
           writeContractAsync,
           () => {},
@@ -139,7 +147,7 @@ export function useStaking() {
     try {
       const balance = await stakedUserBalance.getBalance(address);
       const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
-      return (Number(balance) + Number(cctpBalance)).toString();
+      return ( Number(cctpBalance)).toString();
     } catch (error) {
       console.error("Error:", error);
       return "0";

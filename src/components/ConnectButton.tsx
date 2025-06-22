@@ -1,17 +1,15 @@
 import { useWallet } from '../lib/walletConnect';
+import { ConnectKitButton } from 'connectkit';
 import { Wallet, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import NetworkSwitcher from './NetworkSwitcher';
 import { Networks } from '../config/contract';
+import ReactGA from 'react-ga4';
 
 const ConnectButton = () => {
-  const { isConnected, address, balance, network, chainId, switchNetwork, connect, disconnect } = useWallet();
-  const [showTooltip, setShowTooltip] = useState(false);
-
-  const handleConnect = () => {
-    connect();
-  };
+  const { isConnected, address, balance, network, chainId, switchNetwork, disconnect } = useWallet();
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleDisconnect = () => {
     disconnect();
@@ -21,34 +19,44 @@ const ConnectButton = () => {
     return addr.slice(0, 6) + '...' + addr.slice(-4);
   };
 
+  const handleNetworkSwitcherOpen = () => {
+    setIsOpen(false); // Close the connected modal when network switcher opens
+  };
+
   if (isConnected) {
+
+    ReactGA.event({
+      category: 'Wallet',
+      action: 'Click',
+      label: address ? `Connected Wallet ${address}` : 'Connect Wallet Button'
+    });
+    
     return (
       <div className="flex items-center space-x-2">
         <div className="hidden sm:block">
-          <NetworkSwitcher 
-            currentNetwork={network as Networks} 
+          <NetworkSwitcher
+            currentNetwork={network as Networks}
             onNetworkChange={switchNetwork}
+            onOpen={handleNetworkSwitcherOpen}
           />
         </div>
-        
+
         <div className="relative">
-          <div 
-            className="flex items-center space-x-2 px-2 py-1 rounded-ßmd bg-green-900/30 border border-green-700/40"
-            onMouseEnter={() => setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
+          <div
+            onClick={() => setIsOpen(!isOpen)}
+            className="flex items-center space-x-2 px-3 py-1.5 rounded-md
+                      border border-green-500/40 bg-black/90
+                      hover:text-black/90
+                      hover: border border-black/90 hover:bg-gray-100/10 hover:border-black/90
+                      transition-all duration-200 
+                      text-green-500 cursor-pointer"
           >
             <div className="pulse-dot"></div>
-            <span className="hidden md:inline text-xs text-black-400">{truncateAddress(address || '')}</span>
-            <button 
-              onClick={handleDisconnect}
-              className="ml-1 p-1 rounded-full hover:bg-red-900/50"
-            >
-              <LogOut size={14} className="text-red-400" />
-            </button>
+            <span className="text-sm hidden md:inline">{truncateAddress(address || '')}</span>
           </div>
-          
-          {showTooltip && (
-            <motion.div 
+
+          {isOpen && (
+            <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               className={`
@@ -77,9 +85,20 @@ const ConnectButton = () => {
               {/* Desktop view */}
               <div className="hidden md:block">
                 <div className="text-green-400">Connected: {address}</div>
-                <div className="text-green-400">Balance: {Number(balance).toFixed(2)} ETH</div>
+                <div className="text-green-400">Balance: {Number(balance).toFixed(4)} ETH</div>
                 <div className="text-green-400">Network: {network}</div>
                 <div className="text-green-400">Chain ID: {chainId}</div>
+              </div>
+
+              {/* Disconnect button */}
+              <div className="mt-1 pt-1 border-t border-green-700/40">
+                <button
+                  onClick={handleDisconnect}
+                  className="flex items-center space-x-2 text-red-400 hover:text-red-500 transition-colors"
+                >
+                  <LogOut size={16} />
+                  <span>Disconnect</span>
+                </button>
               </div>
             </motion.div>
           )}
@@ -92,20 +111,39 @@ const ConnectButton = () => {
     <div className="flex items-center space-x-2">
       {/* Network Switcher - Only visible on desktop */}
       <div className="hidden sm:block">
-        <NetworkSwitcher 
+        <NetworkSwitcher
           currentNetwork={network as Networks}
           onNetworkChange={switchNetwork}
+          onOpen={handleNetworkSwitcherOpen}
         />
       </div>
-      <motion.button
-        onClick={handleConnect}
-        className="bg-amber-700 hover:bg-amber-600 text-beige-100 rounded-md px-4 py-1 text-sm flex items-center"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <Wallet size={16} className="mr-2" />
-        <span>Connect</span>
-      </motion.button>
+      <ConnectKitButton.Custom>
+        {({ isConnecting, show, address, ensName }) => {
+          return (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                ReactGA.event({
+                  category: 'Wallet',
+                  action: 'Click',
+                  label: address ? `Connected Wallet ${address}` : 'Connect Wallet Button'
+                });
+                show?.();
+              }}
+              className={`
+                flex items-center justify-center px-3 py-1.5 rounded-md
+                border border-green-500/40 bg-black/90 hover:text-black/90
+                      hover: border border-black/90 hover:bg-gray-100/10 hover:border-black/90
+                transition-colors text-green-500 transition-all duration-40
+                
+              `}
+            >
+              <span className="text-sm">{isConnecting ? "Connecting..." : "Connect"}</span>
+            </motion.button>
+          );
+        }}
+      </ConnectKitButton.Custom>
     </div>
   );
 };
