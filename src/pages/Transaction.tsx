@@ -131,7 +131,7 @@ const Transactions = () => {
     };
 
     loadTransactions();
-    const interval = setInterval(loadTransactions, 30000);
+    const interval = setInterval(loadTransactions, 300000);
     return () => clearInterval(interval);
   }, [address, chainId]);
 

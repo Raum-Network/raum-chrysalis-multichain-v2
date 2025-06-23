@@ -29,9 +29,9 @@ const Layout = () => {
       <div className={`h-8 flex items-center justify-between px-4 border-b border-amber-700 ${theme === 'night' ? 'bg-gray-900 text-amber-100' : 'bg-beige-800 text-brown-900'} z-10`}>
         <div className="flex items-center">
           <span className="hidden sm:inline font-bold">Chrysalis</span>
-          <span className="sm:hidden font-bold">RS</span>
+          <span className="sm:hidden font-bold">RN</span>
           <span className="mx-2">|</span>
-          <span className="text-xs">v0.1.0</span>
+          <span className="text-xs">Testnet</span>
         </div>
         <div className="flex items-center">
           <Clock size={14} className="mr-1" />

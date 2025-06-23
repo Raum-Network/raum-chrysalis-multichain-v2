@@ -263,7 +263,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <h4 className="text-xs opacity-70 mb-1">Next Reward</h4>
-                  <div className="text-lg">{stakingData.nextReward}</div>
+                  <div className="text-lg">--</div>
                 </div>
               </div>
             </div>
@@ -276,7 +276,7 @@ const Dashboard = () => {
                   <div className="text-lg">{stakingData.stakers.toLocaleString()}</div>
                 </div>
                 <div>
-                  <h4 className="text-xs opacity-70 mb-1">Total ETH Staked</h4>
+                  <h4 className="text-xs opacity-70 mb-1">Total USDC Staked</h4>
                   <div className="text-lg">{stakingData.totalStaked.toLocaleString()}</div>
                 </div>
                 <div>

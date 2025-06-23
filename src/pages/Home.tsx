@@ -20,7 +20,7 @@ const Home = () => {
       timestamp: new Date()
     },
     {
-      message: 'Running on Mainnet',
+      message: 'Running on Testnet',
       type: 'success',
       timestamp: new Date()
     }
