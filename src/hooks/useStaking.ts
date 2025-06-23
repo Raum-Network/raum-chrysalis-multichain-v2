@@ -12,6 +12,7 @@ export function useStaking() {
   const [isStaking, setIsStaking] = useState(false);
   const [bridgeProtocol, setBridgeProtocol] = useState<"CCIP" | "CCTP">("CCTP");
   const [isApproving, setIsApproving] = useState(false);
+  const [stakeAmount, setStakeAmount] = useState<number>(0);
   
   const { writeContractAsync } = useWriteContract();
 
@@ -90,11 +91,6 @@ export function useStaking() {
     const amountInWei = BigInt(amount * 10 ** 6);
     const hasUsdcAllowance = (usdcAllowance || BigInt(0)) >= amountInWei;
     
-    if (bridgeProtocol === 'CCIP') {
-      const hasLinkAllowance = (linkAllowance || BigInt(0)) >= BigInt(10 * 10 ** 18);
-      return hasUsdcAllowance && hasLinkAllowance;
-    }
-    
     return hasUsdcAllowance;
   };
 
@@ -103,6 +99,7 @@ export function useStaking() {
     
     try {
       setIsStaking(true);
+      setStakeAmount(amount);
       const hasAllowance = await checkAllowance(amount);
       
       if (!hasAllowance) {
@@ -168,7 +165,7 @@ export function useStaking() {
         ? (usdcAllowance >= BigInt(10 * 10 ** 6) && linkAllowance >= BigInt(10 * 10 ** 18)) 
         : false)
       : (usdcAllowance 
-        ? usdcAllowance >= BigInt(10 * 10 ** 6) 
+        ? usdcAllowance >= BigInt(stakeAmount * 10 ** 6) 
         : false),
     checkAllowance,
     getStakedBalance,
