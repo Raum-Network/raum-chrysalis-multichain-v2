@@ -21,7 +21,7 @@ interface TransactionModalProps {
     sender: string;
     receiver: string;
     sourceTxHash?: string;
-    destinationTxHash?: string;
+    destTransactionHash?: string;
     bridgingMessageId?: string;
   } | null;
 }
@@ -135,30 +135,17 @@ const TransactionModal = ({ isOpen, onClose, transaction }: TransactionModalProp
                     </div>
                   )}
 
-                  {transaction.sourceChainName === 'CCIP' && (
+                  {transaction.destTransactionHash && (
                     <div>
-                      <p className="text-sm font-medium">Bridging Information</p>
-                      {transaction.bridgingMessageId ? (
-                        <a
-                          href={`https://ccip.chain.link/msg/${transaction.bridgingMessageId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-500 hover:text-blue-600"
-                        >
-                          {transaction.bridgingMessageId}
-                        </a>
-                      ) : transaction.destinationTxHash ? (
-                        <a
-                          href={`https://sepolia.etherscan.io/tx/${transaction.destinationTxHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-500 hover:text-blue-600"
-                        >
-                          {transaction.destinationTxHash}
-                        </a>
-                      ) : (
-                        <p className="text-sm text-gray-500">No bridging information available</p>
-                      )}
+                      <p className="text-sm font-medium">Destination Transaction</p>
+                      <a
+                        href={`https://sepolia.etherscan.io/tx/${transaction.destTransactionHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-500 hover:text-blue-600"
+                      >
+                        {transaction.destTransactionHash}
+                      </a>
                     </div>
                   )}
                 </div>

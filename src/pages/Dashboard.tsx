@@ -193,7 +193,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatBox 
           title="Your Staked Asset" 
-          value={stakingData.stakedAmount.toFixed(4)} 
+          value={stakingData.stakedAmount.toFixed(6)} 
           suffix="ETH"
           icon={<CreditCard size={18} />} 
           change={{ value: 2.5, isPositive: true }}
@@ -235,7 +235,7 @@ const Dashboard = () => {
             <div className="border border-amber-700/30 rounded-md p-3 bg-amber-900/20">
               <h3 className="text-sm mb-2">Your Staking Balance</h3>
               <div className="flex items-end mb-3">
-                <span className="text-2xl font-medium">{stakingData.stakedAmount.toFixed(4)}</span>
+                <span className="text-2xl font-medium">{stakingData.stakedAmount.toFixed(6)}</span>
                 <span className="ml-1 text-sm opacity-70">ETH</span>
               </div>
               {/* <ProgressBar value={stakingData.stakedAmount} max={10} /> */}

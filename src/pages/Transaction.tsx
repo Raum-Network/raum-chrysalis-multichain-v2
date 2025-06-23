@@ -221,7 +221,7 @@ const Transactions = () => {
                 rel="noopener noreferrer"
                 className="flex items-center space-x-1 hover:text-amber-400"
               >
-                <span className="break-all">{transaction.hash}</span>
+                <span className="text-green-500 hover:text-green-600 break-all">{transaction.hash}</span>
                 <ArrowUpRight size={14} />
               </a>
             </div>
@@ -241,6 +241,25 @@ const Transactions = () => {
               {transaction.timestamp ? new Date(transaction.timestamp).toLocaleString() : 'Pending...'}
             </div>
           </div>
+
+          {transaction.destTransactionHash && (
+            <div
+              className={`p-3 rounded border border-amber-700/30 ${
+                theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'
+              }`}
+            >
+              <div className="text-xs opacity-70 mb-1">Destination Transaction</div>
+              <a
+                href={`https://sepolia.etherscan.io/tx/${transaction.destTransactionHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-1 text-green-500 hover:text-green-600 break-all"
+              >
+                <span>{transaction.destTransactionHash}</span>
+                <ArrowUpRight size={14} />
+              </a>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
