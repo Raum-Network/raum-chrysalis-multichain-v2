@@ -370,10 +370,10 @@ const Stake = () => {
               </div>
             </div>
             
-            <div className="flex items-center justify-center">
+            {/* <div className="flex items-center justify-center">
               <ArrowRightLeft size={24} className="mr-2" />
-              <span className="text-sm opacity-80">1 USDC = 1 rUSDC</span>
-            </div>
+              <span className="text-sm opacity-80">1 rnstETH = 1 stETH</span>
+            </div> */}
           </div>
         </Window>
       </div>
