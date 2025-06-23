@@ -69,7 +69,7 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
      ccip: '0x0000000000000000000000000000000000000000',
       usdc: '0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582',
       fees: '0x0000000000000000000000000000000000000000',
-      cctp:'0xfe92035cce244c9e14289a2c2cde06cb2d4ee756',
+      cctp:'0x47ca18a5d1B79Bca11a3f41cD528c660299984d5',
       destination: '0x4EFF55608e01E7C4592dDB38F77E1ae1fE49fF73',
       decimal: 6
     },

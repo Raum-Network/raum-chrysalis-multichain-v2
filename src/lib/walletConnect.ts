@@ -23,7 +23,7 @@ export const config = createConfig(
     chains: [arbitrumSepolia, polygonAmoy, soneiumMinato, optimismSepolia],
     transports: {
       [arbitrumSepolia.id]: http('https://sepolia-rollup.arbitrum.io/rpc'),
-      [optimismSepolia.id]: http('https://optimism-sepolia.drpc.org'),
+      [optimismSepolia.id]: http('https://sepolia.optimism.io'),
       [polygonAmoy.id]: http('https://polygon-amoy.drpc.org'),
       [soneiumMinato.id]: http('https://rpc.minato.soneium.org'),
     },

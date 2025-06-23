@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import { SUPPORTED_NETWORKS } from '../config/contract';
 import stakeCCTPABI from '../lib/abi/ChrysalisSenderCCTP.json';
+import { fetchSepoliaLogs, SepoliaLog } from './fetchSepoliaLogs';
 
 export interface CCTPTransaction {
   hash: string;
@@ -40,13 +41,15 @@ async function checkMessageReceipt(
     if (!sourceNonce) return null;
 
     for (const log of destLogs) {
+
+      
       try {
         if (log.topics[0] === "0x58200b4c34ae05ee816d710053fff3fb75af4395915d3d2a771b24aa10e3cc5d") {
-        
+         
           const destTopic = log.topics[2];
           const destNonce = BigInt(destTopic).toString();
           if (destNonce.toString() === sourceNonce.toString()) {
-           
+            
             return log.transactionHash;
           }
         }
@@ -68,9 +71,9 @@ export const fetchCCTPTransactions = async (userAddress: string, chainId: number
     const allTransactions: CCTPTransaction[] = [];
     const sepoliaProvider = new ethers.JsonRpcProvider('https://sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64');
 
-    // Get the current block number for destination chain
+   
     const currentBlock = await sepoliaProvider.getBlockNumber();
-    const fromBlock = (currentBlock) - 10000;
+    const fromBlock = (currentBlock) - 3000;
 
     // Fetch all destination transactions once
     const destFilter = {
@@ -80,7 +83,23 @@ export const fetchCCTPTransactions = async (userAddress: string, chainId: number
     };
     const destLogs = await sepoliaProvider.getLogs(destFilter);
 
-    // Instead of looping over all networks, just use the connected network:
+    const apiLogs1 = await fetchSepoliaLogs(fromBlock);
+
+    const allApiLogs: any= [
+      ...apiLogs1.map((log) => ({
+        transactionHash: log.TRANSACTION_HASH,
+        topics: [log.TOPIC_0, log.TOPIC_1, log.TOPIC_2, log.TOPIC_3].filter(Boolean),
+        blockNumber: log.BLOCK_NUMBER,
+        address: log.CONTRACT_ADDRESS,
+        data: log.RAW_DATA,
+        logIndex: log.EVENT_INDEX ?? 0,
+        removed: false,
+        blockHash: '', 
+      })),
+      ...destLogs
+    ];
+
+    
     const network = Object.values(SUPPORTED_NETWORKS).find(n => n.chainId === chainId);
     if (!network || !network.contracts.cctp) return [];
     const provider = new ethers.JsonRpcProvider(network.rpcUrl);
@@ -90,24 +109,27 @@ export const fetchCCTPTransactions = async (userAddress: string, chainId: number
       provider
     );
     try {
-      const allEvents = await contract.queryFilter(contract.filters.DepositForBurn(userAddress), fromBlock, 'latest');
-
+      const currentProviderBlock = await provider.getBlockNumber();
+      
+      const allEvents = await contract.queryFilter(contract.filters.DepositForBurn(userAddress), (currentProviderBlock - 30000), 'latest');
+      
       // Filter by sender address manually
       const userEvents = allEvents.filter(e =>
         (e as ethers.EventLog).args[0].toLowerCase() === userAddress.toLowerCase()
       );
+
+      
 
       const networkTransactions = await Promise.all(
         userEvents.map(async (event) => {
           const block = await event.getBlock();
           const eventLog = event as ethers.EventLog;
 
-          // Check for message receipt on destination chain using pre-fetched logs
           const destTxHash = await checkMessageReceipt(
             eventLog,
             provider,
             sepoliaProvider,
-            destLogs
+            allApiLogs
           );
 
 
