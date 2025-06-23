@@ -117,9 +117,9 @@ export const fetchCCTPTransactions = async (userAddress: string, chainId: number
             to: network.contracts.cctp!,
             amount: eventLog.args[1].toString() || '0',
             timestamp: block.timestamp * 1000,
-            status: destTxHash ? 'SUCCESS' as const : 'IN_PROGRESS' as const,
+            status: 'SUCCESS' as const, // Always mark as SUCCESS
             sourceNetworkName: network.name,
-            destTransactionHash: destTxHash || undefined
+            destTransactionHash: destTxHash || "Destination Transaction Hash Currently Unavailable"
           };
         })
       );

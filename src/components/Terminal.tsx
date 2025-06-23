@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Send } from 'lucide-react';
 import { useWallet } from '../lib/walletConnect';
 import { useStaking } from '../hooks/useStaking';
-import { SUPPORTED_NETWORKS } from '../config/contract';
 import stakeManager, { StakeStatus } from '../lib/stakeManager';
 
 interface Log {
@@ -22,9 +21,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
   const [command, setCommand] = useState('');
   const [stakeState, setStakeState] = useState<'idle' | 'protocol' | 'amount'>('idle');
   const [selectedProtocol, setSelectedProtocol] = useState<'CCIP' | 'CCTP' | null>(null);
-  const [stakeAmount, setStakeAmount] = useState<string>('');
   const terminalRef = useRef<HTMLDivElement>(null);
-  const {  chainId } = useWallet();
   const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, usdcBalance  } = useStaking();
 
   useEffect(() => {
@@ -164,15 +161,26 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       return;
     }
 
+    console.log('Command:', command);
     // Handle regular commands
     setTimeout(() => {
       let responseType: Log['type'] = 'info';
       let responseMessage = 'Command not recognized';
-
+      
       if (command.toLowerCase().includes('help')) {
         responseMessage = 'Available commands: stake, balance';
       } else if (command.toLowerCase().includes('stake')) {
         setStakeState('protocol');
+        setAllLogs([
+          ...newLogs,
+          {
+            message: 'Current protocol is CCTP. Please enter the amount of USDC to stake:',
+            type: 'info',
+            timestamp: new Date()
+          }
+        ]);
+        setCommand('');
+        return;
       } else if (command.toLowerCase().includes('balance')) {
         responseMessage = `Current USDC balance: ${usdcBalance} USDC`;
         responseType = 'success';

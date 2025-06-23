@@ -196,20 +196,20 @@ const Dashboard = () => {
           value={stakingData.stakedAmount.toFixed(6)} 
           suffix="ETH"
           icon={<CreditCard size={18} />} 
-          change={{ value: 2.5, isPositive: true }}
+          // change={{ value: 2.5, isPositive: true }}
         />
         <StatBox 
           title="Your Rewards" 
           value="--"
           suffix="ETH"
           icon={<DollarSign size={18} />} 
-          change={{ value: 5.2, isPositive: true }}
+          // change={{ value: 5.2, isPositive: true }}
         />
         <StatBox 
           title="Current APR" 
           value={`${stakingData.apr}%`}
           icon={<BarChart3 size={18} />} 
-          change={{ value: 0.3, isPositive: true }}
+          // change={{ value: 0.3, isPositive: true }}
         />
         <StatBox 
           title="Next Reward" 

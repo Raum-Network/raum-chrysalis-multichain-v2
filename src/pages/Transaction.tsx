@@ -83,13 +83,8 @@ const Transactions = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTx, setSelectedTx] = useState<any | null>(null);
-  const [currentStatus, setCurrentStatus] = useState<StakeStatus | null>(null);
-  const [currentTxState, setCurrentTxState] = useState<string>('1'); // Default to IN_PROGRESS
-  const [bridgingInfo, setBridgingInfo] = useState<Record<string, string | null>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [cctpTransactions, setCctpTransactions] = useState<CCTPTransaction[]>([]);
-  const fetchedPagesRef = useRef<Set<number>>(new Set());
-
   // Helper to get explorer URL for the current network
   const explorerUrl = chainId
     ? Object.values(SUPPORTED_NETWORKS).find(n => n.chainId === chainId)?.explorer || 'https://sepolia.arbiscan.io'
@@ -249,15 +244,21 @@ const Transactions = () => {
               }`}
             >
               <div className="text-xs opacity-70 mb-1">Destination Transaction</div>
-              <a
-                href={`https://sepolia.etherscan.io/tx/${transaction.destTransactionHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center space-x-1 text-green-500 hover:text-green-600 break-all"
-              >
-                <span>{transaction.destTransactionHash}</span>
-                <ArrowUpRight size={14} />
-              </a>
+              {transaction.destTransactionHash === "Destination Transaction Hash Currently Unavailable" ? (
+                <span className="text-red-400">
+                  Destination transaction hash not available (exceeds supported block limit)
+                </span>
+              ) : (
+                <a
+                  href={`https://sepolia.etherscan.io/tx/${transaction.destTransactionHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-1 text-blue-500 hover:text-blue-600 break-all"
+                >
+                  <span>{transaction.destTransactionHash}</span>
+                  <ArrowUpRight size={14} />
+                </a>
+              )}
             </div>
           )}
         </div>
