@@ -6,10 +6,12 @@ import { motion } from 'framer-motion';
 import NetworkSwitcher from './NetworkSwitcher';
 import { Networks } from '../config/contract';
 import ReactGA from 'react-ga4';
+import { useTheme } from '../context/ThemeContext';
 
 const ConnectButton = () => {
   const { isConnected, address, balance, network, chainId, switchNetwork, disconnect } = useWallet();
   const [isOpen, setIsOpen] = useState(false);
+  const { theme } = useTheme();
 
   const handleDisconnect = () => {
     disconnect();
@@ -44,12 +46,14 @@ const ConnectButton = () => {
         <div className="relative">
           <div
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-md
-                      border border-green-500/40 bg-black/90
-                      hover:text-black/90
-                      hover: border border-black/90 hover:bg-gray-100/10 hover:border-black/90
-                      transition-all duration-200 
-                      text-green-500 cursor-pointer"
+            className={`
+              flex items-center space-x-2 px-3 py-1.5 rounded-md
+              border ${theme === 'night' ? 'border-green-500/40' : 'border-green-500/40'}
+              bg-black/90 hover:text-black/90
+              hover:border-black/90 hover:bg-gray-100/10
+              transition-all duration-200 
+              text-green-500 cursor-pointer
+            `}
           >
             <div className="pulse-dot"></div>
             <span className="text-sm hidden md:inline">{truncateAddress(address || '')}</span>
@@ -61,7 +65,7 @@ const ConnectButton = () => {
               animate={{ opacity: 1, y: 0 }}
               className={`
                 absolute top-full right-0 mt-2 p-2 
-                bg-gray-800 border border-amber-700/40 rounded-md shadow-lg 
+                bg-gray-800 ${theme === 'night' ? 'border-green-500/40' : 'border-green-500/40'} border rounded-md shadow-lg 
                 text-xs whitespace-nowrap z-20
                 ${window.innerWidth < 768 ? 'w-[200px]' : ''}
               `}
@@ -72,7 +76,7 @@ const ConnectButton = () => {
                   Connected:{truncateAddress(address || '')}
                 </div>
                 <div className="text-green-400">
-                  Balance:{Number(balance).toFixed(4)} ETH
+                  Balance:{Number(balance).toFixed(6)} ETH
                 </div>
                 <div className="text-green-400">
                   Network:{network}
@@ -85,7 +89,7 @@ const ConnectButton = () => {
               {/* Desktop view */}
               <div className="hidden md:block">
                 <div className="text-green-400">Connected: {address}</div>
-                <div className="text-green-400">Balance: {Number(balance).toFixed(4)} ETH</div>
+                <div className="text-green-400">Balance: {Number(balance).toFixed(6)} ETH</div>
                 <div className="text-green-400">Network: {network}</div>
                 <div className="text-green-400">Chain ID: {chainId}</div>
               </div>
@@ -133,10 +137,10 @@ const ConnectButton = () => {
               }}
               className={`
                 flex items-center justify-center px-3 py-1.5 rounded-md
-                border border-green-500/40 bg-black/90 hover:text-black/90
-                      hover: border border-black/90 hover:bg-gray-100/10 hover:border-black/90
+                border ${theme === 'night' ? 'border-green-500/40' : 'border-green-500/40'}
+                bg-black/90 hover:text-black/90
+                hover:border-black/90 hover:bg-gray-100/10
                 transition-colors text-green-500 transition-all duration-40
-                
               `}
             >
               <span className="text-sm">{isConnecting ? "Connecting..." : "Connect"}</span>
