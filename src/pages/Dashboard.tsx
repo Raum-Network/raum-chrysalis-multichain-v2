@@ -88,7 +88,7 @@ const Dashboard = () => {
       timestamp: new Date()
     },
     {
-      message: 'Data loaded successfully',
+      message: 'Type "help" to see available commands',
       type: 'success',
       timestamp: new Date()
     }
