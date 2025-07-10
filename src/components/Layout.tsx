@@ -33,7 +33,7 @@ const Layout = () => {
           <span className="sm:hidden font-bold">Chrysalis</span>
           <span className="mx-2">|</span>
           <span className="text-xs">Testnet&nbsp;</span>
-          <span className="hidden sm:inline text-xs">v0.1.0</span>
+          <span className="hidden sm:inline text-xs mx-1">v0.1.0</span>
         </div>
         <div className="flex items-center">
           <Clock size={14} className="mr-1" />
@@ -44,7 +44,7 @@ const Layout = () => {
           >
             {theme === 'day' ? <Moon size={14} /> : <Sun size={14} />}
           </button>
-          <LocaleSwitcher locales={['en', 'es', 'fr', 'de']} className="mb-0" />
+          <LocaleSwitcher locales={['en' , 'fr', 'de' , 'ko-KR' , 'ko']} className="mb-0" />
         </div>
       </div>
 
