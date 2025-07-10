@@ -52,13 +52,13 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
     if (stakeState === 'protocol') {
       const protocol = command.trim().toUpperCase();
       const isBaseSepolia = chainId === SUPPORTED_NETWORKS['base-sepolia'].chainId;
-      
-      // For Base Sepolia, only allow CCIP
-      if (isBaseSepolia && protocol !== 'CCIP') {
+      const isLiskSepolia = chainId === SUPPORTED_NETWORKS['lisk-sepolia'].chainId;
+      // For Base Sepolia and Lisk Sepolia, only allow CCIP
+      if ((isBaseSepolia || isLiskSepolia) && protocol !== 'CCIP') {
         setAllLogs([
           ...newLogs,
           {
-            message: 'Only CCIP protocol is supported on Base Sepolia. Please enter CCIP:',
+            message: 'Only CCIP protocol is supported on Base Sepolia and Lisk Sepolia. Please enter CCIP:',
             type: 'error',
             timestamp: new Date()
           }
@@ -130,7 +130,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         setAllLogs([
           ...newLogs,
           {
-            message: `Insufficient balance. Your current USDC balance is ${usdcBalance.toFixed(2)} USDC`,
+            message: `Insufficient USDC balance. Your current USDC balance is ${usdcBalance.toFixed(2)} USDC`,
             type: 'error',
             timestamp: new Date()
           }
@@ -139,7 +139,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         return;
       }
 
-      if (linkBalance < 10 && bridgeProtocol === "CCIP") {
+      if (bridgeProtocol === 'CCIP' && linkBalance < 10) {
         setAllLogs([
           ...newLogs,
           {

@@ -61,7 +61,7 @@ export function useStaking() {
     setIsApproving(true);
 
     try {
-      const amountInWei = BigInt(amount * 10 ** 6);
+      const amountInWei = BigInt(amount * (networkConfig.contracts.decimal === 6 ? 10 ** 6 : 10 ** 18));
       
       // Approve USDC
       await writeContractAsync({
@@ -93,7 +93,7 @@ export function useStaking() {
   const checkAllowance = async (amount: number): Promise<boolean> => {
     if (!address) return false;
     
-    const amountInWei = BigInt(amount * 10 ** 6);
+    const amountInWei = BigInt(amount * (networkConfig.contracts.decimal === 6 ? 10 ** 6 : 10 ** 18));
     const hasUsdcAllowance = (usdcAllowance || BigInt(0)) >= amountInWei;
    
     if (bridgeProtocol === 'CCIP') {
@@ -117,7 +117,7 @@ export function useStaking() {
       }
 
       
-      const stakeAmountInWei = amount * 10 ** 6;
+      const stakeAmountInWei = amount * (networkConfig.contracts.decimal === 6 ? 10 ** 6 : 10 ** 18);
 
       if (bridgeProtocol === 'CCIP') {
         await stakeManager.stake(
@@ -163,6 +163,11 @@ export function useStaking() {
     }
   };
 
+  // Prevent CCTP for base-sepolia and lisk-sepolia
+  if ((networkConfig.name === 'Base Sepolia' || networkConfig.name === 'Lisk Sepolia') && bridgeProtocol === 'CCTP') {
+    setBridgeProtocol('CCIP');
+  }
+
   return {
     stake,
     stakeStatus,
@@ -171,14 +176,14 @@ export function useStaking() {
     setIsStaking,
     bridgeProtocol,
     setBridgeProtocol,
-    usdcBalance: usdcBalance ? Number(usdcBalance) / 10 ** 6 : 0,
+    usdcBalance: usdcBalance ? Number(usdcBalance) / (networkConfig.contracts.decimal === 6 ? 10 ** 6 : 10 ** 18) : 0,
     linkBalance: linkBalance ? Number(linkBalance) / 10 ** 18 : 0,
     hasAllowance: bridgeProtocol === 'CCIP' 
       ? (usdcAllowance && linkAllowance 
-        ? (usdcAllowance >= BigInt(stakeAmount * 10 ** 6) && linkAllowance >= BigInt(10 * 10 ** 18)) 
+        ? (usdcAllowance >= BigInt(stakeAmount * (networkConfig.contracts.decimal === 6 ? 10 ** 6 : 10 ** 18)) && linkAllowance >= BigInt(10 * 10 ** 18)) 
         : false)
       : (usdcAllowance 
-        ? usdcAllowance >= BigInt(stakeAmount * 10 ** 6) 
+        ? usdcAllowance >= BigInt(stakeAmount * (networkConfig.contracts.decimal === 6 ? 10 ** 6 : 10 ** 18)) 
         : false),
     checkAllowance,
     getStakedBalance,

@@ -34,6 +34,8 @@ const Stake = () => {
         return `https://sepolia.arbiscan.io/tx/${txHash}`;
       case 'base sepolia':
         return `https://sepolia.basescan.org/tx/${txHash}`;
+      case 'lisk sepolia':
+        return `https://sepolia-blockscout.lisk.com/tx/${txHash}`;
       case 'polygon amoy':
         return `https://www.oklink.com/amoy/tx/${txHash}`;
       default:
@@ -134,8 +136,8 @@ const Stake = () => {
   };
 
   const renderProtocolSelector = () => {
-    // For Base Sepolia, only show CCIP
-    if (networkConfig.name === 'Base Sepolia') {
+    // For Base Sepolia and Lisk Sepolia, only show CCIP
+    if (networkConfig.name === 'Base Sepolia' || networkConfig.name === 'Lisk Sepolia') {
       return (
         <div className="mb-4">
           <button
@@ -299,18 +301,19 @@ const Stake = () => {
         disabled={
           stakeAmount <= 0 || 
           stakeAmount > usdcBalance || 
-          bridgeProtocol === "CCIP" && linkBalance < 10 || 
+          (bridgeProtocol === "CCIP" && linkBalance < 10) || 
           isStaking || 
           isApproving ||
           currentStake?.status === 'IN_PROGRESS'
         }
         fullWidth
       >
-        {isApproving ? 'Approving...' :
-         isStaking || currentStake?.status === 'IN_PROGRESS' ? 'Staking in Progress...' : 
-         !hasAllowance ? `Approve and Stake in ${bridgeProtocol}` :
-          bridgeProtocol === "CCIP" && linkBalance < 10 ? 'Insufficient Link Balance' :
-         `Stake with ${bridgeProtocol}`}
+        {isApproving ? 'Approving...'
+        : isStaking || currentStake?.status === 'IN_PROGRESS' ? 'Staking in Progress...'
+        : stakeAmount > usdcBalance ? 'Insufficient USDC'
+        : bridgeProtocol === "CCIP" && linkBalance < 10 ? 'Insufficient LINK Balance'
+        : !hasAllowance ? `Approve and Stake in ${bridgeProtocol}`
+        : `Stake with ${bridgeProtocol}`}
       </Button>
 
       <AnimatePresence>

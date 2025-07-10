@@ -79,7 +79,7 @@ interface Transaction {
 }
 
 const Transactions = () => {
-  const { isConnected, connect, address } = useWallet();
+  const { isConnected, connect, address, networkConfig } = useWallet();
   const { theme } = useTheme();
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed' | 'failed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -211,7 +211,7 @@ const Transactions = () => {
 
   // Update the transaction mapping for current stake
   const allTransactions = [
-    ...(currentStatus?.status === 'IN_PROGRESS' ? [{
+    ...(currentStatus?.status === 'IN_PROGRESS' && currentStatus?.sourceNetworkName === networkConfig.name ? [{
       messageId: currentStatus.ccipMessageId || 'Pending...',
       state: currentTxState === '2' ? MessageState.SUCCESS :
              currentTxState === '3' ? MessageState.FAILURE :
@@ -234,18 +234,14 @@ const Transactions = () => {
     }] : []),
     ...filteredTransactions
       .filter(tx => {
-        
-        
+        // Only show transactions for the connected chain
+        if (tx.sourceNetworkName !== networkConfig.name) return false;
         // Check if the source network exists in SUPPORTED_NETWORKS
         const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => {
-         
           return network.name === tx.sourceNetworkName || 
                  network.ccipNames.sourceName === tx.sourceNetworkName ||
                  network.ccipNames.destName === tx.sourceNetworkName;
         });
-        
-        
-        
         // Only return true if we found a matching network
         return sourceNetwork !== undefined;
       })
@@ -291,6 +287,8 @@ const Transactions = () => {
       .filter(Boolean), // Remove any null entries
     ...cctpTransactions
       .filter(tx => {
+        // Only show CCTP transactions for the connected chain
+        if (tx.sourceNetworkName !== networkConfig.name) return false;
         // Only include CCTP transactions if there's no search query or if they match the search
         if (searchQuery === '') return true;
         return tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -421,6 +419,8 @@ const Transactions = () => {
         return `https://sepolia.arbiscan.io/tx/${txHash}`;
       case 'base sepolia':
         return `https://sepolia.basescan.org/tx/${txHash}`;
+      case 'lisk sepolia':
+        return `https://sepolia-blockscout.lisk.com/tx/${txHash}`;
       case 'polygon amoy':
         return `https://www.oklink.com/amoy/tx/${txHash}`;
       case 'sepolia':

@@ -24,7 +24,7 @@ class SepoliaContract {
       this.provider
     );
     this.contractCCTP = new ethers.Contract(
-      `0x${this.networkConfig.contracts.cctpDestinationCaller}`,
+      `0x${SUPPORTED_NETWORKS['arbitrum-sepolia'].contracts.cctpDestinationCaller}`,
       ['function stakedAmount(address) view returns (uint256)'],
       this.provider
     );

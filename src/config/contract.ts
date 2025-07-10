@@ -20,7 +20,7 @@ export type NetworkConfig = {
   };
 };
 
-export type Networks = 'arbitrum-sepolia' | 'base-sepolia';
+export type Networks = 'arbitrum-sepolia' | 'base-sepolia' | 'lisk-sepolia';
 
 export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
   'arbitrum-sepolia': {
@@ -53,13 +53,33 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       ccip: '0x45057d6CC1608C7E3B13570A29078848A8794D9e',
       usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
       fees: '0xE4aB69C077896252FAFBD49EFD26B5D171A32410',
-      cctp:'0x185915e86a5dd567fc8d381914503cb517e51317',
+      cctp:'0x0000000000000000000000000000000000000000',
       cctpDestinationCaller:'0000000000000000000000000000000000000000',
       destination: '0x185915e86a5dd567fc8d381914503cb517e51317',
       decimal: 6
     },
     ccipNames: {
       sourceName: 'ethereum-testnet-sepolia-base-1',
+      destName: 'ethereum-testnet-sepolia'
+    }
+  },
+  'lisk-sepolia': {
+    name: 'Lisk Sepolia',
+    chainId: 4202,
+    rpcUrl: 'https://lisk-sepolia.drpc.org/',
+    publicRpc:'https://rpc.sepolia-api.lisk.com',
+    explorer: 'https://sepolia-blockscout.lisk.com/',
+    contracts: {
+      ccip: '0x459922d991923FcA7948dbee715C8dEBeF53948d',
+      usdc: '0x043052cf7cf2a9679d9563d951a73856d5e5b4c4',
+      fees: '0x6641415a61bCe80D97a715054d1334360Ab833Eb',
+      cctp:'0x0000000000000000000000000000000000000000',
+      cctpDestinationCaller:'0000000000000000000000000000000000000000',
+      destination: '0x185915e86a5dd567fc8d381914503cb517e51317',
+      decimal: 18
+    },
+    ccipNames: {
+      sourceName: 'ethereum-testnet-sepolia-lisk-1',
       destName: 'ethereum-testnet-sepolia'
     }
   },

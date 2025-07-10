@@ -10,7 +10,7 @@ import {
   useSwitchChain
 } from 'wagmi';
 import { createConfig, http } from 'wagmi';
-import {  arbitrumSepolia, baseSepolia } from 'wagmi/chains';
+import {  arbitrumSepolia, baseSepolia , liskSepolia } from 'wagmi/chains';
 import { getDefaultConfig } from 'connectkit';
 import { useEffect } from 'react';
 import { erc20Abi } from 'viem';
@@ -20,11 +20,11 @@ import { SUPPORTED_NETWORKS, Networks } from '../config/contract';
 // Config with all supported chains
 export const config = createConfig(
   getDefaultConfig({
-    chains: [arbitrumSepolia, baseSepolia],
+    chains: [arbitrumSepolia, baseSepolia, liskSepolia],
     transports: {
       [arbitrumSepolia.id]: http('https://sepolia-rollup.arbitrum.io/rpc'),
       [baseSepolia.id]: http('https://sepolia.base.org'),
-
+      [liskSepolia.id]: http('https://lisk-sepolia.drpc.org/'),
     },
     walletConnectProjectId: "ffd25e3cc20b883d266134ce525caf88",
     appName: "Chrysalis - SteadyStake",

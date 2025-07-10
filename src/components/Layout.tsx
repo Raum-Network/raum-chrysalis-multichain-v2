@@ -65,7 +65,7 @@ const Layout = () => {
       </div>
 
       {/* Footer with Network Switcher */}
-      <div className="sm:hidden border-t border-amber-700/50 p-2">
+      <div className="sm:hidden border-t border-amber-700/50 p-2 fixed bottom-0 left-0 w-full bg-white z-50">
         <div className="flex justify-center">
           <NetworkSwitcher 
             currentNetwork={network as Networks} 
@@ -73,6 +73,12 @@ const Layout = () => {
           />
         </div>
       </div>
+      {/* Add bottom padding to main content on mobile so it doesn't hide behind the sticky footer */}
+      <style>{`
+        @media (max-width: 640px) {
+          .screen-container { padding-bottom: 32px !important; }
+        }
+      `}</style>
     </div>
   );
 };
