@@ -333,7 +333,7 @@
           "context": "",
           "skip": false,
           "overrides": {},
-          "content": "{stakingData.apr}%"
+          "content": "<function:stakingData.apr.toFixed/>%"
         },
         "16/0/init/body/11/argument/5/1/1/3/5/3/1": {
           "type": "element",
@@ -408,6 +408,238 @@
           "content": "Excellent"
         },
         "16/0/init/body/11/argument/5/3-title": {
+          "type": "attribute",
+          "hash": "8d97b2cc7b1c202ccdcba7aee1b76051",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Activity Console"
+        },
+        "16/0/init/body/11/consequent/0/argument/1/1": {
+          "type": "element",
+          "hash": "dbfb64d0c7ca897e4980f61b0efd07b2",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connect Your Wallet"
+        },
+        "16/0/init/body/11/consequent/0/argument/1/3": {
+          "type": "element",
+          "hash": "afca8a1c9308194a49cb98c749c0d400",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Please connect your wallet to view your dashboard"
+        },
+        "16/0/init/body/11/consequent/0/argument/3/1/expression/body": {
+          "type": "element",
+          "hash": "6962c7d07565144ff0edcadc8816a0e0",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connect Wallet"
+        },
+        "16/0/init/body/12/argument/1/1/1": {
+          "type": "element",
+          "hash": "c9380ea68c8c76ea451bd9613329a07c",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Dashboard"
+        },
+        "16/0/init/body/12/argument/1/1/3": {
+          "type": "element",
+          "hash": "928ee4645c46ab32418fb873f6a8e1b9",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Overview of your staking performance"
+        },
+        "16/0/init/body/12/argument/1/3/1/1": {
+          "type": "element",
+          "hash": "5ee0c547956905a585d68a4b00156d0f",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Stake More<element:ChevronRight></element:ChevronRight>"
+        },
+        "16/0/init/body/12/argument/3/1-title": {
+          "type": "attribute",
+          "hash": "6fb7cab64ec4fc6c7e712e2023a01a0f",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Your Staked Asset"
+        },
+        "16/0/init/body/12/argument/3/3-title": {
+          "type": "attribute",
+          "hash": "11219b3fd211f79ee4b01ff43353ea21",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Your Rewards"
+        },
+        "16/0/init/body/12/argument/3/5-title": {
+          "type": "attribute",
+          "hash": "a62087c54eea1db644a1d6059b149a5c",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Current APR"
+        },
+        "16/0/init/body/12/argument/3/7-title": {
+          "type": "attribute",
+          "hash": "74fd88ddfeb54506ef509fad4c60947a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Next Reward"
+        },
+        "16/0/init/body/12/argument/5/1-title": {
+          "type": "attribute",
+          "hash": "6a8d9b491fee5f92673f0c74bf8daea0",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Staking Summary"
+        },
+        "16/0/init/body/12/argument/5/1/1/1/1": {
+          "type": "element",
+          "hash": "00d2e1cad8288f9316c2e7f4078cd3ba",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Your Staking Balance"
+        },
+        "16/0/init/body/12/argument/5/1/1/1/3/3": {
+          "type": "element",
+          "hash": "628c4ca94bcb8316db65ab1bec2a89e9",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "ETH"
+        },
+        "16/0/init/body/12/argument/5/1/1/1/7/1": {
+          "type": "element",
+          "hash": "cde965b06135dcbafb9528712463966d",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Available to Stake"
+        },
+        "16/0/init/body/12/argument/5/1/1/1/7/3/3": {
+          "type": "element",
+          "hash": "af34006e2f75e53dc992dea33c3aef56",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "USDC"
+        },
+        "16/0/init/body/12/argument/5/1/1/3/1": {
+          "type": "element",
+          "hash": "ba45b15956701b06c08cfb6e1a36f168",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Rewards Overview"
+        },
+        "16/0/init/body/12/argument/5/1/1/3/3/1": {
+          "type": "element",
+          "hash": "18e9e88b060bb10372a52e54e3e2c90b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "--"
+        },
+        "16/0/init/body/12/argument/5/1/1/3/5/1/1": {
+          "type": "element",
+          "hash": "fa21100bdc3f46823d9c569be4b33897",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Current Rate"
+        },
+        "16/0/init/body/12/argument/5/1/1/3/5/1/3": {
+          "type": "element",
+          "hash": "5ffe4a4526d680df3dc6d6e7880cbc9a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "{stakingData.apr}%"
+        },
+        "16/0/init/body/12/argument/5/1/1/3/5/3/1": {
+          "type": "element",
+          "hash": "74fd88ddfeb54506ef509fad4c60947a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Next Reward"
+        },
+        "16/0/init/body/12/argument/5/1/1/3/5/3/3": {
+          "type": "element",
+          "hash": "18e9e88b060bb10372a52e54e3e2c90b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "--"
+        },
+        "16/0/init/body/12/argument/5/1/1/5/1": {
+          "type": "element",
+          "hash": "aa3ad1262d003d83e258200f5b7da354",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Protocol Stats"
+        },
+        "16/0/init/body/12/argument/5/1/1/5/3/1/1": {
+          "type": "element",
+          "hash": "c7ce1c424595a71aee7c59e04efa66ee",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Total Stakers"
+        },
+        "16/0/init/body/12/argument/5/1/1/5/3/1/3": {
+          "type": "element",
+          "hash": "18e9e88b060bb10372a52e54e3e2c90b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "--"
+        },
+        "16/0/init/body/12/argument/5/1/1/5/3/3/1": {
+          "type": "element",
+          "hash": "174c8133f4bef980cdf25163a44cacc7",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Total ETH Staked"
+        },
+        "16/0/init/body/12/argument/5/1/1/5/3/3/3": {
+          "type": "element",
+          "hash": "18e9e88b060bb10372a52e54e3e2c90b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "--"
+        },
+        "16/0/init/body/12/argument/5/1/1/5/3/5/1": {
+          "type": "element",
+          "hash": "e82fecf2105b5e1b6e7ec0f1eacb1dce",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Protocol Health"
+        },
+        "16/0/init/body/12/argument/5/1/1/5/3/5/3": {
+          "type": "element",
+          "hash": "16372294108f169683263c353c4071dc",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Excellent"
+        },
+        "16/0/init/body/12/argument/5/3-title": {
           "type": "attribute",
           "hash": "8d97b2cc7b1c202ccdcba7aee1b76051",
           "context": "",
@@ -1155,6 +1387,14 @@
           "overrides": {},
           "content": "Amount"
         },
+        "22/0/init/body/26/0/init/body/1/3/11/1": {
+          "type": "element",
+          "hash": "dca66baee66b56fa66e399798d9e4976",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Timestamp"
+        },
         "22/0/init/body/26/0/init/body/1/3/3/1/1": {
           "type": "element",
           "hash": "a9c9695b2ba03bfc8aecd0ee49bcf5a2",
@@ -1237,13 +1477,29 @@
         },
         "22/0/init/body/26/0/init/body/1/5/5/expression/right/1": {
           "type": "element",
+          "hash": "fb0b802089db2540e3d1a8de2f9a9fb3",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Destination Transaction"
+        },
+        "22/0/init/body/26/0/init/body/1/5/5/expression/right/3/expression/alternate/alternate": {
+          "type": "element",
+          "hash": "1b8f31eca044c725d91ec3a090e6bb27",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "No bridging information available"
+        },
+        "22/0/init/body/26/0/init/body/1/5/7/expression/right/1": {
+          "type": "element",
           "hash": "e970553cfcba7ea14c8b8fb53ae04828",
           "context": "",
           "skip": false,
           "overrides": {},
           "content": "Bridging Information"
         },
-        "22/0/init/body/26/0/init/body/1/5/5/expression/right/3/expression/alternate/alternate": {
+        "22/0/init/body/26/0/init/body/1/5/7/expression/right/3/expression/alternate/alternate": {
           "type": "element",
           "hash": "1b8f31eca044c725d91ec3a090e6bb27",
           "context": "",

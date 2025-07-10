@@ -538,7 +538,8 @@ const Transactions = () => {
             </div>
           </div>
 
-          <div className={`
+          {/* Remove Destination Chain for both CCIP and CCTP */}
+          {/* <div className={`
             p-3 rounded border border-amber-700/30
             ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}
           `}>
@@ -551,7 +552,7 @@ const Transactions = () => {
                 </span>
               )}
             </div>
-          </div>
+          </div> */}
 
           <div className={`
             p-3 rounded border border-amber-700/30
@@ -580,7 +581,8 @@ const Transactions = () => {
             </div>
           )}
 
-          {transaction.destTransactionHash && (
+          {/* Only show Destination Transaction for non-CCIP protocols */}
+          {transaction.destTransactionHash && transaction.protocol !== 'CCIP' && (
             <div className={`p-3 rounded border border-amber-700/30 ${theme === 'night' ? 'bg-amber-900/20' : 'bg-amber-700/10'}`}>
               <div className="text-xs opacity-70 mb-1">Destination Transaction</div>
               <a

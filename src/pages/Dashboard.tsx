@@ -259,7 +259,7 @@ const Dashboard = () => {
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <div>
                   <h4 className="text-xs opacity-70 mb-1">Current Rate</h4>
-                  <div className="text-lg">{stakingData.apr}%</div>
+                  <div className="text-lg">{`${stakingData.apr}%`}</div>
                 </div>
                 <div>
                   <h4 className="text-xs opacity-70 mb-1">Next Reward</h4>

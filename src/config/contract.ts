@@ -67,7 +67,7 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     name: 'Lisk Sepolia',
     chainId: 4202,
     rpcUrl: 'https://lisk-sepolia.drpc.org/',
-    publicRpc:'https://rpc.sepolia-api.lisk.com',
+    publicRpc:'https://lisk-sepolia.drpc.org/',
     explorer: 'https://sepolia-blockscout.lisk.com/',
     contracts: {
       ccip: '0x459922d991923FcA7948dbee715C8dEBeF53948d',
