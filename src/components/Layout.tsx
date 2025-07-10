@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useWallet } from '../lib/walletConnect';
 import NetworkSwitcher from './NetworkSwitcher';
 import { Networks } from '../config/contract';
+import { LocaleSwitcher } from 'lingo.dev/react/client';
 
 const Layout = () => {
   const { theme, toggleTheme } = useTheme();
@@ -43,6 +44,7 @@ const Layout = () => {
           >
             {theme === 'day' ? <Moon size={14} /> : <Sun size={14} />}
           </button>
+          <LocaleSwitcher locales={['en', 'es', 'fr', 'de']} className="ml-2" />
         </div>
       </div>
 

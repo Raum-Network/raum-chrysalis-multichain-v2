@@ -1,8 +1,8 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import lingoCompiler from "lingo.dev/compiler";
 
-// https://vitejs.dev/config/
-export default defineConfig({
+const viteConfig = {
   plugins: [react()],
   optimizeDeps: {
     exclude: ['lucide-react'],
@@ -13,7 +13,7 @@ export default defineConfig({
         target: 'https://ccip.chain.link',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/ccip-api/, '/api/h/atlas'),
+        rewrite: (path: string) => path.replace(/^\/ccip-api/, '/api/h/atlas'),
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
@@ -23,11 +23,21 @@ export default defineConfig({
       '/circle-api': {
         target: 'https://iris-api-sandbox.circle.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/circle-api/, '/v1'),
+        rewrite: (path: string) => path.replace(/^\/circle-api/, '/v1'),
         headers: {
           'Access-Control-Allow-Origin': '*',
         },
       },
     },
   },
-});
+};
+
+export default defineConfig(() =>
+  lingoCompiler.vite({
+    sourceRoot: "src",
+    targetLocales: ["es", "fr", "de"],
+    models: {
+      "*:*": "groq:mistral-saba-24b",
+    },
+  })(viteConfig),
+);

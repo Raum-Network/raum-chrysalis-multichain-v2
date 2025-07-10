@@ -1,0 +1,1385 @@
+{
+  "version": 0.1,
+  "files": {
+    "components/ConnectButton.tsx": {
+      "scopes": {
+        "8/0/init/body/5/consequent/1/argument/3/3/expression/right/11/1/3": {
+          "type": "element",
+          "hash": "8cd3daae20ec3d3bf09b25881caa2b8f",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Disconnect"
+        },
+        "8/0/init/body/5/consequent/1/argument/3/3/expression/right/3/1": {
+          "type": "element",
+          "hash": "367dcd25622764a4aad605279fcfa533",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connected:<function:truncateAddress/>"
+        },
+        "8/0/init/body/5/consequent/1/argument/3/3/expression/right/3/3": {
+          "type": "element",
+          "hash": "e893000138a1117dc32d46052794ff4b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Balance:<function:Number/> ETH"
+        },
+        "8/0/init/body/5/consequent/1/argument/3/3/expression/right/3/5": {
+          "type": "element",
+          "hash": "2c178263a623ddc91c2500b5288faa83",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Network:{network}"
+        },
+        "8/0/init/body/5/consequent/1/argument/3/3/expression/right/3/7": {
+          "type": "element",
+          "hash": "e1221ead46bbb5078a98d11043306fd8",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Chain ID:{chainId} ETH"
+        },
+        "8/0/init/body/5/consequent/1/argument/3/3/expression/right/7/1": {
+          "type": "element",
+          "hash": "97332f7ec17bf8c4545fe354a3855d2a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connected: {address}"
+        },
+        "8/0/init/body/5/consequent/1/argument/3/3/expression/right/7/3": {
+          "type": "element",
+          "hash": "fcead93605549efd7c9875bb1c6afb80",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Balance: <function:Number/> ETH"
+        },
+        "8/0/init/body/5/consequent/1/argument/3/3/expression/right/7/5": {
+          "type": "element",
+          "hash": "3c0c16798d2fda78dfb4048c9fc7a281",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Network: {network}"
+        },
+        "8/0/init/body/5/consequent/1/argument/3/3/expression/right/7/7": {
+          "type": "element",
+          "hash": "e5de20892aa1fd54f4d9dfe575631a29",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Chain ID: {chainId}"
+        }
+      }
+    },
+    "components/Layout.tsx": {
+      "scopes": {
+        "10/0/init/body/4/argument/3/1/1": {
+          "type": "element",
+          "hash": "8b38b2f206d392288cc65d899bc180fc",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Chrysalis"
+        },
+        "10/0/init/body/4/argument/3/1/3": {
+          "type": "element",
+          "hash": "8b38b2f206d392288cc65d899bc180fc",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Chrysalis"
+        },
+        "10/0/init/body/4/argument/3/1/5": {
+          "type": "element",
+          "hash": "0ac9a8314e2f86f5858ed247eb3255f8",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "|"
+        },
+        "10/0/init/body/4/argument/3/1/7": {
+          "type": "element",
+          "hash": "92c3871155945a2da6418858506f8856",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Testnet"
+        },
+        "10/0/init/body/4/argument/3/1/9": {
+          "type": "element",
+          "hash": "42677d9beed99bdb21992321d967570b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "v0.1.0"
+        }
+      }
+    },
+    "components/NetworkSwitcher.tsx": {
+      "scopes": {
+        "6/0/init/body/4/argument/1/5/1": {
+          "type": "element",
+          "hash": "2a75337dc9603915c4ec1d1905afb7b9",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Contact Us"
+        }
+      }
+    },
+    "components/StatBox.tsx": {
+      "scopes": {
+        "3/0/init/body/0/argument/1/1/5/expression/right/3": {
+          "type": "element",
+          "hash": "5ffe4a4526d680df3dc6d6e7880cbc9a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "<function:Math.abs/>%"
+        }
+      }
+    },
+    "components/Terminal.tsx": {
+      "scopes": {
+        "8/0/init/body/11/argument/1/1": {
+          "type": "element",
+          "hash": "0a41a4f660e59b388d12f980ae502705",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "terminal:~$"
+        },
+        "8/0/init/body/11/argument/3/1/expression/0/body/1": {
+          "type": "element",
+          "hash": "c2c969d3fefab00177ab08b1ded9e51f",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "[<function:log.timestamp.toLocaleTimeString/>]"
+        },
+        "8/0/init/body/11/argument/3/3/expression/right": {
+          "type": "element",
+          "hash": "d277706600544d4db5e4ca7386d82f70",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "No logs to display"
+        },
+        "8/0/init/body/11/argument/5/expression/right/1": {
+          "type": "element",
+          "hash": "ce3025799d70859c869af0b2fea2ad8a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "$"
+        }
+      }
+    },
+    "pages/Dashboard.tsx": {
+      "scopes": {
+        "16/0/init/body/10/consequent/0/argument/1/1": {
+          "type": "element",
+          "hash": "dbfb64d0c7ca897e4980f61b0efd07b2",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connect Your Wallet"
+        },
+        "16/0/init/body/10/consequent/0/argument/1/3": {
+          "type": "element",
+          "hash": "afca8a1c9308194a49cb98c749c0d400",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Please connect your wallet to view your dashboard"
+        },
+        "16/0/init/body/10/consequent/0/argument/3/1/expression/body": {
+          "type": "element",
+          "hash": "6962c7d07565144ff0edcadc8816a0e0",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connect Wallet"
+        },
+        "16/0/init/body/11/argument/1/1/1": {
+          "type": "element",
+          "hash": "c9380ea68c8c76ea451bd9613329a07c",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Dashboard"
+        },
+        "16/0/init/body/11/argument/1/1/3": {
+          "type": "element",
+          "hash": "928ee4645c46ab32418fb873f6a8e1b9",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Overview of your staking performance"
+        },
+        "16/0/init/body/11/argument/1/3/1/1": {
+          "type": "element",
+          "hash": "5ee0c547956905a585d68a4b00156d0f",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Stake More<element:ChevronRight></element:ChevronRight>"
+        },
+        "16/0/init/body/11/argument/3/1-title": {
+          "type": "attribute",
+          "hash": "6fb7cab64ec4fc6c7e712e2023a01a0f",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Your Staked Asset"
+        },
+        "16/0/init/body/11/argument/3/3-title": {
+          "type": "attribute",
+          "hash": "11219b3fd211f79ee4b01ff43353ea21",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Your Rewards"
+        },
+        "16/0/init/body/11/argument/3/5-title": {
+          "type": "attribute",
+          "hash": "a62087c54eea1db644a1d6059b149a5c",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Current APR"
+        },
+        "16/0/init/body/11/argument/3/7-title": {
+          "type": "attribute",
+          "hash": "74fd88ddfeb54506ef509fad4c60947a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Next Reward"
+        },
+        "16/0/init/body/11/argument/5/1-title": {
+          "type": "attribute",
+          "hash": "6a8d9b491fee5f92673f0c74bf8daea0",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Staking Summary"
+        },
+        "16/0/init/body/11/argument/5/1/1/1/1": {
+          "type": "element",
+          "hash": "00d2e1cad8288f9316c2e7f4078cd3ba",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Your Staking Balance"
+        },
+        "16/0/init/body/11/argument/5/1/1/1/3/3": {
+          "type": "element",
+          "hash": "628c4ca94bcb8316db65ab1bec2a89e9",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "ETH"
+        },
+        "16/0/init/body/11/argument/5/1/1/1/7/1": {
+          "type": "element",
+          "hash": "cde965b06135dcbafb9528712463966d",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Available to Stake"
+        },
+        "16/0/init/body/11/argument/5/1/1/1/7/3/3": {
+          "type": "element",
+          "hash": "af34006e2f75e53dc992dea33c3aef56",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "USDC"
+        },
+        "16/0/init/body/11/argument/5/1/1/3/1": {
+          "type": "element",
+          "hash": "ba45b15956701b06c08cfb6e1a36f168",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Rewards Overview"
+        },
+        "16/0/init/body/11/argument/5/1/1/3/3/1": {
+          "type": "element",
+          "hash": "18e9e88b060bb10372a52e54e3e2c90b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "--"
+        },
+        "16/0/init/body/11/argument/5/1/1/3/5/1/1": {
+          "type": "element",
+          "hash": "fa21100bdc3f46823d9c569be4b33897",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Current Rate"
+        },
+        "16/0/init/body/11/argument/5/1/1/3/5/1/3": {
+          "type": "element",
+          "hash": "5ffe4a4526d680df3dc6d6e7880cbc9a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "{stakingData.apr}%"
+        },
+        "16/0/init/body/11/argument/5/1/1/3/5/3/1": {
+          "type": "element",
+          "hash": "74fd88ddfeb54506ef509fad4c60947a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Next Reward"
+        },
+        "16/0/init/body/11/argument/5/1/1/3/5/3/3": {
+          "type": "element",
+          "hash": "18e9e88b060bb10372a52e54e3e2c90b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "--"
+        },
+        "16/0/init/body/11/argument/5/1/1/5/1": {
+          "type": "element",
+          "hash": "aa3ad1262d003d83e258200f5b7da354",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Protocol Stats"
+        },
+        "16/0/init/body/11/argument/5/1/1/5/3/1/1": {
+          "type": "element",
+          "hash": "c7ce1c424595a71aee7c59e04efa66ee",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Total Stakers"
+        },
+        "16/0/init/body/11/argument/5/1/1/5/3/1/3": {
+          "type": "element",
+          "hash": "18e9e88b060bb10372a52e54e3e2c90b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "--"
+        },
+        "16/0/init/body/11/argument/5/1/1/5/3/3/1": {
+          "type": "element",
+          "hash": "174c8133f4bef980cdf25163a44cacc7",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Total ETH Staked"
+        },
+        "16/0/init/body/11/argument/5/1/1/5/3/3/3": {
+          "type": "element",
+          "hash": "18e9e88b060bb10372a52e54e3e2c90b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "--"
+        },
+        "16/0/init/body/11/argument/5/1/1/5/3/5/1": {
+          "type": "element",
+          "hash": "e82fecf2105b5e1b6e7ec0f1eacb1dce",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Protocol Health"
+        },
+        "16/0/init/body/11/argument/5/1/1/5/3/5/3": {
+          "type": "element",
+          "hash": "16372294108f169683263c353c4071dc",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Excellent"
+        },
+        "16/0/init/body/11/argument/5/3-title": {
+          "type": "attribute",
+          "hash": "8d97b2cc7b1c202ccdcba7aee1b76051",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Activity Console"
+        }
+      }
+    },
+    "pages/Home.tsx": {
+      "scopes": {
+        "9/0/init/body/5/argument/1/1/1/1": {
+          "type": "element",
+          "hash": "c9a27ffec570901a9f64f2e893de6664",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Chrysalis"
+        },
+        "9/0/init/body/5/argument/1/1/1/3": {
+          "type": "element",
+          "hash": "7d410cd6e8a31e551b0626f313cb13be",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "A Cross-Chain liquid staking platform <element:br></element:br>with minimal complexities"
+        },
+        "9/0/init/body/5/argument/1/1/1/7/expression/alternate/1/1/expression/body": {
+          "type": "element",
+          "hash": "957022ae09d36734f26102a4aeead0f7",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connect Wallet To Start"
+        },
+        "9/0/init/body/5/argument/1/1/1/7/expression/consequent/1/1": {
+          "type": "element",
+          "hash": "300b571caeb08d17432ca5204cbb5771",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Go to Dashboard"
+        },
+        "9/0/init/body/5/argument/1/3/1/1-description": {
+          "type": "attribute",
+          "hash": "b179a01bc7e459b300310cdfa1f992fd",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Stake your ETH while maintaining liquidity"
+        },
+        "9/0/init/body/5/argument/1/3/1/1-title": {
+          "type": "attribute",
+          "hash": "4af65019d267ef74d4bead92add539b3",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Liquid Staking"
+        },
+        "9/0/init/body/5/argument/1/3/1/3-description": {
+          "type": "attribute",
+          "hash": "4223c7a137d8899043b3a8e2c48c1762",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Earn competitive rewards on your staked assets"
+        },
+        "9/0/init/body/5/argument/1/3/1/3-title": {
+          "type": "attribute",
+          "hash": "1366306af15aa6b36af76d360c90d1c9",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "High APY"
+        },
+        "9/0/init/body/5/argument/1/3/1/5-description": {
+          "type": "attribute",
+          "hash": "cc9b1b037e8a827ca810bcd809a89b9a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Your assets are securely managed and protected"
+        },
+        "9/0/init/body/5/argument/1/3/1/5-title": {
+          "type": "attribute",
+          "hash": "4b34923fef858a2b9a4a914c3e822889",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Security"
+        },
+        "9/0/init/body/5/argument/1/3/1/7-description": {
+          "type": "attribute",
+          "hash": "28ea7ce4e362fa5f6b4425126af70305",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Built for both retail and institutional stakers"
+        },
+        "9/0/init/body/5/argument/1/3/1/7-title": {
+          "type": "attribute",
+          "hash": "5f837e1342c895d88f930a8e53d23257",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Institutional Grade"
+        },
+        "9/0/init/body/5/argument/5/1": {
+          "type": "element",
+          "hash": "2a75337dc9603915c4ec1d1905afb7b9",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Contact Us"
+        }
+      }
+    },
+    "pages/NotFound.tsx": {
+      "scopes": {
+        "3/0/init/body/2/argument/1/3/1": {
+          "type": "element",
+          "hash": "b7218679a87e1426b5daa91922d59d31",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "404"
+        },
+        "3/0/init/body/2/argument/1/5/1": {
+          "type": "element",
+          "hash": "e2f07192265cd72aac99767cdac0ed1e",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "<element:Terminal></element:Terminal> Page not found in the matrix"
+        },
+        "3/0/init/body/2/argument/1/5/3": {
+          "type": "element",
+          "hash": "1114246e6723976e7524e9d6350b621e",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Looks like this page took a wrong turn at the blockchain fork"
+        },
+        "3/0/init/body/2/argument/1/7/3": {
+          "type": "element",
+          "hash": "f4622f446e2f34c4223f8dc34dd2b78c",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "<element:Home></element:Home> Return Home"
+        },
+        "3/0/init/body/2/argument/1/9/1": {
+          "type": "element",
+          "hash": "46fae3bc53d8ec9fe28669579dc97b27",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "// Error: Page not found in the blockchain"
+        },
+        "3/0/init/body/2/argument/1/9/3": {
+          "type": "element",
+          "hash": "f7ab3053d8e87a65cea62617bd72c1fd",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "// Status: Lost in the digital void"
+        },
+        "3/0/init/body/2/argument/1/9/5": {
+          "type": "element",
+          "hash": "b17d7f5fbac677135d587507280d408a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "// Solution: Try not to get rekt next time"
+        }
+      }
+    },
+    "pages/Rewards.tsx": {
+      "scopes": {
+        "6/0/init/body/5/0/init/body/1/1/3": {
+          "type": "element",
+          "hash": "64636e0eac80349274082b2455de21dd",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Pending Rewards"
+        },
+        "6/0/init/body/5/0/init/body/1/1/5/3": {
+          "type": "element",
+          "hash": "628c4ca94bcb8316db65ab1bec2a89e9",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "ETH"
+        },
+        "6/0/init/body/5/0/init/body/1/1/7": {
+          "type": "element",
+          "hash": "7f5aace24c1d76c0d5d91ebee66829d6",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Claim Rewards"
+        },
+        "6/0/init/body/5/0/init/body/1/3/3": {
+          "type": "element",
+          "hash": "da6eca2e9ae62601ce9cc81c413365e6",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Next Distribution"
+        },
+        "6/0/init/body/5/0/init/body/1/3/7": {
+          "type": "element",
+          "hash": "1652c25e97c7f97d07728542e6264d98",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Rewards are distributed weekly and can be claimed at any time"
+        },
+        "6/0/init/body/5/0/init/body/3/1/3": {
+          "type": "element",
+          "hash": "3fbce27bdf9d1906268bed1051399cba",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Rewards History"
+        },
+        "6/0/init/body/5/0/init/body/3/3/1/1": {
+          "type": "element",
+          "hash": "56f41c5d30a76295bb087b20b7bee4c3",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Date"
+        },
+        "6/0/init/body/5/0/init/body/3/3/1/3": {
+          "type": "element",
+          "hash": "a0ae9c6ff98b57475cdce56f66066aa4",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Amount"
+        },
+        "6/0/init/body/5/0/init/body/3/3/1/5": {
+          "type": "element",
+          "hash": "4e1fcce15854d824919b4a582c697c90",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Status"
+        },
+        "6/0/init/body/5/0/init/body/3/3/3/expression/0/body/3": {
+          "type": "element",
+          "hash": "650e3958557ecfc16f8f2f809c73548a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "<function:item.amount.toFixed/> ETH"
+        },
+        "6/0/init/body/5/0/init/body/5/1": {
+          "type": "element",
+          "hash": "ee33ba24c01d8d62dadbda279076bc96",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Total Rewards to Date"
+        },
+        "6/0/init/body/5/0/init/body/5/3/3": {
+          "type": "element",
+          "hash": "628c4ca94bcb8316db65ab1bec2a89e9",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "ETH"
+        },
+        "6/0/init/body/6/0/init/body/3": {
+          "type": "element",
+          "hash": "c2bf8587cdf81aec6d22c61b4624fba5",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Claiming Rewards"
+        },
+        "6/0/init/body/6/0/init/body/5": {
+          "type": "element",
+          "hash": "5761921dd120befb1bed68d9ab236034",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Please confirm the transaction in your wallet"
+        },
+        "6/0/init/body/7/0/init/body/3": {
+          "type": "element",
+          "hash": "64b95a5e3d06397ed42d1137650af714",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Rewards Claimed"
+        },
+        "6/0/init/body/7/0/init/body/5": {
+          "type": "element",
+          "hash": "e8294a3c23590b7925d55b95db468f0a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "You have successfully claimed <function:rewardsData.pendingRewards.toFixed/> ETH in rewards"
+        },
+        "6/0/init/body/7/0/init/body/7/1": {
+          "type": "element",
+          "hash": "16daa444c3d32b57ed66f55bcce9780a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Back to Rewards"
+        },
+        "6/0/init/body/7/0/init/body/7/3": {
+          "type": "element",
+          "hash": "613869ddb8e1edfc72fbf018ea4da843",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Go to Dashboard"
+        },
+        "6/0/init/body/8/consequent/0/argument/1/1": {
+          "type": "element",
+          "hash": "dbfb64d0c7ca897e4980f61b0efd07b2",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connect Your Wallet"
+        },
+        "6/0/init/body/8/consequent/0/argument/1/3": {
+          "type": "element",
+          "hash": "3c30bea31860bcbf05cf6fa71d7c74da",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Please connect your wallet to view rewards"
+        },
+        "6/0/init/body/8/consequent/0/argument/3": {
+          "type": "element",
+          "hash": "c677b659f5f4f6f67d5692c98261b576",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connect Wallet"
+        },
+        "6/0/init/body/9/argument/1/1": {
+          "type": "element",
+          "hash": "14c3310f7043635ded25671dbf2baca5",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Rewards"
+        },
+        "6/0/init/body/9/argument/1/3": {
+          "type": "element",
+          "hash": "3779cc7d27444484f9531d74d516880a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "View and claim your staking rewards"
+        },
+        "6/0/init/body/9/argument/3/1-title": {
+          "type": "attribute",
+          "hash": "11219b3fd211f79ee4b01ff43353ea21",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Your Rewards"
+        },
+        "6/0/init/body/9/argument/3/3-title": {
+          "type": "attribute",
+          "hash": "caaa1ca85c310cbd946b47c92d25f4db",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Rewards Information"
+        },
+        "6/0/init/body/9/argument/3/3/1/1/1": {
+          "type": "element",
+          "hash": "c0456456863dc2d19ad037cb17dcce1a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "About Rewards"
+        },
+        "6/0/init/body/9/argument/3/3/1/1/3": {
+          "type": "element",
+          "hash": "8297e950339bc2e77197239b838954f3",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Staking rewards are earned by validating transactions on the network. Your rewards accrue automatically while your ETH is staked, and you can claim them at any time."
+        },
+        "6/0/init/body/9/argument/3/3/1/3/1": {
+          "type": "element",
+          "hash": "a7c5e3de3edf3d68bfb7692bc59bc526",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Reward Schedule"
+        },
+        "6/0/init/body/9/argument/3/3/1/3/3/1/1": {
+          "type": "element",
+          "hash": "c3d4633236c01f8314a38a9e9c2361f1",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Distribution"
+        },
+        "6/0/init/body/9/argument/3/3/1/3/3/1/3": {
+          "type": "element",
+          "hash": "9e687411dbf1248496a4ae5dd5391679",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Weekly"
+        },
+        "6/0/init/body/9/argument/3/3/1/3/3/3/1": {
+          "type": "element",
+          "hash": "a62087c54eea1db644a1d6059b149a5c",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Current APR"
+        },
+        "6/0/init/body/9/argument/3/3/1/3/3/3/3": {
+          "type": "element",
+          "hash": "e4e2e5259dfa3c8d5d12546a97a5bb1c",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "4.8%"
+        },
+        "6/0/init/body/9/argument/3/3/1/3/3/5/1": {
+          "type": "element",
+          "hash": "d7dda0573dc5ad99c2b1dc89683633a0",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Claim Fee"
+        },
+        "6/0/init/body/9/argument/3/3/1/3/3/5/3": {
+          "type": "element",
+          "hash": "d163ad01ba50118a86047c8b73fbe922",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "None"
+        },
+        "6/0/init/body/9/argument/3/3/1/5/1": {
+          "type": "element",
+          "hash": "a24a5a5782e3e8fb853a28e3276bf3a0",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Reward Calculation"
+        },
+        "6/0/init/body/9/argument/3/3/1/5/3": {
+          "type": "element",
+          "hash": "9774571fe5a69604101f86610a891e6d",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Rewards are calculated based on your staked amount and the current APR. The formula is: <element:code>Staked ETH × APR ÷ 365 × Days</element:code>"
+        }
+      }
+    },
+    "pages/Stake.tsx": {
+      "scopes": {
+        "14/0/init/body/18/0/init/body/0/consequent/0/argument/1/1/1": {
+          "type": "element",
+          "hash": "b49e8b6bd1b7f38f56dc10a0ab07ebca",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Chainlink CCIP"
+        },
+        "14/0/init/body/18/0/init/body/0/consequent/0/argument/1/1/3": {
+          "type": "element",
+          "hash": "fca35a2a631f39bc98b2bd7a01c7038f",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Cross-Chain Interoperability Protocol"
+        },
+        "14/0/init/body/19/0/init/body/2/argument/1/1": {
+          "type": "element",
+          "hash": "4c81255fc231461f7e7127ea8fdc35da",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Transaction Status"
+        },
+        "14/0/init/body/19/0/init/body/2/argument/3/1/1": {
+          "type": "element",
+          "hash": "6f43684ab04e009c458a5e870cedd2d0",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Status: {currentStake.status}"
+        },
+        "14/0/init/body/19/0/init/body/2/argument/3/1/3": {
+          "type": "element",
+          "hash": "d203031dbac8e248d6dbbd234757d154",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Expected Time: {currentStake.expectedTime}"
+        },
+        "14/0/init/body/19/0/init/body/2/argument/3/3/expression/right/1": {
+          "type": "element",
+          "hash": "78aed6f77426bb4c8a06b75265b94708",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Source Tx:"
+        },
+        "14/0/init/body/19/0/init/body/2/argument/3/7/expression/right/1": {
+          "type": "element",
+          "hash": "9c283eb1d4ebab480952de5ca96fc52b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "CCIP Message ID:"
+        },
+        "14/0/init/body/19/0/init/body/2/argument/3/9/expression/right/1": {
+          "type": "element",
+          "hash": "f2d6568dbdd5f835853ab5b182b74c3b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Destination Tx:"
+        },
+        "14/0/init/body/20/0/init/body/3/1/1": {
+          "type": "element",
+          "hash": "75c3c022a88a846bc6df3e44624df218",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Available USDC"
+        },
+        "14/0/init/body/20/0/init/body/3/1/3": {
+          "type": "element",
+          "hash": "69b122dc6159f15185f5006f5cd7bb3f",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "<function:usdcBalance.toFixed/> USDC"
+        },
+        "14/0/init/body/21/0/init/body/3": {
+          "type": "element",
+          "hash": "1c789ebead79a32f301e033282ac9839",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Confirming Transaction"
+        },
+        "14/0/init/body/21/0/init/body/5": {
+          "type": "element",
+          "hash": "5761921dd120befb1bed68d9ab236034",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Please confirm the transaction in your wallet"
+        },
+        "14/0/init/body/22/0/init/body/1/1/1": {
+          "type": "element",
+          "hash": "ec2f2d9c4789916919261dfa3585832f",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Stake Complete"
+        },
+        "14/0/init/body/22/0/init/body/1/1/3": {
+          "type": "element",
+          "hash": "5216cef0095260ba5c7fc60542375f93",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Stake More"
+        },
+        "14/0/init/body/22/0/init/body/1/3": {
+          "type": "element",
+          "hash": "7b45495db77f6d36f0a2c04b0e45c156",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Successfully staked <function:stakeAmount.toFixed/> USDC"
+        },
+        "14/0/init/body/22/0/init/body/3/1": {
+          "type": "element",
+          "hash": "c850871c23e7b5c0c014742d523379cb",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "View Dashboard"
+        },
+        "14/0/init/body/23/consequent/0/argument/1/1": {
+          "type": "element",
+          "hash": "dbfb64d0c7ca897e4980f61b0efd07b2",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connect Your Wallet"
+        },
+        "14/0/init/body/23/consequent/0/argument/1/3": {
+          "type": "element",
+          "hash": "a2d3bb5058bd7a9cada2bb32530cef4e",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Please connect your wallet to start staking"
+        },
+        "14/0/init/body/23/consequent/0/argument/3/1/expression/body": {
+          "type": "element",
+          "hash": "6962c7d07565144ff0edcadc8816a0e0",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connect Wallet"
+        },
+        "14/0/init/body/24/argument/1/1": {
+          "type": "element",
+          "hash": "43197338e9361c2d202d0754700d7c78",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Stake Asset"
+        },
+        "14/0/init/body/24/argument/1/3": {
+          "type": "element",
+          "hash": "dc3d239e4a262beff8ce214b9ce7e580",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Stake your USDC using CCIP/CCTP and receive LST + APR in return"
+        },
+        "14/0/init/body/24/argument/3/expression/right/1/3": {
+          "type": "element",
+          "hash": "5936af57183371cbf0e020c147bd5ea8",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Try Again"
+        },
+        "14/0/init/body/24/argument/5/3-title": {
+          "type": "attribute",
+          "hash": "0f303bd949a124fd647a3e97bfc5f8a4",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Staking Information"
+        },
+        "14/0/init/body/24/argument/5/3/1/1/1": {
+          "type": "element",
+          "hash": "30149cd139494daa66335543a8ad17b0",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "About rnstETH"
+        },
+        "14/0/init/body/24/argument/5/3/1/1/3": {
+          "type": "element",
+          "hash": "f299390f936bebf5113b4976ce5fe9be",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "rnstETH is a token that represents your staked USDC in the LIDO protocol. You can transfer or trade rnstETH like any other token while continuing to earn staking rewards."
+        },
+        "14/0/init/body/24/argument/5/3/1/3/1": {
+          "type": "element",
+          "hash": "eb1e930879052ff828cd06ffe7f21132",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Current Statistics"
+        },
+        "14/0/init/body/24/argument/5/3/1/3/3/1/1": {
+          "type": "element",
+          "hash": "a24f31612a4a712c2517b11799f417ea",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Total USDC Staked"
+        },
+        "14/0/init/body/24/argument/5/3/1/3/3/1/3": {
+          "type": "element",
+          "hash": "8d57c6177117db9c70ffd6b5e480777a",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "-- USDC"
+        },
+        "14/0/init/body/24/argument/5/3/1/3/3/3/1": {
+          "type": "element",
+          "hash": "a62087c54eea1db644a1d6059b149a5c",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Current APR"
+        },
+        "14/0/init/body/24/argument/5/3/1/3/3/5/1": {
+          "type": "element",
+          "hash": "c7ce1c424595a71aee7c59e04efa66ee",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Total Stakers"
+        },
+        "14/0/init/body/24/argument/5/3/1/3/3/5/3": {
+          "type": "element",
+          "hash": "18e9e88b060bb10372a52e54e3e2c90b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "--"
+        },
+        "14/0/init/body/24/argument/5/3/1/5/3": {
+          "type": "element",
+          "hash": "cb8bed47d5859f67b65299755194aa1f",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "1 rnstETH = 1 stETH"
+        }
+      }
+    },
+    "pages/Transaction.tsx": {
+      "scopes": {
+        "22/0/init/body/26/0/init/body/1/1/1/1": {
+          "type": "element",
+          "hash": "468d6c67521f8ab2de52e0c5f909ff58",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Transaction Details"
+        },
+        "22/0/init/body/26/0/init/body/1/3/1/expression/0/body/1": {
+          "type": "element",
+          "hash": "a0ae9c6ff98b57475cdce56f66066aa4",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Amount"
+        },
+        "22/0/init/body/26/0/init/body/1/3/3/1/1": {
+          "type": "element",
+          "hash": "a9c9695b2ba03bfc8aecd0ee49bcf5a2",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Message ID"
+        },
+        "22/0/init/body/26/0/init/body/1/3/3/3/1": {
+          "type": "element",
+          "hash": "3d84daca8c92c8609deeab4b294b4afb",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "From"
+        },
+        "22/0/init/body/26/0/init/body/1/3/3/5/1": {
+          "type": "element",
+          "hash": "24ef32707b456cff90a91d438df59bbe",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "To"
+        },
+        "22/0/init/body/26/0/init/body/1/3/5/1": {
+          "type": "element",
+          "hash": "f231f282ec356109a8a9722b3019b593",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Source Chain"
+        },
+        "22/0/init/body/26/0/init/body/1/3/5/3/3/expression/right": {
+          "type": "element",
+          "hash": "dd2b122b2d820623db2891d64135a12b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "CCIP"
+        },
+        "22/0/init/body/26/0/init/body/1/3/7/1": {
+          "type": "element",
+          "hash": "aaa419dd7c0d36b63f443f3335f11b8d",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Destination Chain"
+        },
+        "22/0/init/body/26/0/init/body/1/3/7/3/3/expression/right": {
+          "type": "element",
+          "hash": "dd2b122b2d820623db2891d64135a12b",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "CCIP"
+        },
+        "22/0/init/body/26/0/init/body/1/3/9/1": {
+          "type": "element",
+          "hash": "dca66baee66b56fa66e399798d9e4976",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Timestamp"
+        },
+        "22/0/init/body/26/0/init/body/1/5/1/expression/right/1": {
+          "type": "element",
+          "hash": "80f08f0ac117e2ef43dd6a6445b58c25",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Source Transaction"
+        },
+        "22/0/init/body/26/0/init/body/1/5/3/expression/right/1": {
+          "type": "element",
+          "hash": "fb0b802089db2540e3d1a8de2f9a9fb3",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Destination Transaction"
+        },
+        "22/0/init/body/26/0/init/body/1/5/5/expression/right/1": {
+          "type": "element",
+          "hash": "e970553cfcba7ea14c8b8fb53ae04828",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Bridging Information"
+        },
+        "22/0/init/body/26/0/init/body/1/5/5/expression/right/3/expression/alternate/alternate": {
+          "type": "element",
+          "hash": "1b8f31eca044c725d91ec3a090e6bb27",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "No bridging information available"
+        },
+        "22/0/init/body/27/0/init/1": {
+          "type": "element",
+          "hash": "4e1fcce15854d824919b4a582c697c90",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Status"
+        },
+        "22/0/init/body/27/0/init/3": {
+          "type": "element",
+          "hash": "a0ae9c6ff98b57475cdce56f66066aa4",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Amount"
+        },
+        "22/0/init/body/27/0/init/5": {
+          "type": "element",
+          "hash": "8af1ccbea4c5abc13aaff0412e0beedd",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Protocol"
+        },
+        "22/0/init/body/27/0/init/7": {
+          "type": "element",
+          "hash": "56f41c5d30a76295bb087b20b7bee4c3",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Date"
+        },
+        "22/0/init/body/27/0/init/9": {
+          "type": "element",
+          "hash": "a9c9695b2ba03bfc8aecd0ee49bcf5a2",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Message ID"
+        },
+        "22/0/init/body/29/consequent/0/argument/1/1": {
+          "type": "element",
+          "hash": "dbfb64d0c7ca897e4980f61b0efd07b2",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connect Your Wallet"
+        },
+        "22/0/init/body/29/consequent/0/argument/1/3": {
+          "type": "element",
+          "hash": "a31c102f46e5d53a444c495d3b64aaff",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Please connect your wallet to view transactions"
+        },
+        "22/0/init/body/29/consequent/0/argument/3/1/expression/body": {
+          "type": "element",
+          "hash": "6962c7d07565144ff0edcadc8816a0e0",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Connect Wallet"
+        },
+        "22/0/init/body/30/argument/1/1": {
+          "type": "element",
+          "hash": "59973447457c6bd57c161d594f551651",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Transactions"
+        },
+        "22/0/init/body/30/argument/1/3": {
+          "type": "element",
+          "hash": "d790cc928c6048e4e558bf31bf7ce8e3",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "View your transaction history"
+        },
+        "22/0/init/body/30/argument/3-title": {
+          "type": "attribute",
+          "hash": "7dc0729b2cd4d854f57348269d495010",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Transaction History"
+        },
+        "22/0/init/body/30/argument/3/1/1/3/1-placeholder": {
+          "type": "attribute",
+          "hash": "c21fe752f0aa72023e256475e0c9cc7d",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Search by message ID or address..."
+        },
+        "22/0/init/body/30/argument/3/1/3/1/expression/alternate/3/expression/right/1": {
+          "type": "element",
+          "hash": "15f5fee32cbd24775ccda66e8ca83132",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "No transactions found"
+        },
+        "22/0/init/body/30/argument/3/1/3/1/expression/alternate/5/expression/right/1": {
+          "type": "element",
+          "hash": "983cdfb395fd576a460cb0b42f7ced28",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Showing <expression/> to <function:Math.min/> of {allTransactions.length} transactions"
+        },
+        "22/0/init/body/30/argument/3/1/3/1/expression/alternate/5/expression/right/3/3": {
+          "type": "element",
+          "hash": "f955f95ab0439dbe9c03f71cff7fb0a6",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Page {currentPage} of {totalPages}"
+        },
+        "22/0/init/body/30/argument/3/1/3/1/expression/consequent/3": {
+          "type": "element",
+          "hash": "ef095462e19def338a51a5b15d18162e",
+          "context": "",
+          "skip": false,
+          "overrides": {},
+          "content": "Loading transactions..."
+        }
+      }
+    }
+  }
+}
