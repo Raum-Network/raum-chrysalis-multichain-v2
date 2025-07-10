@@ -70,23 +70,22 @@ const Home = () => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="scanlines">
+          <div className="scanlines flex flex-col">
             <motion.h1 
-              className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight"
+              className="text-4xl md:text-5xl lg:text-6xl font-bold mb-2 leading-tight"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
             >
               Chrysalis
             </motion.h1>
-            
             <motion.p 
               className="text-lg md:text-xl opacity-80 mb-6"
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.8 }}
               transition={{ delay: 0.4, duration: 0.5 }}
             >
-              A Cross-Chain liquid staking platform <br />with minimal complexities
+              A Cross-Chain liquid staking platform <br /> with minimal complexities
             </motion.p>
 
             <div className="mb-8">

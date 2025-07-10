@@ -44,7 +44,7 @@ const Layout = () => {
           >
             {theme === 'day' ? <Moon size={14} /> : <Sun size={14} />}
           </button>
-          <LocaleSwitcher locales={['en', 'es', 'fr', 'de']} className="ml-2" />
+          <LocaleSwitcher locales={['en', 'es', 'fr', 'de']} className="mb-0" />
         </div>
       </div>
 

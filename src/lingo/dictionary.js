@@ -479,12 +479,12 @@ export default {
         },
         "9/0/init/body/5/argument/1/1/1/3": {
           content: {
-            de: "Eine Cross-Chain-Liquid-Staking-Plattform <element:br></element:br>mit minimalen Komplexitäten",
-            en: "A Cross-Chain liquid staking platform <element:br></element:br>with minimal complexities",
-            es: "Una plataforma de staking líquido entre cadenas <element:br></element:br>con minimal complejidades",
-            fr: "Une plateforme de staking liquide interchaînes <element:br></element:br>avec des complexités minimales",
+            de: "Eine plattform für Cross-Chain Liquid Staking <element:br></element:br> mit minimalen Komplexitäten",
+            en: "A Cross-Chain liquid staking platform <element:br></element:br> with minimal complexities",
+            es: "Una plataforma de staking líquido entre cadenas <element:br></element:br> con mínimas complejidades",
+            fr: "Une plateforme de staking liquide interchaînes <element:br></element:br> avec des complexités minimales",
           },
-          hash: "7d410cd6e8a31e551b0626f313cb13be",
+          hash: "de0c03235de7f173cff4965356360de7",
         },
         "9/0/init/body/5/argument/1/1/1/7/expression/alternate/1/1/expression/body":
           {
