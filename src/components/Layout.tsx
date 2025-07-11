@@ -37,14 +37,20 @@ const Layout = () => {
         </div>
         <div className="flex items-center">
           <Clock size={14} className="mr-1" />
-          <span className="text-xs font-medium">{currentTime.toLocaleTimeString()}</span>
+          
+          <span className="text-xs font-medium">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+          <span className="mx-2">|</span>
           <button 
             onClick={toggleTheme}
-            className="ml-4 p-1 rounded-md hover:bg-amber-700 transition-colors"
+            className="ml-0 p-1 rounded-md hover:bg-amber-700 transition-colors"
           >
             {theme === 'day' ? <Moon size={14} /> : <Sun size={14} />}
           </button>
-          <LocaleSwitcher locales={['en' , 'fr', 'de' , 'ko-KR' , 'ko' , 'id']} className="mb-0" />
+          <span className="mx-2">|</span>
+          <LocaleSwitcher
+            locales={['en', 'fr', 'de', 'ko-KR', 'ko', 'id']} 
+            className="flex items-center ml-2 gap-0 px-0.5 py-0.5 rounded border border-green-500/40 bg-black/90 text-green-500"
+          />
         </div>
       </div>
 

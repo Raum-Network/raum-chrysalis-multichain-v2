@@ -170,7 +170,7 @@ const Home = () => {
 
       {/* Tally Button */}
       <motion.button
-        className="hidden md:flex fixed bottom-10 right-10 bg-black hover:bg-green-200/40 transition-colors text-green-400 px-4 py-2 rounded-lg transition-all duration-200 items-center gap-2 border border-green-400/20"
+        className="hidden md:flex fixed bottom-10 right-10 bg-black text-green-400 px-4 py-2 rounded-lg transition-all duration-200 items-center gap-2 border border-green-500/40 hover:bg-gray-100/10 hover:text-black hover:border-black/90"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.8, duration: 0.5 }}
@@ -181,7 +181,7 @@ const Home = () => {
         data-tally-emoji-animation="bounce"
         data-tally-auto-close="3000"
       >
-        <span>Contact Us</span>
+        <span>Feedback</span>
       </motion.button>
     </div>
   );

@@ -51,7 +51,7 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange, onOpen }: NetworkSwi
 
         {/* Tally Button for Mobile */}
         <button
-          className="md:hidden flex items-center space-x-2 px-3 py-1.5 rounded-md border border-green-500/40 bg-black/90 hover:bg-gray-100/10 transition-colors text-green-500"
+          className="md:hidden flex items-center space-x-2 px-3 py-1.5 rounded-md border border-green-500/40 bg-black/90 hover:bg-gray-900 transition-colors text-green-500"
           data-tally-open="3q7V77"
           data-tally-align-left="1"
           data-tally-overlay="1"
@@ -59,7 +59,7 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange, onOpen }: NetworkSwi
           data-tally-emoji-animation="bounce"
           data-tally-auto-close="3000"
         >
-          <span className="text-sm">Contact Us</span>
+          <span className="text-sm hover:bg-gray-100/10">Feedback</span>
         </button>
       </div>
 
