@@ -98,7 +98,7 @@ const Dashboard = () => {
   const stakingData = {
     stakedAmount: parseFloat(stakedBalance),
     totalRewards: 0.125,
-    apr: lidoAPY || 4.8,
+    apr: lidoAPY || 0.0,
     nextReward: '3d 14h',
     stakers: totalStakers,
     totalStaked: totalUsdc
