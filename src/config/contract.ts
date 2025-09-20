@@ -20,7 +20,7 @@ export type NetworkConfig = {
   };
 };
 
-export type Networks = 'arbitrum-sepolia' | 'base-sepolia' | 'lisk-sepolia';
+export type Networks = 'arbitrum-sepolia' | 'base-sepolia' | 'lisk-sepolia' | 'plume-testnet';
 
 export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
   'arbitrum-sepolia': {
@@ -80,6 +80,26 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     },
     ccipNames: {
       sourceName: 'ethereum-testnet-sepolia-lisk-1',
+      destName: 'ethereum-testnet-sepolia'
+    }
+  },
+  'plume-testnet': {
+    name: 'Plume Testnet',
+    chainId: 98867,
+    rpcUrl: 'https://testnet-rpc.plume.org',
+    publicRpc:'https://testnet-rpc.plume.org',
+    explorer: 'https://testnet-explorer.plume.org',
+    contracts: {
+      ccip: '0xAe8cbEBA91FD9DE3aa15530AF2b768DAd75f039D',
+      usdc: '0xCCF0AD40cc0a328e46d061b11Ee1EDCC7278D2f3',
+      fees: '0xB97e3665AEAF96BDD6b300B2e0C93C662104A068',
+      cctp:'0x2b6B350C8f662C95721bFdF192f14378a40f1DB2',
+      cctpDestinationCaller:'ad187738B41DA7F2253522fc2963F3a1dB23fF57',
+      destination: '0x11467A1595c300BB182f2ce832DcEE1F61797e62',
+      decimal: 18
+    },
+    ccipNames: {
+      sourceName: 'plume-testnet',
       destName: 'ethereum-testnet-sepolia'
     }
   },

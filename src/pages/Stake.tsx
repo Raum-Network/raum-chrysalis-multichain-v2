@@ -38,6 +38,8 @@ const Stake = () => {
         return `https://sepolia-blockscout.lisk.com/tx/${txHash}`;
       case 'polygon amoy':
         return `https://www.oklink.com/amoy/tx/${txHash}`;
+      case 'plume testnet':
+        return `https://testnet-explorer.plume.org/tx/${txHash}`;
       default:
         return `https://sepolia.arbiscan.io/tx/${txHash}`;
     }

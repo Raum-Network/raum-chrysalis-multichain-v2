@@ -22,7 +22,7 @@ export const getCCIPStatus = async (messageId: string) => {
 export async function getLidoAPY(): Promise<number | null> {
   try {
       const response = await fetch(
-          'https://eth-api-holesky.testnet.fi/v1/protocol/steth/apr/last',
+          'https://eth-api-hoodi.testnet.fi/v1/protocol/steth/apr/last',
           {
               headers: {
                   'Accept': 'application/json',

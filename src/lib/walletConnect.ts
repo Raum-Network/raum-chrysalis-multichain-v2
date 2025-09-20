@@ -11,20 +11,38 @@ import {
 } from 'wagmi';
 import { createConfig, http } from 'wagmi';
 import {  arbitrumSepolia, baseSepolia , liskSepolia } from 'wagmi/chains';
+import { defineChain } from 'viem';
 import { getDefaultConfig } from 'connectkit';
 import { useEffect } from 'react';
 import { erc20Abi } from 'viem';
 import { SUPPORTED_NETWORKS, Networks } from '../config/contract';
 
 
+// Custom Plume Testnet chain definition
+const plumeTestnet = defineChain({
+  id: 98867,
+  name: 'Plume Testnet',
+  network: 'plume-testnet',
+  nativeCurrency: { name: 'Plume', symbol: 'PLUME', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://testnet-rpc.plume.org'] },
+    public: { http: ['https://testnet-rpc.plume.org'] },
+  },
+  blockExplorers: {
+    default: { name: 'Plume Explorer', url: 'https://testnet-explorer.plume.org' },
+  },
+  testnet: true,
+});
+
 // Config with all supported chains
 export const config = createConfig(
   getDefaultConfig({
-    chains: [arbitrumSepolia, baseSepolia, liskSepolia],
+    chains: [arbitrumSepolia, baseSepolia, liskSepolia, plumeTestnet],
     transports: {
       [arbitrumSepolia.id]: http('https://sepolia-rollup.arbitrum.io/rpc'),
       [baseSepolia.id]: http('https://sepolia.base.org'),
       [liskSepolia.id]: http('https://lisk-sepolia.drpc.org/'),
+      [plumeTestnet.id]: http('https://testnet-rpc.plume.org'),
     },
     walletConnectProjectId: "ffd25e3cc20b883d266134ce525caf88",
     appName: "Chrysalis - SteadyStake",
