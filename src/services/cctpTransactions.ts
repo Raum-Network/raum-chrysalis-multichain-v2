@@ -2,16 +2,6 @@ import { ethers } from 'ethers';
 import { SUPPORTED_NETWORKS } from '../config/contract';
 import stakeCCTPABI from '../lib/abi/ChrysalisSenderCCTP.json';
 
-// ABI for MessageReceived event
-const MESSAGE_RECEIVED_ABI = [
-  "event MessageReceived(address caller, uint32 sourceDomain, uint64 nonce, bytes32 sender, bytes messageBody)"
-];
-
-// ABI for DepositForBurn event
-const DEPOSIT_FOR_BURN_ABI = [
-  "event DepositForBurn(uint64 nonce,address burnToken, uint256 amount, address depositor, bytes32 mintRecipient, uint32 destinationDomain, bytes32 destinationTokenMessenger, bytes32 destinationCaller)"
-];
-
 export interface CCTPTransaction {
   hash: string;
   from: string;
