@@ -99,7 +99,7 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       decimal: 18
     },
     ccipNames: {
-      sourceName: 'plume-testnet',
+      sourceName: 'plume-testnet-sepolia',
       destName: 'ethereum-testnet-sepolia'
     }
   },

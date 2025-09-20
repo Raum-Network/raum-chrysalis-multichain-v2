@@ -76,7 +76,7 @@ const getNetworkDecimals = (chainName: string): number => {
   if (networkKey) {
     return SUPPORTED_NETWORKS[networkKey as keyof typeof SUPPORTED_NETWORKS].contracts.decimal || 6;
   }
-  return 6; // Default to 6 decimals if network not found
+  return 6;
 };
 
 const getNetworkName = (chainName: string): string => {
@@ -171,8 +171,6 @@ export const useStakingStore = create<StakingStore>()(
       fetchTransactions: async (address: string) => {
         try {
           const transactions = await getCCIPTransactions(address);
-          
-          
           const processedTransactions = transactions?.map((tx: Transaction) => (
             
             {
