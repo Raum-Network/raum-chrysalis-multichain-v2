@@ -139,7 +139,7 @@ const Stake = () => {
 
   const renderProtocolSelector = () => {
     // For Base Sepolia and Lisk Sepolia, only show CCIP
-    if (networkConfig.name === 'Base Sepolia' || networkConfig.name === 'Lisk Sepolia') {
+    if (networkConfig.name === 'Base Sepolia' || networkConfig.name === 'Lisk Sepolia' || networkConfig.name === 'Plume Testnet') {
       return (
         <div className="mb-4">
           <button
