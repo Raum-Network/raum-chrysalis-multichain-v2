@@ -1,8 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import lingoCompiler from "lingo.dev/compiler";
 
-const viteConfig = {
+export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     exclude: ['lucide-react'],
@@ -30,14 +29,4 @@ const viteConfig = {
       },
     },
   },
-};
-
-export default defineConfig(() =>
-  lingoCompiler.vite({
-    sourceRoot: "src",
-    targetLocales: [ "fr", "de" , "ko-KR" , "ko" , "id"],
-    models: {
-      "*:*": "groq:mistral-saba-24b",
-    },
-  })(viteConfig),
-);
+});
