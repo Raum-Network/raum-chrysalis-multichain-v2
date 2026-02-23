@@ -106,9 +106,9 @@ const Dashboard = () => {
 
   // Mocked staking data
   const stakingData = {
-    stakedAmount: networkConfig.name === 'Stellar Testnet' ? parseFloat(stakedBalance) : parseFloat(stakedBalance),
+    stakedAmount: networkConfig.name === 'Ripple Testnet' ? parseFloat(stakedBalance) : parseFloat(stakedBalance),
     totalRewards: 0.125,
-    apr: networkConfig.name === 'Stellar Testnet' ? lidoAPY : (lidoAPY || 4.8),
+    apr: networkConfig.name === 'Ripple Testnet' ? lidoAPY : (lidoAPY || 4.8),
     nextReward: '3d 14h',
     stakers: 1452,
     totalStaked: 24582
@@ -156,7 +156,7 @@ const Dashboard = () => {
         <StatBox
           title="Your Staked Asset"
           value={stakingData.stakedAmount.toFixed(4)}
-          suffix={networkConfig.name === 'Stellar Testnet' ? 'stETH' : 'ETH'}
+          suffix={networkConfig.name === 'Ripple Testnet' ? 'stETH' : 'ETH'}
           icon={<CreditCard size={18} />}
         // change={{ value: 2.5, isPositive: true }}
         />
@@ -187,7 +187,7 @@ const Dashboard = () => {
               <h3 className="text-sm mb-2">Your Staking Balance</h3>
               <div className="flex items-end mb-3">
                 <span className="text-2xl font-medium">{stakingData.stakedAmount.toFixed(4)}</span>
-                <span className="ml-1 text-sm opacity-70">{networkConfig.name === 'Stellar Testnet' ? 'stETH' : 'ETH'}</span>
+                <span className="ml-1 text-sm opacity-70">{networkConfig.name === 'Ripple Testnet' ? 'stETH' : 'ETH'}</span>
               </div>
               {/* <ProgressBar value={stakingData.stakedAmount} max={10} /> */}
 
@@ -195,7 +195,7 @@ const Dashboard = () => {
                 <h4 className="text-xs opacity-70 mb-1">Available to Stake</h4>
                 <div className="flex items-end">
                   <span className="text-lg">{usdcBalance}</span>
-                  <span className="ml-1 text-xs opacity-70">{networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC'}</span>
+                  <span className="ml-1 text-xs opacity-70">{networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}</span>
                 </div>
               </div>
             </div>
@@ -244,7 +244,7 @@ const Dashboard = () => {
         </Window>
       </div>
 
-      {networkConfig.name === 'Stellar Testnet' && stakingNFTs.length > 0 && (
+      {networkConfig.name === 'Ripple Testnet' && stakingNFTs.length > 0 && (
         <div className="mt-4">
           <Window title="Your Minted Staking Receipts (XRPL NFTs)">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

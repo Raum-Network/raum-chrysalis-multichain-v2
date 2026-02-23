@@ -41,7 +41,7 @@ const Stake = () => {
         return `https://www.oklink.com/amoy/tx/${txHash}`;
       case 'plume testnet':
         return `https://testnet-explorer.plume.org/tx/${txHash}`;
-      case 'stellar testnet':
+      case 'ripple testnet':
         return `https://testnet.axelarscan.io/gmp/${txHash}`;
       default:
         return `https://sepolia.arbiscan.io/tx/${txHash}`;
@@ -141,7 +141,7 @@ const Stake = () => {
   };
 
   const renderProtocolSelector = () => {
-    if (networkConfig.name === 'Stellar Testnet') {
+    if (networkConfig.name === 'Ripple Testnet') {
       return (
         <div className="mb-4">
           <button
@@ -194,7 +194,7 @@ const Stake = () => {
                 {protocol === 'CCIP' ? 'Chainlink CCIP' : 'Circle CCTP'}
               </span>
               <h4 className="text-sm font-medium opacity-80">
-                {networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC'}
+                {networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}
               </h4>
               <span className="text-xs opacity-70">
                 {protocol === 'CCIP'
@@ -255,7 +255,7 @@ const Stake = () => {
               >
                 {currentStake.sourceTxHash}
               </a>
-              <p className="text-xs opacity-70 mt-1">Stake {stakeAmount || '0'} {networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC'}</p>
+              <p className="text-xs opacity-70 mt-1">Stake {stakeAmount || '0'} {networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}</p>
             </div>
           )}
 
@@ -306,8 +306,8 @@ const Stake = () => {
 
       <div className="p-3 rounded-md border border-amber-700/40 bg-amber-900/10">
         <div className="flex justify-between items-center mb-1">
-          <span className="text-sm opacity-70">Available {networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC'}</span>
-          <div>Available: {parseFloat(usdcBalance.toString()).toFixed(4)} {networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC'}</div>
+          <span className="text-sm opacity-70">Available {networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}</span>
+          <div>Available: {parseFloat(usdcBalance.toString()).toFixed(4)} {networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}</div>
         </div>
         <div className="border-t border-amber-700/30 pt-3 mt-2">
           <AmountInput
@@ -316,7 +316,7 @@ const Stake = () => {
             min={0}
             step={0.01}
             label={`Stake Amount (${bridgeProtocol})`}
-            suffix={networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC'}
+            suffix={networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}
             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
         </div>
@@ -336,7 +336,7 @@ const Stake = () => {
       >
         {isApproving ? 'Approving...'
           : isStaking || currentStake?.status === 'IN_PROGRESS' ? 'Staking in Progress...'
-            : stakeAmount > usdcBalance ? `Insufficient ${networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC'}`
+            : stakeAmount > usdcBalance ? `Insufficient ${networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}`
               : bridgeProtocol === "CCIP" && linkBalance < 10 ? 'Insufficient LINK Balance'
                 : !hasAllowance ? `Approve and Stake in ${bridgeProtocol}`
                   : `Stake with ${bridgeProtocol}`}
@@ -373,7 +373,7 @@ const Stake = () => {
           </Button>
         </div>
         <p className="text-sm opacity-70 mt-2">
-          Successfully staked {stakeAmount.toFixed(4)} {networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC'}
+          Successfully staked {stakeAmount.toFixed(4)} {networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}
         </p>
       </div>
 
@@ -446,7 +446,7 @@ const Stake = () => {
         </Window>
 
         <div className="flex flex-col gap-6">
-          {networkConfig.name === 'Stellar Testnet' && stakingOffers && stakingOffers.length > 0 && (
+          {networkConfig.name === 'Ripple Testnet' && stakingOffers && stakingOffers.length > 0 && (
             <Window title="Action Required: Pending Receipts">
               <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[300px] p-2 pr-3">
                 {stakingOffers.map((item: { id: string, offerIndex: string, receipt: any }) => (
@@ -500,7 +500,7 @@ const Stake = () => {
             </Window>
           )}
 
-          {networkConfig.name === 'Stellar Testnet' ? (
+          {networkConfig.name === 'Ripple Testnet' ? (
             <Window title="Your Minted Staking Receipts (XRPL NFTs)">
               {stakingNFTs.length > 0 ? (
                 <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[500px] p-2 pr-3">
@@ -631,7 +631,7 @@ const Stake = () => {
 
                 <div className="flex items-center justify-center">
                   <ArrowRightLeft size={24} className="mr-2" />
-                  <span className="text-sm opacity-80">{networkConfig.name === 'Stellar Testnet' ? '1 rnstETH = 1 stETH' : '1 rnstETH = 1 stETH'}</span>
+                  <span className="text-sm opacity-80">{networkConfig.name === 'Ripple Testnet' ? '1 rnstETH = 1 stETH' : '1 rnstETH = 1 stETH'}</span>
                 </div>
               </div>
             </Window>

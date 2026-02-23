@@ -272,7 +272,7 @@ export function useWallet() {
   const handleSwitchNetwork = async (network: Networks) => {
     if (network === 'stellar-testnet') {
       setOverride('stellar-testnet', null);
-      console.log('Switched to Stellar Testnet (pending connection)');
+      console.log('Switched to Ripple Testnet (pending connection)');
       return;
     }
 

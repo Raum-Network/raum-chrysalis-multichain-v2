@@ -127,7 +127,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       }
 
       if (amount > usdcBalance) {
-        const tokenLabel = networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC';
+        const tokenLabel = networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC';
         setAllLogs([
           ...newLogs,
           {
@@ -154,8 +154,8 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       }
 
       try {
-        const tokenLabel = networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC';
-        const protoLabel = networkConfig.name === 'Stellar Testnet' ? 'Axelar ITS' : selectedProtocol;
+        const tokenLabel = networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC';
+        const protoLabel = networkConfig.name === 'Ripple Testnet' ? 'Axelar ITS' : selectedProtocol;
         setAllLogs([
           ...newLogs,
           {
@@ -216,8 +216,8 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       if (command.toLowerCase().includes('help')) {
         responseMessage = 'Available commands: stake, balance';
       } else if (command.toLowerCase().includes('stake')) {
-        // On Stellar Testnet, skip protocol selection — go straight to amount
-        if (networkConfig.name === 'Stellar Testnet') {
+        // On Ripple Testnet, skip protocol selection — go straight to amount
+        if (networkConfig.name === 'Ripple Testnet') {
           setSelectedProtocol(null);
           setBridgeProtocol('Axelar ITS');
           setStakeState('amount');

@@ -105,7 +105,7 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     }
   },
   'stellar-testnet': {
-    name: 'Stellar Testnet',
+    name: 'Ripple Testnet',
     chainId: 0,
     rpcUrl: 'https://s.altnet.rippletest.net:51234', // Update to XRP Testnet RPC
     wssUrl: 'wss://s.altnet.rippletest.net:51233', // Add WSS for xrpl client
@@ -117,7 +117,7 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       fees: '', // Placeholder
       cctp: '', // Placeholder
       cctpDestinationCaller: '0xfA2B78FD59E3E86425e7Bee5768fA5e7FA41D18c', // Axelar EVM Destination
-      destination: 'rNrjh1KGZk2jBR3wPfAQnoidtFFYQKbQn2', // Axelar XRPL Deposit Address
+      destination: 'rNrjh1KGZk2jBR3wPfAQnoidtFFYQKbQn2',
       decimal: 6
     },
     ccipNames: {

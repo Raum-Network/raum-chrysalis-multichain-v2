@@ -153,8 +153,8 @@ const Transactions = () => {
     return () => clearInterval(interval);
   }, [address, fetchTransactions, networkConfig.name]);
 
-  // Build Axelar ITS transactions from staking NFT receipts (Stellar Testnet only)
-  const itsTransactions = (networkConfig.name === 'Stellar Testnet')
+  // Build Axelar ITS transactions from staking NFT receipts (Ripple Testnet only)
+  const itsTransactions = (networkConfig.name === 'Ripple Testnet')
     ? [...stakingNFTs, ...stakingOffers].map(item => ({
       messageId: item.receipt.txHash || item.id,
       state: MessageState.SUCCESS,
@@ -170,7 +170,7 @@ const Transactions = () => {
         token: { symbol: 'XRP', decimals: 6 }
       }],
       protocol: 'Axelar ITS',
-      sourceNetworkName: 'Stellar Testnet',
+      sourceNetworkName: 'Ripple Testnet',
       destNetworkName: 'Sepolia',
       sourceDecimals: 6,
       destDecimals: 6
@@ -452,7 +452,7 @@ const Transactions = () => {
         return `https://www.oklink.com/amoy/tx/${txHash}`;
       case 'sepolia':
         return `https://sepolia.etherscan.io/tx/${txHash}`;
-      case 'stellar testnet':
+      case 'Ripple Testnet':
         return `https://testnet.axelarscan.io/gmp/${txHash}`;
       default:
         return `https://sepolia.arbiscan.io/tx/${txHash}`;
@@ -510,7 +510,7 @@ const Transactions = () => {
             `}>
               <div className="text-xs opacity-70 mb-1">Amount</div>
               <div className="text-xl font-medium">
-                {formatAmount(token.amount, transaction.sourceDecimals || token.token.decimals)} {transaction.sourceNetworkName === 'Stellar Testnet' || transaction.destNetworkName === 'Stellar Testnet' ? 'XRP' : 'USDC'}
+                {formatAmount(token.amount, transaction.sourceDecimals || token.token.decimals)} {transaction.sourceNetworkName === 'Ripple Testnet' || transaction.destNetworkName === 'Ripple Testnet' ? 'XRP' : 'USDC'}
               </div>
             </div>
           ))}
@@ -524,7 +524,7 @@ const Transactions = () => {
               <a
                 href={transaction.protocol === 'CCIP'
                   ? `https://ccip.chain.link/msg/${transaction.messageId}`
-                  : transaction.protocol === 'Axelar ITS' || transaction.sourceNetworkName === 'Stellar Testnet'
+                  : transaction.protocol === 'Axelar ITS' || transaction.sourceNetworkName === 'Ripple Testnet'
                     ? `https://testnet.axelarscan.io/gmp/${transaction.hash || transaction.messageId}`
                     : `https://sepolia.arbiscan.io/tx/${transaction.hash || transaction.messageId}`
                 }
@@ -693,7 +693,7 @@ const Transactions = () => {
       <td className="px-4 py-3">
         {tx.tokenAmounts?.map((token: any, index: number) => (
           <div key={index}>
-            {formatAmount(token.amount, tx.sourceDecimals || token.token.decimals)} {tx.sourceNetworkName === 'Stellar Testnet' || tx.destNetworkName === 'Stellar Testnet' ? 'XRP' : 'USDC'}
+            {formatAmount(token.amount, tx.sourceDecimals || token.token.decimals)} {tx.sourceNetworkName === 'Ripple Testnet' || tx.destNetworkName === 'Ripple Testnet' ? 'XRP' : 'USDC'}
           </div>
         ))}
       </td>
@@ -712,7 +712,7 @@ const Transactions = () => {
         <a
           href={tx.protocol === 'CCIP'
             ? `https://ccip.chain.link/msg/${tx.messageId}`
-            : tx.protocol === 'Axelar ITS' || tx.sourceNetworkName === 'Stellar Testnet'
+            : tx.protocol === 'Axelar ITS' || tx.sourceNetworkName === 'Ripple Testnet'
               ? `https://testnet.axelarscan.io/gmp/${tx.hash || tx.messageId}`
               : `https://sepolia.arbiscan.io/tx/${tx.hash || tx.messageId}`
           }

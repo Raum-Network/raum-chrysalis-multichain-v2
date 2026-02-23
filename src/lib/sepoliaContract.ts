@@ -35,7 +35,7 @@ class SepoliaContract {
 
     // Initialize provider and contracts with the appropriate addresses
     this.provider = new ethers.JsonRpcProvider('https://sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64');
-    // If Stellar Testnet (chainId 0), the actual EVM wrapper contract on Sepolia is stored in cctpDestinationCaller
+    // If Ripple Testnet (chainId 0), the actual EVM wrapper contract on Sepolia is stored in cctpDestinationCaller
     // The 'destination' field holds the XRPL recipient address which ethers cannot parse as a contract address
     const evmDestinationAddress = chainId === 0
       ? this.networkConfig.contracts.cctpDestinationCaller!

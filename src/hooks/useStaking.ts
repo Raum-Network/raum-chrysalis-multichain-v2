@@ -85,7 +85,7 @@ export function useStaking() {
     let active = true;
 
     const fetchAllXrplData = async () => {
-      if (!address || networkConfig.name !== 'Stellar Testnet') {
+      if (!address || networkConfig.name !== 'Ripple Testnet') {
         if (active) {
           setXrpBalance(0);
           setStakingNFTs([]);
@@ -299,7 +299,7 @@ export function useStaking() {
       setIsStaking(true);
       setStakeAmount(amount);
 
-      if (bridgeProtocol === 'Axelar ITS' && networkConfig.name === 'Stellar Testnet') {
+      if (bridgeProtocol === 'Axelar ITS' && networkConfig.name === 'Ripple Testnet') {
         const amountInDrops = Math.round((Number(amount)) * 1_000_000).toString()
         const depositAddress = networkConfig.contracts.destination;
         const evmAddress = networkConfig.contracts.cctpDestinationCaller;
@@ -425,7 +425,7 @@ export function useStaking() {
             expectedTime: '15m 00s',
             isCommitted: false,
             isBlessed: false,
-            sourceNetworkName: 'Stellar Testnet',
+            sourceNetworkName: 'Ripple Testnet',
             destNetworkName: 'Sepolia',
             origin: address
           }, setStakeStatus);
@@ -549,9 +549,9 @@ export function useStaking() {
     setBridgeProtocol('CCIP');
   }
 
-  if (networkConfig.name === 'Stellar Testnet' && bridgeProtocol !== 'Axelar ITS') {
+  if (networkConfig.name === 'Ripple Testnet' && bridgeProtocol !== 'Axelar ITS') {
     setBridgeProtocol('Axelar ITS');
-  } else if (networkConfig.name !== 'Stellar Testnet' && bridgeProtocol === 'Axelar ITS') {
+  } else if (networkConfig.name !== 'Ripple Testnet' && bridgeProtocol === 'Axelar ITS') {
     setBridgeProtocol('CCIP');
   }
 
@@ -563,7 +563,7 @@ export function useStaking() {
     setIsStaking,
     bridgeProtocol,
     setBridgeProtocol,
-    usdcBalance: networkConfig.name === 'Stellar Testnet' ? Math.floor(xrpBalance * 10000) / 10000 : (usdcBalance ? Number(usdcBalance) / (networkConfig.contracts.decimal === 6 ? 10 ** 6 : 10 ** 18) : 0),
+    usdcBalance: networkConfig.name === 'Ripple Testnet' ? Math.floor(xrpBalance * 10000) / 10000 : (usdcBalance ? Number(usdcBalance) / (networkConfig.contracts.decimal === 6 ? 10 ** 6 : 10 ** 18) : 0),
     linkBalance: linkBalance ? Number(linkBalance) / 10 ** 18 : 0,
     hasAllowance: bridgeProtocol === 'Axelar ITS' ? true : (bridgeProtocol === 'CCIP'
       ? (usdcAllowance && linkAllowance
