@@ -2,7 +2,8 @@ export type NetworkConfig = {
   name: string;
   chainId: number;
   rpcUrl: string;
-  publicRpc:string;
+  wssUrl?: string; // Add optional WSS URL property
+  publicRpc: string;
   explorer: string;
   contracts: {
     ccip: string;
@@ -20,19 +21,19 @@ export type NetworkConfig = {
   };
 };
 
-export type Networks = 'arbitrum-sepolia' | 'base-sepolia' | 'lisk-sepolia' | 'plume-testnet';
+export type Networks = 'arbitrum-sepolia' | 'base-sepolia' | 'lisk-sepolia' | 'plume-testnet' | 'stellar-testnet';
 
 export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
   'arbitrum-sepolia': {
     name: 'Arbitrum Sepolia',
     chainId: 421614,
-    publicRpc:"https://sepolia-rollup.arbitrum.io/rpc",
+    publicRpc: "https://sepolia-rollup.arbitrum.io/rpc",
     rpcUrl: 'https://arbitrum-sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64',
     explorer: 'https://sepolia.arbiscan.io',
     contracts: {
       ccip: '0x01851b172b1b0a5709deec827a88732dba00c467',
-      cctp:'0x907D0cCc4e0Fa0EbDa7a0BDbFae592027607c22B',
-      cctpDestinationCaller:'0267Cf87951fB8e6BE909025cCC67f8DDE991eA7',
+      cctp: '0x907D0cCc4e0Fa0EbDa7a0BDbFae592027607c22B',
+      cctpDestinationCaller: '0267Cf87951fB8e6BE909025cCC67f8DDE991eA7',
       usdc: '0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d',
       fees: '0xb1D4538B4571d411F07960EF2838Ce337FE1E80E',
       destination: '0x185915e86a5dd567fc8d381914503cb517e51317',
@@ -47,14 +48,14 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     name: 'Base Sepolia',
     chainId: 84532,
     rpcUrl: 'https://sepolia.base.org',
-    publicRpc:'https://sepolia.base.org',
+    publicRpc: 'https://sepolia.base.org',
     explorer: 'https://sepolia.basescan.org',
     contracts: {
       ccip: '0x45057d6CC1608C7E3B13570A29078848A8794D9e',
       usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
       fees: '0xE4aB69C077896252FAFBD49EFD26B5D171A32410',
-      cctp:'0x0000000000000000000000000000000000000000',
-      cctpDestinationCaller:'0000000000000000000000000000000000000000',
+      cctp: '0x0000000000000000000000000000000000000000',
+      cctpDestinationCaller: '0000000000000000000000000000000000000000',
       destination: '0x185915e86a5dd567fc8d381914503cb517e51317',
       decimal: 6
     },
@@ -67,14 +68,14 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     name: 'Lisk Sepolia',
     chainId: 4202,
     rpcUrl: 'https://lisk-sepolia.drpc.org/',
-    publicRpc:'https://lisk-sepolia.drpc.org/',
+    publicRpc: 'https://lisk-sepolia.drpc.org/',
     explorer: 'https://sepolia-blockscout.lisk.com/',
     contracts: {
       ccip: '0x459922d991923FcA7948dbee715C8dEBeF53948d',
       usdc: '0x043052cf7cf2a9679d9563d951a73856d5e5b4c4',
       fees: '0x6641415a61bCe80D97a715054d1334360Ab833Eb',
-      cctp:'0x0000000000000000000000000000000000000000',
-      cctpDestinationCaller:'0000000000000000000000000000000000000000',
+      cctp: '0x0000000000000000000000000000000000000000',
+      cctpDestinationCaller: '0000000000000000000000000000000000000000',
       destination: '0x185915e86a5dd567fc8d381914503cb517e51317',
       decimal: 18
     },
@@ -87,20 +88,41 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     name: 'Plume Testnet',
     chainId: 98867,
     rpcUrl: 'https://testnet-rpc.plume.org',
-    publicRpc:'https://testnet-rpc.plume.org',
+    publicRpc: 'https://testnet-rpc.plume.org',
     explorer: 'https://testnet-explorer.plume.org',
     contracts: {
       ccip: '0xAe8cbEBA91FD9DE3aa15530AF2b768DAd75f039D',
       usdc: '0xCCF0AD40cc0a328e46d061b11Ee1EDCC7278D2f3',
       fees: '0xB97e3665AEAF96BDD6b300B2e0C93C662104A068',
-      cctp:'0x0000000000000000000000000000000000000000',
-      cctpDestinationCaller:'0000000000000000000000000000000000000000',
+      cctp: '0x0000000000000000000000000000000000000000',
+      cctpDestinationCaller: '0000000000000000000000000000000000000000',
       destination: '0x11467A1595c300BB182f2ce832DcEE1F61797e62',
       decimal: 18
     },
     ccipNames: {
       sourceName: 'plume-testnet-sepolia',
       destName: 'ethereum-testnet-sepolia'
+    }
+  },
+  'stellar-testnet': {
+    name: 'Stellar Testnet',
+    chainId: 0,
+    rpcUrl: 'https://s.altnet.rippletest.net:51234', // Update to XRP Testnet RPC
+    wssUrl: 'wss://s.altnet.rippletest.net:51233', // Add WSS for xrpl client
+    publicRpc: 'https://s.altnet.rippletest.net:51234',
+    explorer: 'https://stellar.expert/explorer/testnet',
+    contracts: {
+      ccip: '', // Placeholder
+      usdc: '', // Placeholder
+      fees: '', // Placeholder
+      cctp: '', // Placeholder
+      cctpDestinationCaller: '0xfA2B78FD59E3E86425e7Bee5768fA5e7FA41D18c', // Axelar EVM Destination
+      destination: 'rNrjh1KGZk2jBR3wPfAQnoidtFFYQKbQn2', // Axelar XRPL Deposit Address
+      decimal: 6
+    },
+    ccipNames: {
+      sourceName: '',
+      destName: ''
     }
   },
 };

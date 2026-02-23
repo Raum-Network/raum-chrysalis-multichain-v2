@@ -8,7 +8,7 @@ import { Networks } from '../config/contract';
 import ReactGA from 'react-ga4';
 
 const ConnectButton = () => {
-  const { isConnected, address, balance, network, chainId, switchNetwork, disconnect } = useWallet();
+  const { isConnected, address, balance, network, chainId, switchNetwork, disconnect, connect } = useWallet();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleDisconnect = () => {
@@ -30,7 +30,7 @@ const ConnectButton = () => {
       action: 'Click',
       label: address ? `Connected Wallet ${address}` : 'Connect Wallet Button'
     });
-    
+
     return (
       <div className="flex items-center space-x-2">
         <div className="hidden sm:block">
@@ -129,7 +129,11 @@ const ConnectButton = () => {
                   action: 'Click',
                   label: address ? `Connected Wallet ${address}` : 'Connect Wallet Button'
                 });
-                show?.();
+                if (network === 'stellar-testnet') {
+                  connect();
+                } else {
+                  show?.();
+                }
               }}
               className={`
                 flex items-center justify-center px-3 py-1.5 rounded-md

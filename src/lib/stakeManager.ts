@@ -4,7 +4,7 @@ import stakeABI from '../lib/abi/ChrysalisSender.json';
 import stakeCCTPABI from '../lib/abi/ChrysalisSenderCCTP.json';
 import { createPublicClient, http } from 'viem'
 import { arbitrumSepolia } from 'viem/chains'
-import {simulateContract} from "@wagmi/core"
+import { simulateContract } from "@wagmi/core"
 import stakedUserBalance from './sepoliaContract';
 import { config } from './walletConnect';
 import Web3 from 'web3';
@@ -78,7 +78,7 @@ class StakeManager {
     // Find the network config based on chainId
     const network = Object.values(SUPPORTED_NETWORKS).find(net => net.chainId === chainId);
     this.networkConfig = network || SUPPORTED_NETWORKS['arbitrum-sepolia'];
-    
+
     // Initialize Web3 instances with the appropriate RPC URLs
     this.web3 = new Web3(this.networkConfig.rpcUrl);
     this.sepoliaWeb3 = new Web3('https://sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64');
@@ -115,7 +115,7 @@ class StakeManager {
     amount: number,
     gasLimit: string,
     writeContractAsync: any,
-    simulateTransaction:any,
+    simulateTransaction: any,
     onStatusUpdate: (status: StakeStatus) => void
   ): Promise<void> {
     try {
@@ -130,7 +130,7 @@ class StakeManager {
           gasLimit
         ]
       });
-      
+
 
       const initialTimestamp = Date.now();
 
@@ -169,7 +169,7 @@ class StakeManager {
           amount,
           gasLimit
         ],
-        blockNumber: BigInt(receipt.blockNumber) - BigInt(1), 
+        blockNumber: BigInt(receipt.blockNumber) - BigInt(1),
         account: receipt.from,
         value: BigInt(0),
       });
@@ -179,7 +179,7 @@ class StakeManager {
       if (!messageId) {
         throw new Error('MessageId not found in simulation');
       }
-      
+
       this.currentStatus = {
         ...this.currentStatus,
         ccipMessageId: messageId,
@@ -263,14 +263,14 @@ class StakeManager {
       if (log && log.data) {
         const messageBytes = this.web3.eth.abi.decodeParameters(['bytes'], log.data)[0];
         const messageHash = this.web3.utils.keccak256(messageBytes as string);
-          
+
         // Update status with messageBytes
         this.currentStatus = {
           ...this.currentStatus,
           messageBytes: messageBytes as string
         };
         this.updateStatus(this.currentStatus, onStatusUpdate);
-        
+
         await this.pollAttestation(messageHash, messageBytes as string, amount, address, onStatusUpdate);
       }
 
@@ -305,75 +305,75 @@ class StakeManager {
     // Add initial delay of 3 seconds before starting attestation polling
     console.log('Waiting 3 seconds before starting attestation polling...');
     await new Promise(resolve => setTimeout(resolve, 3000));
-    
+
     let attestationResponse = { status: 'pending_confirmations', attestation: '' };
     let retryCount = 0;
 
     while (attestationResponse.status === 'pending_confirmations') {
-        try {
-            attestationResponse = await getCCTPAttestation(messageHash);
-            
-            // Reset retry count on successful call
-            retryCount = 0;
+      try {
+        attestationResponse = await getCCTPAttestation(messageHash);
 
-            this.currentStatus = {
-                ...this.currentStatus!,
-                sourceTxHash: this.currentStatus?.sourceTxHash || '',
-                status: this.currentStatus?.status || 'IN_PROGRESS',
-                bridgingMessageId: this.currentStatus?.bridgingMessageId || null,
-                timestamp: this.currentStatus?.timestamp || Date.now(),
-                timeElapsed: this.currentStatus?.timeElapsed || '',
-                expectedTime: this.currentStatus?.expectedTime || '',
-                isCommitted: this.currentStatus?.isCommitted || false,
-                isBlessed: this.currentStatus?.isBlessed || false,
-                attestationStatus: attestationResponse.status,
-            };
-            onStatusUpdate(this.currentStatus);
+        // Reset retry count on successful call
+        retryCount = 0;
 
-            if (attestationResponse.status === 'complete') {
-                await this.callSepoliaContract(messageBytes, attestationResponse.attestation, amount, address, onStatusUpdate);
-                break;
-            }
-        } catch (error: any) {
-            console.error('Error fetching attestation:', error);
-            
-            if (error.response?.status === 404) {
-                console.log('Attestation not found (404), retrying in 2 seconds...');
-                await new Promise(r => setTimeout(r, 2000));
-                continue;
-            }
-            
-            if (retryCount < maxRetries) {
-                retryCount++;
-                console.log(`Retrying attestation request (${retryCount}/${maxRetries})...`);
-                await new Promise(r => setTimeout(r, 2000));
-                continue;
-            } else {
-                this.currentStatus = {
-                  sourceTxHash: this.currentStatus?.sourceTxHash ?? '',
-                  ccipMessageId: this.currentStatus?.ccipMessageId ?? null,
-                  destinationTxHash: this.currentStatus?.destinationTxHash ?? null,
-                  status: 'FAILURE',
-                  bridgingMessageId: this.currentStatus?.bridgingMessageId ?? null,
-                  timestamp: this.currentStatus?.timestamp ?? Date.now(),
-                  timeElapsed: this.formatTimeElapsed(this.currentStatus?.timestamp ?? Date.now()),
-                  expectedTime: this.currentStatus?.expectedTime ?? '',
-                  isCommitted: false,
-                  isBlessed: false,
-                  attestationStatus: 'error',
-                  sourceChain: this.currentStatus?.sourceChain ?? 'arbitrum_sepolia',
-                  messageBytes: this.currentStatus?.messageBytes ?? '',
-                  attestation: this.currentStatus?.attestation ?? ''
-                } as StakeStatus;
-                onStatusUpdate(this.currentStatus);
-                this.stopTimer();
-                throw new Error(`Failed to get attestation after ${maxRetries} retries`);
-            }
+        this.currentStatus = {
+          ...this.currentStatus!,
+          sourceTxHash: this.currentStatus?.sourceTxHash || '',
+          status: this.currentStatus?.status || 'IN_PROGRESS',
+          bridgingMessageId: this.currentStatus?.bridgingMessageId || null,
+          timestamp: this.currentStatus?.timestamp || Date.now(),
+          timeElapsed: this.currentStatus?.timeElapsed || '',
+          expectedTime: this.currentStatus?.expectedTime || '',
+          isCommitted: this.currentStatus?.isCommitted || false,
+          isBlessed: this.currentStatus?.isBlessed || false,
+          attestationStatus: attestationResponse.status,
+        };
+        onStatusUpdate(this.currentStatus);
+
+        if (attestationResponse.status === 'complete') {
+          await this.callSepoliaContract(messageBytes, attestationResponse.attestation, amount, address, onStatusUpdate);
+          break;
+        }
+      } catch (error: any) {
+        console.error('Error fetching attestation:', error);
+
+        if (error.response?.status === 404) {
+          console.log('Attestation not found (404), retrying in 2 seconds...');
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
         }
 
-        // if (this.backgroundPolling) {
-        //     await new Promise((r) => setTimeout(r, 1100));
-        // }
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`Retrying attestation request (${retryCount}/${maxRetries})...`);
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        } else {
+          this.currentStatus = {
+            sourceTxHash: this.currentStatus?.sourceTxHash ?? '',
+            ccipMessageId: this.currentStatus?.ccipMessageId ?? null,
+            destinationTxHash: this.currentStatus?.destinationTxHash ?? null,
+            status: 'FAILURE',
+            bridgingMessageId: this.currentStatus?.bridgingMessageId ?? null,
+            timestamp: this.currentStatus?.timestamp ?? Date.now(),
+            timeElapsed: this.formatTimeElapsed(this.currentStatus?.timestamp ?? Date.now()),
+            expectedTime: this.currentStatus?.expectedTime ?? '',
+            isCommitted: false,
+            isBlessed: false,
+            attestationStatus: 'error',
+            sourceChain: this.currentStatus?.sourceChain ?? 'arbitrum_sepolia',
+            messageBytes: this.currentStatus?.messageBytes ?? '',
+            attestation: this.currentStatus?.attestation ?? ''
+          } as StakeStatus;
+          onStatusUpdate(this.currentStatus);
+          this.stopTimer();
+          throw new Error(`Failed to get attestation after ${maxRetries} retries`);
+        }
+      }
+
+      // if (this.backgroundPolling) {
+      //     await new Promise((r) => setTimeout(r, 1100));
+      // }
     }
   }
 
@@ -393,7 +393,7 @@ class StakeManager {
         import.meta.env.VITE_PRIVATE_KEY
       );
       this.sepoliaWeb3.eth.accounts.wallet.add(account);
-      
+
       const contract = new this.sepoliaWeb3.eth.Contract(
         ReceiverAbiCCTP,
         `0x${this.networkConfig.contracts.cctpDestinationCaller}` as `0x${string}`
@@ -483,10 +483,10 @@ class StakeManager {
   }
 
   private getNetworkDecimals(chainName: string): number {
-    const networkKey = Object.keys(SUPPORTED_NETWORKS).find(key => 
+    const networkKey = Object.keys(SUPPORTED_NETWORKS).find(key =>
       SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].name.toLowerCase() === chainName.toLowerCase()
     );
-    
+
     if (networkKey) {
       return SUPPORTED_NETWORKS[networkKey as keyof typeof SUPPORTED_NETWORKS].contracts.decimal || 6;
     }
@@ -500,11 +500,11 @@ class StakeManager {
     onStatusUpdate: (status: StakeStatus) => void
   ) {
     try {
-      if (!messageId ) return;
+      if (!messageId) return;
 
       if (this.currentStatus?.bridgingMessageId) {
         const ccipStatusBack = await getCCIPStatus(this.currentStatus.bridgingMessageId);
-        
+
         let newStatusBack: StakeStatus['status'] = this.currentStatus?.status || 'IN_PROGRESS';
 
         if (ccipStatusBack.state === 2) {
@@ -525,7 +525,7 @@ class StakeManager {
         const sourceNetworkName = this.getNetworkName(ccipStatusBack.sourceNetworkName || 'Arbitrum Sepolia');
         const destNetworkName = this.getNetworkName(ccipStatusBack.destNetworkName || 'Sepolia');
 
-        this.currentStatus = {
+        const updatedStatus = {
           ...this.currentStatus,
           status: newStatusBack,
           isCommitted,
@@ -535,8 +535,9 @@ class StakeManager {
           destNetworkName,
           sourceDecimals: this.getNetworkDecimals(sourceNetworkName),
           destDecimals: this.getNetworkDecimals(destNetworkName)
-        };
-        onStatusUpdate(this.currentStatus);
+        } as StakeStatus;
+
+        this.updateStatus(updatedStatus, onStatusUpdate);
 
         if (newStatusBack === 'SUCCESS' || newStatusBack === 'FAILURE') {
           this.stopTimer();
@@ -661,6 +662,84 @@ class StakeManager {
     this.currentStatus = status;
     onStatusUpdate(status);
     this.notifyStatusSubscribers(status);
+  }
+
+  public setExternalStatus(status: StakeStatus, onStatusUpdate: (status: StakeStatus) => void) {
+    this.updateStatus(status, onStatusUpdate);
+  }
+
+  public startPollingAxelarStatus(
+    txHash: string,
+    initialTimestamp: number,
+    onStatusUpdate: (status: StakeStatus) => void
+  ) {
+    if (this.statusInterval) {
+      clearInterval(this.statusInterval);
+    }
+
+    this.statusInterval = setInterval(() => {
+      this.checkAxelarStatus(txHash, initialTimestamp, onStatusUpdate);
+    }, this.pollingInterval);
+  }
+
+  private async checkAxelarStatus(
+    txHash: string,
+    initialTimestamp: number,
+    onStatusUpdate: (status: StakeStatus) => void
+  ) {
+    try {
+      const response = await fetch(`https://testnet.api.gmp.axelarscan.io/?method=searchGMP&txHash=${txHash}`);
+      const data = await response.json();
+
+      if (data && data.data && data.data.length > 0) {
+        let txData = data.data[0];
+        let txStatus = txData.status;
+
+        // Traverse the execution chain if the first executed state is just reaching the Axelar relayer instead of EVM Sepolia
+        if (txStatus === 'executed' && txData.executed?.chain === 'axelar') {
+          const nextHash = txData.executed.transactionHash;
+          if (nextHash) {
+            const nextResponse = await fetch(`https://testnet.api.gmp.axelarscan.io/?method=searchGMP&txHash=${nextHash}`);
+            const nextData = await nextResponse.json();
+            if (nextData && nextData.data && nextData.data.length > 0) {
+              txData = nextData.data[0];
+              txStatus = txData.status;
+            }
+          }
+        }
+
+        let newStatus: StakeStatus['status'] = this.currentStatus?.status || 'IN_PROGRESS';
+
+        if (txStatus === 'executed') {
+          // If the final leg execution occurs on an EVM chain, we are fully complete
+          if (txData.executed?.chain_type === 'evm' || txData.executed?.chain === 'ethereum-sepolia') {
+            newStatus = 'SUCCESS';
+          }
+        } else if (txStatus === 'error' || txStatus === 'failed') {
+          newStatus = 'FAILURE';
+        }
+
+        if (!this.currentStatus || initialTimestamp >= this.currentStatus.timestamp) {
+          const updatedStatus = {
+            ...this.currentStatus!,
+            status: newStatus,
+            destinationTxHash: txData.executed?.transactionHash || null,
+            expectedTime: ['SUCCESS', 'FAILURE'].includes(newStatus) ? '' : "15m 00s",
+          };
+          this.updateStatus(updatedStatus, onStatusUpdate);
+        }
+
+        if (newStatus === 'SUCCESS' || newStatus === 'FAILURE') {
+          this.stopTimer();
+          if (this.statusInterval) {
+            clearInterval(this.statusInterval);
+            this.statusInterval = null;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking Axelar status:', error);
+    }
   }
 }
 

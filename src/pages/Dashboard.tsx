@@ -4,34 +4,35 @@ import Window from '../components/Window';
 import StatBox from '../components/StatBox';
 import Terminal from '../components/Terminal';
 import Button from '../components/Button';
-import ProgressBar from '../components/ProgressBar';
-import TierCard from '../components/TierCard';
 import { CreditCard, DollarSign, BarChart3, Clock, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import stakedUserBalance from '../lib/sepoliaContract';
 import { getLidoAPY } from '../services/api';
 import stakeManager, { StakeStatus } from '../lib/stakeManager';
-import { useStaking } from '../hooks/useStaking';
 import { ConnectKitButton } from 'connectkit';
 import ReactGA from 'react-ga4';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { Buffer } from "buffer";
 
+import { useStaking } from '../hooks/useStaking';
 
 const Dashboard = () => {
-  const {usdcBalance} =  useStaking();
-  const { isConnected, address, balance, connect , chainId } = useWallet();
+  const { usdcBalance, stakingNFTs } = useStaking();
+  const { isConnected, address, chainId, networkConfig } = useWallet();
   const [stakedBalance, setStakedBalance] = useState<string>('0');
   const [lidoAPY, setLidoAPY] = useState<number | null>(null);
 
   useEffect(() => {
 
-    if(address) {
-    ReactGA.event({
-      category: 'Wallet',
-      action: 'Click',
-      label: `Connected Wallet ${address}`
-    });
-  }
-  } , [address])
+    if (address) {
+      ReactGA.event({
+        category: 'Wallet',
+        action: 'Click',
+        label: `Connected Wallet ${address}`
+      });
+    }
+  }, [address])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,9 +40,9 @@ const Dashboard = () => {
         try {
           const balance = await stakedUserBalance.getBalance(address);
           const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
-          
+
           setStakedBalance((Number(balance) + Number(cctpBalance)).toString());
-          
+
           const apy = await getLidoAPY();
           setLidoAPY(apy);
         } catch (error) {
@@ -51,9 +52,9 @@ const Dashboard = () => {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 30000); 
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [address , chainId]);
+  }, [address, chainId]);
 
   useEffect(() => {
     const handleStakeUpdate = async (status: StakeStatus) => {
@@ -62,7 +63,7 @@ const Dashboard = () => {
           // Fetch updated balances
           const balance = await stakedUserBalance.getBalance(address);
           const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
-          
+
           // Update staked balance
           setStakedBalance((Number(balance) + Number(cctpBalance)).toString());
         } catch (error) {
@@ -96,73 +97,23 @@ const Dashboard = () => {
     }
   ] as any[], []);
 
+  // Dynamic XRPL NFT Data Aggregation
+  const totalMintedStETH = useMemo(() => {
+    return stakingNFTs.reduce((total, item) => {
+      return total + Number(item.receipt.mintedStETH || 0);
+    }, 0);
+  }, [stakingNFTs]);
+
   // Mocked staking data
   const stakingData = {
-    stakedAmount: parseFloat(stakedBalance),
+    stakedAmount: networkConfig.name === 'Stellar Testnet' ? parseFloat(stakedBalance) : parseFloat(stakedBalance),
     totalRewards: 0.125,
-    apr: lidoAPY || 4.8,
+    apr: networkConfig.name === 'Stellar Testnet' ? lidoAPY : (lidoAPY || 4.8),
     nextReward: '3d 14h',
     stakers: 1452,
     totalStaked: 24582
   };
 
-  const tiers = [
-    {
-      name: 'Bronze',
-      icon: 'bronze' as const,
-      minAmount: 1,
-      apr: 4.8,
-      benefits: [
-        'Basic staking rewards',
-        'Weekly rewards distribution',
-        'Dashboard access'
-      ],
-      color: 'amber'
-    },
-    {
-      name: 'Silver',
-      icon: 'silver' as const,
-      minAmount: 10,
-      apr: 5.2,
-      benefits: [
-        'Enhanced staking rewards',
-        'Priority support',
-        'Early access to new features',
-        'Voting rights'
-      ],
-      color: 'gray'
-    },
-    {
-      name: 'Gold',
-      icon: 'gold' as const,
-      minAmount: 32,
-      apr: 5.8,
-      benefits: [
-        'Premium staking rewards',
-        'Exclusive community access',
-        'Governance participation',
-        'Beta feature testing',
-        'Monthly strategy calls'
-      ],
-      color: 'yellow'
-    },
-    {
-      name: 'Platinum',
-      icon: 'platinum' as const,
-      minAmount: 100,
-      apr: 6.5,
-      benefits: [
-        'Maximum staking rewards',
-        'Direct team access',
-        'Custom analytics dashboard',
-        'Private discord channel',
-        'Quarterly strategy sessions',
-        'Early product access'
-      ],
-      color: 'purple'
-    }
-  ];
-  
   if (!isConnected) {
     return (
       <div className="h-full flex flex-col items-center justify-center">
@@ -171,9 +122,9 @@ const Dashboard = () => {
           <p className="opacity-70">Please connect your wallet to view your dashboard</p>
         </div>
         <ConnectKitButton.Custom>
-          {({ show , address }) => (
+          {({ show }) => (
             <Button onClick={() => {
-              
+
               show?.();
             }} size="lg">
               Connect Wallet
@@ -200,35 +151,35 @@ const Dashboard = () => {
           </Link>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatBox 
-          title="Your Staked Asset" 
-          value={stakingData.stakedAmount.toFixed(4)} 
-          suffix="ETH"
-          icon={<CreditCard size={18} />} 
-          // change={{ value: 2.5, isPositive: true }}
+        <StatBox
+          title="Your Staked Asset"
+          value={stakingData.stakedAmount.toFixed(4)}
+          suffix={networkConfig.name === 'Stellar Testnet' ? 'stETH' : 'ETH'}
+          icon={<CreditCard size={18} />}
+        // change={{ value: 2.5, isPositive: true }}
         />
-        <StatBox 
-          title="Your Rewards" 
+        <StatBox
+          title="Your Rewards"
           value="--"
           suffix="ETH"
-          icon={<DollarSign size={18} />} 
-          // change={{ value: 5.2, isPositive: true }}
+          icon={<DollarSign size={18} />}
+        // change={{ value: 5.2, isPositive: true }}
         />
-        <StatBox 
-          title="Current APR" 
+        <StatBox
+          title="Current APR"
           value={`${stakingData.apr}%`}
-          icon={<BarChart3 size={18} />} 
-          // change={{ value: 0.3, isPositive: true }}
+          icon={<BarChart3 size={18} />}
+        // change={{ value: 0.3, isPositive: true }}
         />
-        <StatBox 
-          title="Next Reward" 
+        <StatBox
+          title="Next Reward"
           value="--"
-          icon={<Clock size={18} />} 
+          icon={<Clock size={18} />}
         />
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-2">
         <Window title="Staking Summary" className="lg:col-span-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -236,26 +187,26 @@ const Dashboard = () => {
               <h3 className="text-sm mb-2">Your Staking Balance</h3>
               <div className="flex items-end mb-3">
                 <span className="text-2xl font-medium">{stakingData.stakedAmount.toFixed(4)}</span>
-                <span className="ml-1 text-sm opacity-70">ETH</span>
+                <span className="ml-1 text-sm opacity-70">{networkConfig.name === 'Stellar Testnet' ? 'stETH' : 'ETH'}</span>
               </div>
               {/* <ProgressBar value={stakingData.stakedAmount} max={10} /> */}
-              
+
               <div className="mt-4">
                 <h4 className="text-xs opacity-70 mb-1">Available to Stake</h4>
                 <div className="flex items-end">
                   <span className="text-lg">{usdcBalance}</span>
-                  <span className="ml-1 text-xs opacity-70">USDC</span>
+                  <span className="ml-1 text-xs opacity-70">{networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC'}</span>
                 </div>
               </div>
             </div>
-            
+
             <div className="border border-amber-700/30 rounded-md p-3 bg-amber-900/20">
               <h3 className="text-sm mb-2">Rewards Overview</h3>
               <div className="flex items-end mb-3">
                 <span className="text-2xl font-medium">--</span>
                 <span className="ml-1 text-sm opacity-70"></span>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <div>
                   <h4 className="text-xs opacity-70 mb-1">Current Rate</h4>
@@ -267,7 +218,7 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="border border-amber-700/30 rounded-md p-3 bg-amber-900/20 sm:col-span-2">
               <h3 className="text-sm mb-2">Protocol Stats</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -287,11 +238,46 @@ const Dashboard = () => {
             </div>
           </div>
         </Window>
-        
+
         <Window title="Activity Console">
           <Terminal logs={initialLogs} interactive={true} />
         </Window>
       </div>
+
+      {networkConfig.name === 'Stellar Testnet' && stakingNFTs.length > 0 && (
+        <div className="mt-4">
+          <Window title="Your Minted Staking Receipts (XRPL NFTs)">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {stakingNFTs.map((item) => (
+                <div key={item.id} className="border border-amber-700/50 hover:bg-amber-900/30 transition-colors rounded-md p-4 bg-amber-900/20 flex flex-col relative overflow-hidden backdrop-blur-sm">
+                  <div className="absolute top-0 right-0 bg-amber-500/20 text-amber-300 text-[9px] px-2 py-1 rounded-bl-md font-mono border-l border-b border-amber-500/20">
+                    {item.id.substring(0, 8)}...
+                  </div>
+                  <h3 className="text-sm font-medium text-amber-400 mb-1 truncate pr-16">{item.receipt.pool}</h3>
+                  <div className="flex items-end mb-3">
+                    <span className="text-2xl font-semibold tracking-tight">{item.receipt.amount}</span>
+                    <span className="ml-1.5 text-sm opacity-80 mb-1 font-medium bg-amber-900/50 px-1.5 py-0.5 rounded text-amber-200">{item.receipt.token}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs opacity-70 mt-auto pt-3 border-t border-amber-700/40">
+                    <div>
+                      <div className="mb-0.5 uppercase tracking-wider text-[10px] opacity-70">Staked On</div>
+                      <div className="font-medium">{new Date(item.receipt.stakedAt * 1000).toLocaleDateString()}</div>
+                    </div>
+                    <div>
+                      <div className="mb-0.5 uppercase tracking-wider text-[10px] opacity-70">Minted</div>
+                      <div className="font-medium text-emerald-400">{item.receipt.mintedStETH !== "0" ? `${item.receipt.mintedStETH} stETH` : "Pending"}</div>
+                    </div>
+                    <div>
+                      <div className="mb-0.5 uppercase tracking-wider text-[10px] opacity-70">Current APY</div>
+                      <div className="font-medium text-amber-400">{item.receipt.apy}%</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Window>
+        </div>
+      )}
     </div>
   );
 };

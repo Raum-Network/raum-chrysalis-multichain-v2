@@ -1,5 +1,22 @@
 import { ethers } from 'ethers';
 import { SUPPORTED_NETWORKS } from '../config/contract';
+import { decodeAccountID } from "xrpl";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { Buffer } from "buffer";
+
+function formatAddressForEVM(address: string): string {
+  if (address && address.startsWith('r')) {
+    try {
+      const accountIDBytes = decodeAccountID(address);
+      return `0x${Buffer.from(accountIDBytes).toString("hex")}`;
+    } catch (e) {
+      return address;
+    }
+  }
+  return address;
+}
 
 class SepoliaContract {
   private provider!: ethers.JsonRpcProvider;
@@ -15,11 +32,19 @@ class SepoliaContract {
     // Find the network config based on chainId
     const network = Object.values(SUPPORTED_NETWORKS).find(net => net.chainId === chainId);
     this.networkConfig = network || SUPPORTED_NETWORKS['arbitrum-sepolia'];
-    
+
     // Initialize provider and contracts with the appropriate addresses
     this.provider = new ethers.JsonRpcProvider('https://sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64');
+    // If Stellar Testnet (chainId 0), the actual EVM wrapper contract on Sepolia is stored in cctpDestinationCaller
+    // The 'destination' field holds the XRPL recipient address which ethers cannot parse as a contract address
+    const evmDestinationAddress = chainId === 0
+      ? this.networkConfig.contracts.cctpDestinationCaller!
+      : this.networkConfig.contracts.destination!;
+
+    const safeEvmDestinationAddress = evmDestinationAddress.startsWith('0x') ? evmDestinationAddress : `0x${evmDestinationAddress}`;
+
     this.contract = new ethers.Contract(
-      this.networkConfig.contracts.destination!,
+      safeEvmDestinationAddress,
       ['function stakedAmount(address) view returns (uint256)'],
       this.provider
     );
@@ -32,7 +57,9 @@ class SepoliaContract {
 
   async getBalance(address: string): Promise<string> {
     try {
-      const balance = await this.contract.stakedAmount(address);
+      const formattedAddress = formatAddressForEVM(address);
+      const balance = await this.contract.stakedAmount(formattedAddress);
+      console.log(balance, formattedAddress)
       return (Number(balance) / (1e18)).toString();
     } catch (error) {
       console.error('Error getting balance:', error);
@@ -42,7 +69,8 @@ class SepoliaContract {
 
   async getBalanceCCTP(address: string): Promise<string> {
     try {
-      const balance = await this.contractCCTP.stakedAmount(address);
+      const formattedAddress = formatAddressForEVM(address);
+      const balance = await this.contractCCTP.stakedAmount(formattedAddress);
       return (Number(balance) / 1e18).toString();
     } catch (error) {
       // console.log('Error getting CCTP balance:', error);

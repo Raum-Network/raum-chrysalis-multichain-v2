@@ -24,8 +24,8 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
   const [selectedProtocol, setSelectedProtocol] = useState<'CCIP' | 'CCTP' | null>(null);
   const [stakeAmount, setStakeAmount] = useState<string>('');
   const terminalRef = useRef<HTMLDivElement>(null);
-  const { getFormattedBalance, chainId } = useWallet();
-  const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, usdcBalance , linkBalance } = useStaking();
+  const { getFormattedBalance, chainId, networkConfig } = useWallet();
+  const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, usdcBalance, linkBalance } = useStaking();
 
   useEffect(() => {
     // Auto-scroll to bottom when logs update
@@ -96,7 +96,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
 
     if (stakeState === 'amount') {
       const inputValue = command.trim();
-      
+
       // Check if input has more than 6 decimal places
       const parts = inputValue.split('.');
       if (parts[1] && parts[1].length > 6) {
@@ -127,10 +127,11 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       }
 
       if (amount > usdcBalance) {
+        const tokenLabel = networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC';
         setAllLogs([
           ...newLogs,
           {
-            message: `Insufficient USDC balance. Your current USDC balance is ${usdcBalance.toFixed(2)} USDC`,
+            message: `Insufficient ${tokenLabel} balance. Your current ${tokenLabel} balance is ${usdcBalance.toFixed(2)} ${tokenLabel}`,
             type: 'error',
             timestamp: new Date()
           }
@@ -153,20 +154,22 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       }
 
       try {
+        const tokenLabel = networkConfig.name === 'Stellar Testnet' ? 'XRP' : 'USDC';
+        const protoLabel = networkConfig.name === 'Stellar Testnet' ? 'Axelar ITS' : selectedProtocol;
         setAllLogs([
           ...newLogs,
           {
-            message: `Staking ${amount} USDC using ${selectedProtocol} protocol...`,
+            message: `Staking ${amount} ${tokenLabel} using ${protoLabel} protocol...`,
             type: 'info',
             timestamp: new Date()
           }
         ]);
-        
+
         await stake(amount);
         setAllLogs([
           ...newLogs,
           {
-            message: `Staking Completed. Staked ${amount} USDC using ${selectedProtocol} protocol...`,
+            message: `Staking Completed. Staked ${amount} ${tokenLabel} using ${protoLabel} protocol...`,
             type: 'success',
             timestamp: new Date()
           }
@@ -213,11 +216,19 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       if (command.toLowerCase().includes('help')) {
         responseMessage = 'Available commands: stake, balance';
       } else if (command.toLowerCase().includes('stake')) {
-        setStakeState('protocol');
-        const isBaseSepolia = chainId === SUPPORTED_NETWORKS['base-sepolia'].chainId;
-        responseMessage = isBaseSepolia 
-          ? 'Please select a bridge protocol (CCIP only):'
-          : 'Please select a bridge protocol (CCIP or CCTP):';
+        // On Stellar Testnet, skip protocol selection — go straight to amount
+        if (networkConfig.name === 'Stellar Testnet') {
+          setSelectedProtocol(null);
+          setBridgeProtocol('Axelar ITS');
+          setStakeState('amount');
+          responseMessage = 'Staking via Axelar ITS. Please enter the amount of XRP to stake:';
+        } else {
+          setStakeState('protocol');
+          const isBaseSepolia = chainId === SUPPORTED_NETWORKS['base-sepolia'].chainId;
+          responseMessage = isBaseSepolia
+            ? 'Please select a bridge protocol (CCIP only):'
+            : 'Please select a bridge protocol (CCIP or CCTP):';
+        }
       } else if (command.toLowerCase().includes('balance')) {
         const usdcBalance = getFormattedBalance();
         responseMessage = `Current USDC balance: ${usdcBalance} USDC`;
@@ -261,8 +272,8 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         <span>terminal:~$</span>
         <span>{new Date().toLocaleString()}</span>
       </div>
-      
-      <div 
+
+      <div
         ref={terminalRef}
         className="terminal-content bg-gray-900 p-3 h-64 overflow-y-auto font-mono text-xs leading-relaxed"
       >
@@ -272,12 +283,12 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
             <span>{log.message}</span>
           </div>
         ))}
-        
+
         {!allLogs.length && (
           <div className="text-gray-500 italic">No logs to display</div>
         )}
       </div>
-      
+
       {interactive && (
         <form onSubmit={handleCommandSubmit} className="terminal-input flex border-t border-amber-700/50">
           <span className="bg-amber-800/50 px-2 py-1 text-xs font-mono flex items-center">$</span>
@@ -286,13 +297,13 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
             value={command}
             onChange={(e) => setCommand(e.target.value)}
             className="flex-1 bg-gray-800 px-2 py-1 text-xs font-mono focus:outline-none text-yellow-100"
-            placeholder={stakeState === 'protocol' ? 
-              (chainId === SUPPORTED_NETWORKS['base-sepolia'].chainId ? 'Enter protocol (CCIP only)...' : 'Enter protocol (CCIP/CCTP)...') : 
-              stakeState === 'amount' ? 'Enter amount...' : 
-              'Type command...'}
+            placeholder={stakeState === 'protocol' ?
+              (chainId === SUPPORTED_NETWORKS['base-sepolia'].chainId ? 'Enter protocol (CCIP only)...' : 'Enter protocol (CCIP/CCTP)...') :
+              stakeState === 'amount' ? 'Enter amount...' :
+                'Type command...'}
           />
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="bg-amber-700 hover:bg-amber-600 px-3 text-beige-100"
           >
             <Send size={14} />

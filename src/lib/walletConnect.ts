@@ -1,22 +1,32 @@
 import { ethers } from 'ethers';
-import { 
-  useAccount, 
-  useBalance, 
+import {
+  useAccount,
+  useBalance,
   useConnect,
-  useDisconnect, 
+  useDisconnect,
   useReadContract,
   useContractWrite,
   useChainId,
   useSwitchChain
 } from 'wagmi';
 import { createConfig, http } from 'wagmi';
-import {  arbitrumSepolia, baseSepolia , liskSepolia } from 'wagmi/chains';
+import { arbitrumSepolia, baseSepolia, liskSepolia } from 'wagmi/chains';
 import { defineChain } from 'viem';
 import { getDefaultConfig } from 'connectkit';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { erc20Abi } from 'viem';
 import { SUPPORTED_NETWORKS, Networks } from '../config/contract';
 
+declare global {
+  interface Window {
+    crossmark?: any;
+    xrpl?: any;
+    ethereum?: any;
+  }
+}
+
+let globalNetworkOverride: Networks | null = null;
+let globalCrossmarkAddress: string | null = null;
 
 // Custom Plume Testnet chain definition
 const plumeTestnet = defineChain({
@@ -53,11 +63,35 @@ export const config = createConfig(
 );
 
 export function useWallet() {
-  const { address, isConnected } = useAccount();
+  const { address: wagmiAddress, isConnected: wagmiIsConnected } = useAccount();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
+
+  const [networkOverride, setNetworkOverride] = useState<Networks | null>(globalNetworkOverride);
+  const [crossmarkAddress, setCrossmarkAddress] = useState<string | null>(globalCrossmarkAddress);
+
+  useEffect(() => {
+    const handleOverride = (e: any) => setNetworkOverride(e.detail);
+    const handleAddress = (e: any) => setCrossmarkAddress(e.detail);
+    window.addEventListener('networkOverride', handleOverride);
+    window.addEventListener('crossmarkAddress', handleAddress);
+    return () => {
+      window.removeEventListener('networkOverride', handleOverride);
+      window.removeEventListener('crossmarkAddress', handleAddress);
+    };
+  }, []);
+
+  const setOverride = (net: Networks | null, addr: string | null = null) => {
+    globalNetworkOverride = net;
+    globalCrossmarkAddress = addr;
+    window.dispatchEvent(new CustomEvent('networkOverride', { detail: net }));
+    window.dispatchEvent(new CustomEvent('crossmarkAddress', { detail: addr }));
+  };
+
+  const address = networkOverride === 'stellar-testnet' ? crossmarkAddress : wagmiAddress;
+  const isConnected = networkOverride === 'stellar-testnet' ? !!crossmarkAddress : wagmiIsConnected;
 
   // Add effect to monitor network changes
   useEffect(() => {
@@ -86,6 +120,9 @@ export function useWallet() {
 
   // Get contract addresses for current network
   const getCurrentNetworkConfig = () => {
+    if (networkOverride) {
+      return { config: SUPPORTED_NETWORKS[networkOverride], key: networkOverride };
+    }
     const network = Object.entries(SUPPORTED_NETWORKS).find(
       ([_, config]) => config.chainId === chainId
     );
@@ -99,12 +136,12 @@ export function useWallet() {
   const USDC_CONTRACT_ADDRESS = networkConfig.contracts.usdc;
   const FEES_CONTRACT_ADDRESS = networkConfig.contracts.fees;
 
-  const balance = () => { 
+  const balance = () => {
     const bal = useBalance({
-    address
-  });
-  return ethers.formatEther(bal.data?.value || 0);
-}
+      address
+    });
+    return ethers.formatEther(bal.data?.value || 0);
+  }
 
   // Get USDC balance with proper configuration
   const { data: usdcbalance } = useReadContract({
@@ -134,6 +171,43 @@ export function useWallet() {
   };
 
   const handleConnect = async () => {
+    if (networkOverride === 'stellar-testnet') {
+      try {
+        const crossmarkSdk = window.xrpl?.crossmark || window.crossmark;
+        if (crossmarkSdk) {
+          let result;
+          if (crossmarkSdk.methods && typeof crossmarkSdk.methods.signInAndWait === 'function') {
+            result = await crossmarkSdk.methods.signInAndWait();
+          } else if (typeof crossmarkSdk.signInAndWait === 'function') {
+            result = await crossmarkSdk.signInAndWait();
+          } else {
+            throw new Error("signInAndWait not found on crossmark SDK");
+          }
+          console.log('Crossmark connected:', result);
+          const addr = result?.response?.data?.address || result?.address || 'stellar-wallet-address';
+          setOverride('stellar-testnet', addr);
+
+          window.dispatchEvent(new CustomEvent('walletBalanceUpdated', {
+            detail: { balance: '0', feesBalance: 0 }
+          }));
+
+          return {
+            address: addr,
+            isConnected: true,
+            chainId: null,
+            balance: '0',
+            feesBalance: 0
+          };
+        } else {
+          alert("Crossmark extension not found. Please install it.");
+        }
+      } catch (error) {
+        console.error('Crossmark connection failed:', error);
+        throw error;
+      }
+      return;
+    }
+
     try {
       // Get the current chain ID from the wallet before connecting
       const provider = window.ethereum;
@@ -157,7 +231,7 @@ export function useWallet() {
       await connect({ connector: config.connectors[0] });
       const formattedBalance = balance();
       const feesFormattedBalance = (feesBalance!) / BigInt(10 ** 18);
-      
+
       window.dispatchEvent(new CustomEvent('walletBalanceUpdated', {
         detail: { balance: formattedBalance, feesBalance: feesFormattedBalance }
       }));
@@ -178,6 +252,9 @@ export function useWallet() {
 
   const handleDisconnect = async () => {
     try {
+      if (networkOverride === 'stellar-testnet') {
+        setOverride('stellar-testnet', null);
+      }
       await disconnect();
       return {
         address: null,
@@ -193,8 +270,15 @@ export function useWallet() {
   };
 
   const handleSwitchNetwork = async (network: Networks) => {
+    if (network === 'stellar-testnet') {
+      setOverride('stellar-testnet', null);
+      console.log('Switched to Stellar Testnet (pending connection)');
+      return;
+    }
+
     const targetChainId = SUPPORTED_NETWORKS[network].chainId;
     try {
+      setOverride(null);
       await switchChain({ chainId: targetChainId });
       console.log(`Switched to ${network} with chain ID ${targetChainId}`);
     } catch (error) {
@@ -206,7 +290,7 @@ export function useWallet() {
   return {
     address,
     isConnected,
-    chainId,
+    chainId: networkOverride === 'stellar-testnet' ? 0 : chainId,
     network: getCurrentNetworkConfig().key,
     networkConfig: getCurrentNetworkConfig().config,
     balance: balance(),

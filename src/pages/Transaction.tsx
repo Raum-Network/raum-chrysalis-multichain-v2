@@ -14,6 +14,7 @@ import { ethers } from 'ethers';
 import stakedUserBalance from '../lib/sepoliaContract';
 import { ConnectKitButton } from 'connectkit';
 import ReactGA from 'react-ga4';
+import { useStaking } from '../hooks/useStaking';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -81,6 +82,7 @@ interface Transaction {
 const Transactions = () => {
   const { isConnected, connect, address, networkConfig } = useWallet();
   const { theme } = useTheme();
+  const { stakingNFTs, stakingOffers } = useStaking();
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed' | 'failed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,14 +116,14 @@ const Transactions = () => {
 
   useEffect(() => {
 
-    if(address) {
-    ReactGA.event({
-      category: 'Wallet',
-      action: 'Click',
-      label: `Connected Wallet ${address}`
-    });
-  }
-  } , [address])
+    if (address) {
+      ReactGA.event({
+        category: 'Wallet',
+        action: 'Click',
+        label: `Connected Wallet ${address}`
+      });
+    }
+  }, [address])
 
   // Update the useEffect to load both types of transactions together
   useEffect(() => {
@@ -134,7 +136,7 @@ const Transactions = () => {
             fetchTransactions(address),
             fetchCCTPTransactions(address)
           ]);
-          
+
           setCctpTransactions(cctpResult);
         } catch (error) {
           console.error('Error fetching transactions:', error);
@@ -145,11 +147,35 @@ const Transactions = () => {
     };
 
     loadTransactions();
-    
+
     // Polling for updates every 30 seconds
     const interval = setInterval(loadTransactions, 30000);
     return () => clearInterval(interval);
-  }, [address, fetchTransactions]);
+  }, [address, fetchTransactions, networkConfig.name]);
+
+  // Build Axelar ITS transactions from staking NFT receipts (Stellar Testnet only)
+  const itsTransactions = (networkConfig.name === 'Stellar Testnet')
+    ? [...stakingNFTs, ...stakingOffers].map(item => ({
+      messageId: item.receipt.txHash || item.id,
+      state: MessageState.SUCCESS,
+      blockTimestamp: item.receipt.stakedAt ? item.receipt.stakedAt * 1000 : Date.now(),
+      origin: item.receipt.staker || address,
+      sender: item.receipt.staker || address,
+      receiver: SUPPORTED_NETWORKS['stellar-testnet'].contracts.cctpDestinationCaller || address,
+      sourceTxHash: item.receipt.txHash || '',
+      destTransactionHash: '',
+      hash: item.receipt.txHash || item.id,
+      tokenAmounts: [{
+        amount: String(Number(item.receipt.amount) * 1_000_000),
+        token: { symbol: 'XRP', decimals: 6 }
+      }],
+      protocol: 'Axelar ITS',
+      sourceNetworkName: 'Stellar Testnet',
+      destNetworkName: 'Sepolia',
+      sourceDecimals: 6,
+      destDecimals: 6
+    }))
+    : [];
 
   // Add effect to listen for status updates from StakeManager
   useEffect(() => {
@@ -179,9 +205,9 @@ const Transactions = () => {
       }
     };
 
-    if ( currentStatus?.ccipMessageId && currentStatus?.status === null) {
+    if (currentStatus?.ccipMessageId && currentStatus?.status === null) {
       fetchCurrentTxStatus();
-      
+
       const interval = setInterval(fetchCurrentTxStatus, 5000);
       return () => clearInterval(interval);
     }
@@ -202,8 +228,8 @@ const Transactions = () => {
           return true;
       }
     })
-    .filter(tx => 
-      searchQuery === '' || 
+    .filter(tx =>
+      searchQuery === '' ||
       tx.messageId.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.sender?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.receiver?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -214,9 +240,9 @@ const Transactions = () => {
     ...(currentStatus?.status === 'IN_PROGRESS' && currentStatus?.sourceNetworkName === networkConfig.name ? [{
       messageId: currentStatus.ccipMessageId || 'Pending...',
       state: currentTxState === '2' ? MessageState.SUCCESS :
-             currentTxState === '3' ? MessageState.FAILURE :
-             currentTxState === '1' ? MessageState.IN_PROGRESS : 
-             MessageState.UNTOUCHED,
+        currentTxState === '3' ? MessageState.FAILURE :
+          currentTxState === '1' ? MessageState.IN_PROGRESS :
+            MessageState.UNTOUCHED,
       blockTimestamp: currentStatus.timestamp || Date.now(),
       origin: currentStatus.origin || address,
       receiver: currentStatus.receiver,
@@ -238,28 +264,28 @@ const Transactions = () => {
         if (tx.sourceNetworkName !== networkConfig.name) return false;
         // Check if the source network exists in SUPPORTED_NETWORKS
         const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => {
-          return network.name === tx.sourceNetworkName || 
-                 network.ccipNames.sourceName === tx.sourceNetworkName ||
-                 network.ccipNames.destName === tx.sourceNetworkName;
+          return network.name === tx.sourceNetworkName ||
+            network.ccipNames.sourceName === tx.sourceNetworkName ||
+            network.ccipNames.destName === tx.sourceNetworkName;
         });
         // Only return true if we found a matching network
         return sourceNetwork !== undefined;
       })
       .map(tx => {
-     
-        
+
+
         // Find the source network configuration
-        const [sourceKey, sourceNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === tx.sourceNetworkName || 
+        const [sourceKey, sourceNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) =>
+          network.name === tx.sourceNetworkName ||
           network.ccipNames.sourceName === tx.sourceNetworkName ||
           network.ccipNames.destName === tx.sourceNetworkName
         ) || [null, null];
-        
-        
+
+
 
         // If no source network found, skip this transaction
         if (!sourceNetwork) {
-          
+
           return null;
         }
 
@@ -280,8 +306,8 @@ const Transactions = () => {
             }
           }))
         };
-        
-        
+
+
         return mappedTx;
       })
       .filter(Boolean), // Remove any null entries
@@ -292,24 +318,24 @@ const Transactions = () => {
         // Only include CCTP transactions if there's no search query or if they match the search
         if (searchQuery === '') return true;
         return tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
-               tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-               tx.to.toLowerCase().includes(searchQuery.toLowerCase());
+          tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          tx.to.toLowerCase().includes(searchQuery.toLowerCase());
       })
       .filter(tx => {
         // Find the network that matches the source network
-        const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === tx.sourceNetworkName || 
+        const sourceNetwork = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) =>
+          network.name === tx.sourceNetworkName ||
           network.ccipNames.sourceName === tx.sourceNetworkName ||
           network.ccipNames.destName === tx.sourceNetworkName
         );
-        
+
         // Only show transactions from supported networks
         return sourceNetwork !== undefined;
       })
       .map(tx => {
         // Find the network that matches the source network
-        const [sourceKey, sourceNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) => 
-          network.name === tx.sourceNetworkName || 
+        const [sourceKey, sourceNetwork] = Object.entries(SUPPORTED_NETWORKS).find(([_, network]) =>
+          network.name === tx.sourceNetworkName ||
           network.ccipNames.sourceName === tx.sourceNetworkName ||
           network.ccipNames.destName === tx.sourceNetworkName
         ) || [null, null];
@@ -323,8 +349,8 @@ const Transactions = () => {
         return {
           messageId: tx.hash,
           state: tx.status === 'SUCCESS' ? MessageState.SUCCESS :
-                 tx.status === 'FAILURE' ? MessageState.FAILURE :
-                 MessageState.IN_PROGRESS,
+            tx.status === 'FAILURE' ? MessageState.FAILURE :
+              MessageState.IN_PROGRESS,
           blockTimestamp: tx.timestamp,
           origin: tx.from,
           receiver: tx.to,
@@ -341,14 +367,15 @@ const Transactions = () => {
           destDecimals: 6 // Sepolia always uses 6 decimals
         };
       })
-      .filter(Boolean) // Remove any null entries
+      .filter(Boolean), // Remove any null entries
+    ...itsTransactions
   ]
-  .filter((tx): tx is NonNullable<typeof tx> => tx !== null) // Type guard to remove nulls
-  .sort((a, b) => {
-    const timestampA = a.blockTimestamp ? new Date(a.blockTimestamp).getTime() : 0;
-    const timestampB = b.blockTimestamp ? new Date(b.blockTimestamp).getTime() : 0;
-    return timestampB - timestampA;
-  });
+    .filter((tx): tx is NonNullable<typeof tx> => tx !== null) // Type guard to remove nulls
+    .sort((a, b) => {
+      const timestampA = a.blockTimestamp ? new Date(a.blockTimestamp).getTime() : 0;
+      const timestampB = b.blockTimestamp ? new Date(b.blockTimestamp).getTime() : 0;
+      return timestampB - timestampA;
+    });
 
   // Update pagination to use allTransactions
   const totalPages = Math.ceil(allTransactions.length / ITEMS_PER_PAGE);
@@ -370,25 +397,25 @@ const Transactions = () => {
         const bridgingInfo: Record<string, string | null> = {};
         for (const tx of currentPageTransactions) {
           if (tx.messageId) {
-           
-            
+
+
             try {
               const provider = await stakedUserBalance.getProvider();
               const receipt = await provider.getTransactionReceipt(tx.destTransactionHash);
-              
+
 
               const ccipLog = receipt?.logs.find(log => log.topics[0] === "0xd0c3c799bf9e2639de44391e7f524d229b2b55f5b1ea94b2bf7da42f7243dddd");
-              
-              
+
+
               const rawData = ccipLog?.data;
-              
+
               if (rawData) {
                 const decoded = abiCoder.decode([tupleType], rawData);
                 const bridgingMessageId = decoded[0][12];
-                
+
                 bridgingInfo[tx.messageId] = bridgingMessageId;
               } else {
-                
+
                 bridgingInfo[tx.messageId] = null;
               }
             } catch (error) {
@@ -397,7 +424,7 @@ const Transactions = () => {
             }
           }
         }
-        
+
         setBridgingInfo(prev => ({ ...prev, ...bridgingInfo }));
         // Mark this page as fetched
         fetchedPagesRef.current.add(currentPage);
@@ -414,7 +441,7 @@ const Transactions = () => {
 
   // Update the TransactionModal component to use the correct explorer URLs
   const getExplorerUrl = (txHash: string, networkName: string) => {
-    switch (networkName.toLowerCase()) {
+    switch (networkName?.toLowerCase()) {
       case 'arbitrum sepolia':
         return `https://sepolia.arbiscan.io/tx/${txHash}`;
       case 'base sepolia':
@@ -425,6 +452,8 @@ const Transactions = () => {
         return `https://www.oklink.com/amoy/tx/${txHash}`;
       case 'sepolia':
         return `https://sepolia.etherscan.io/tx/${txHash}`;
+      case 'stellar testnet':
+        return `https://testnet.axelarscan.io/gmp/${txHash}`;
       default:
         return `https://sepolia.arbiscan.io/tx/${txHash}`;
     }
@@ -481,7 +510,7 @@ const Transactions = () => {
             `}>
               <div className="text-xs opacity-70 mb-1">Amount</div>
               <div className="text-xl font-medium">
-                {formatAmount(token.amount, transaction.sourceDecimals || token.token.decimals)} {'USDC'}
+                {formatAmount(token.amount, transaction.sourceDecimals || token.token.decimals)} {transaction.sourceNetworkName === 'Stellar Testnet' || transaction.destNetworkName === 'Stellar Testnet' ? 'XRP' : 'USDC'}
               </div>
             </div>
           ))}
@@ -493,9 +522,11 @@ const Transactions = () => {
             `}>
               <div className="text-xs opacity-70 mb-1">Message ID</div>
               <a
-                href={transaction.protocol === 'CCIP' 
+                href={transaction.protocol === 'CCIP'
                   ? `https://ccip.chain.link/msg/${transaction.messageId}`
-                  : `https://sepolia.arbiscan.io/tx/${transaction.hash || transaction.messageId}`
+                  : transaction.protocol === 'Axelar ITS' || transaction.sourceNetworkName === 'Stellar Testnet'
+                    ? `https://testnet.axelarscan.io/gmp/${transaction.hash || transaction.messageId}`
+                    : `https://sepolia.arbiscan.io/tx/${transaction.hash || transaction.messageId}`
                 }
                 target="_blank"
                 rel="noopener noreferrer"
@@ -643,8 +674,8 @@ const Transactions = () => {
 
   // Update the table row to include Protocol column
   const tableRows = paginatedTransactions.map((tx: any) => (
-    <tr 
-      key={tx.messageId || tx.hash} 
+    <tr
+      key={tx.messageId || tx.hash}
       className="border-b border-amber-700/30 hover:bg-amber-900/20 cursor-pointer"
       onClick={() => setSelectedTx(tx)}
     >
@@ -662,7 +693,7 @@ const Transactions = () => {
       <td className="px-4 py-3">
         {tx.tokenAmounts?.map((token: any, index: number) => (
           <div key={index}>
-            {formatAmount(token.amount, tx.sourceDecimals || token.token.decimals)} {'USDC'}
+            {formatAmount(token.amount, tx.sourceDecimals || token.token.decimals)} {tx.sourceNetworkName === 'Stellar Testnet' || tx.destNetworkName === 'Stellar Testnet' ? 'XRP' : 'USDC'}
           </div>
         ))}
       </td>
@@ -678,10 +709,12 @@ const Transactions = () => {
         {tx.blockTimestamp ? new Date(tx.blockTimestamp).toLocaleString() : 'Pending...'}
       </td>
       <td className="px-4 py-3">
-        <a 
-          href={tx.protocol === 'CCIP' 
+        <a
+          href={tx.protocol === 'CCIP'
             ? `https://ccip.chain.link/msg/${tx.messageId}`
-            : `https://sepolia.arbiscan.io/tx/${tx.hash || tx.messageId}`
+            : tx.protocol === 'Axelar ITS' || tx.sourceNetworkName === 'Stellar Testnet'
+              ? `https://testnet.axelarscan.io/gmp/${tx.hash || tx.messageId}`
+              : `https://sepolia.arbiscan.io/tx/${tx.hash || tx.messageId}`
           }
           target="_blank"
           rel="noopener noreferrer"
@@ -703,9 +736,9 @@ const Transactions = () => {
           <p className="opacity-70">Please connect your wallet to view transactions</p>
         </div>
         <ConnectKitButton.Custom>
-          {({ show , address }) => (
+          {({ show, address }) => (
             <Button onClick={() => {
-              
+
               show?.();
             }} size="lg">
               Connect Wallet
@@ -777,13 +810,13 @@ const Transactions = () => {
                   </table>
                 </div>
 
-                {filteredTransactions.length === 0 && currentStatus?.status !== 'IN_PROGRESS' && (
+                {allTransactions.length === 0 && currentStatus?.status !== 'IN_PROGRESS' && (
                   <div className="text-center py-8">
                     <p className="text-sm opacity-70">No transactions found</p>
                   </div>
                 )}
 
-                {filteredTransactions.length > 0 && (
+                {allTransactions.length > 0 && (
                   <div className="flex items-center justify-between px-4 py-3 bg-amber-900/20 border-t border-amber-700/30">
                     <div className="text-sm opacity-70">
                       Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, allTransactions.length)} of {allTransactions.length} transactions
