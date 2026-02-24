@@ -8,7 +8,7 @@ import { Networks } from '../config/contract';
 import ReactGA from 'react-ga4';
 
 const ConnectButton = () => {
-  const { isConnected, address, balance, network, chainId, switchNetwork, disconnect, connect } = useWallet();
+  const { isConnected, address, balance, nativeCurrencySymbol, network, chainId, switchNetwork, disconnect, connect } = useWallet();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleDisconnect = () => {
@@ -72,7 +72,7 @@ const ConnectButton = () => {
                   Connected:{truncateAddress(address || '')}
                 </div>
                 <div className="text-green-400">
-                  Balance:{Number(balance).toFixed(4)} ETH
+                  Balance:{Number(balance).toFixed(4)} {nativeCurrencySymbol}
                 </div>
                 <div className="text-green-400">
                   Network:{network}
@@ -85,7 +85,7 @@ const ConnectButton = () => {
               {/* Desktop view */}
               <div className="hidden md:block">
                 <div className="text-green-400">Connected: {address}</div>
-                <div className="text-green-400">Balance: {Number(balance).toFixed(4)} ETH</div>
+                <div className="text-green-400">Balance: {Number(balance).toFixed(4)} {nativeCurrencySymbol}</div>
                 <div className="text-green-400">Network: {network}</div>
                 <div className="text-green-400">Chain ID: {chainId}</div>
               </div>

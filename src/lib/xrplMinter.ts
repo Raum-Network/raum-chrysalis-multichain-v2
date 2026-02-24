@@ -40,6 +40,7 @@ function buildStakingReceipt(params: {
         e: params.mintedStETH || "0",
         y: params.apy || "0",
         ts,
+        h: params.confirmationTxHash || "",
         id,
     };
 }

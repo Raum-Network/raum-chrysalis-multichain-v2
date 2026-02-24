@@ -71,6 +71,7 @@ export function useWallet() {
 
   const [networkOverride, setNetworkOverride] = useState<Networks | null>(globalNetworkOverride);
   const [crossmarkAddress, setCrossmarkAddress] = useState<string | null>(globalCrossmarkAddress);
+  const [xrpBalance, setXrpBalance] = useState<number>(0);
 
   useEffect(() => {
     const handleOverride = (e: any) => setNetworkOverride(e.detail);
@@ -82,6 +83,41 @@ export function useWallet() {
       window.removeEventListener('crossmarkAddress', handleAddress);
     };
   }, []);
+
+  // Fetch XRP balance when connected to Ripple Testnet
+  useEffect(() => {
+    if (networkOverride !== 'ripple-testnet' || !crossmarkAddress) {
+      setXrpBalance(0);
+      return;
+    }
+
+    let active = true;
+    const fetchXrpBalance = async () => {
+      try {
+        const { Client } = await import('xrpl');
+        const client = new Client(
+          SUPPORTED_NETWORKS['ripple-testnet'].wssUrl || 'wss://s.altnet.rippletest.net:51233',
+          { connectionTimeout: 20000 }
+        );
+        await client.connect();
+        const res = await client.request({
+          command: 'account_info',
+          account: crossmarkAddress,
+          ledger_index: 'validated'
+        });
+        await client.disconnect();
+        if (active) {
+          setXrpBalance(Number(res.result.account_data.Balance) / 1_000_000);
+        }
+      } catch (e) {
+        console.error('Error fetching XRP balance:', e);
+      }
+    };
+
+    fetchXrpBalance();
+    const interval = setInterval(fetchXrpBalance, 15000);
+    return () => { active = false; clearInterval(interval); };
+  }, [networkOverride, crossmarkAddress]);
 
   const setOverride = (net: Networks | null, addr: string | null = null) => {
     globalNetworkOverride = net;
@@ -136,12 +172,17 @@ export function useWallet() {
   const USDC_CONTRACT_ADDRESS = networkConfig.contracts.usdc;
   const FEES_CONTRACT_ADDRESS = networkConfig.contracts.fees;
 
+  // Always call useBalance unconditionally (React hook rule)
+  const nativeBalance = useBalance({ address: (networkOverride === 'ripple-testnet' ? undefined : address) as `0x${string}` | undefined });
+
   const balance = () => {
-    const bal = useBalance({
-      address
-    });
-    return ethers.formatEther(bal.data?.value || 0);
+    if (networkOverride === 'ripple-testnet') {
+      return xrpBalance.toFixed(4);
+    }
+    return ethers.formatEther(nativeBalance.data?.value || 0);
   }
+
+  const nativeCurrencySymbol = networkOverride === 'ripple-testnet' ? 'XRP' : 'ETH';
 
   // Get USDC balance with proper configuration
   const { data: usdcbalance } = useReadContract({
@@ -294,6 +335,7 @@ export function useWallet() {
     network: getCurrentNetworkConfig().key,
     networkConfig: getCurrentNetworkConfig().config,
     balance: balance(),
+    nativeCurrencySymbol,
     feesBalance,
     connect: handleConnect,
     disconnect: handleDisconnect,

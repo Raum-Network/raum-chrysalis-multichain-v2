@@ -452,7 +452,7 @@ const Transactions = () => {
         return `https://www.oklink.com/amoy/tx/${txHash}`;
       case 'sepolia':
         return `https://sepolia.etherscan.io/tx/${txHash}`;
-      case 'Ripple Testnet':
+      case 'ripple testnet':
         return `https://testnet.axelarscan.io/gmp/${txHash}`;
       default:
         return `https://sepolia.arbiscan.io/tx/${txHash}`;
