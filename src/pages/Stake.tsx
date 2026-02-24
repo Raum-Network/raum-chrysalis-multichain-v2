@@ -403,13 +403,13 @@ const Stake = () => {
           <h1 className="text-2xl mb-2">Connect Your Wallet</h1>
           <p className="opacity-70">Please connect your wallet to start staking</p>
         </div>
-        <ConnectKitButton.Custom>
+        {/* <ConnectKitButton.Custom>
           {({ show }) => (
             <Button onClick={show} size="lg">
               Connect Wallet
             </Button>
           )}
-        </ConnectKitButton.Custom>
+        </ConnectKitButton.Custom> */}
       </div>
     );
   }
@@ -419,7 +419,9 @@ const Stake = () => {
       <div className="mb-6">
         <h1 className="text-2xl mb-1">Stake Asset</h1>
         <p className="text-sm opacity-70">
-          Stake your USDC using CCIP/CCTP and receive LST + APR in return
+          {networkConfig.name === 'Ripple Testnet'
+            ? 'Stake your XRP using Axelar ITS and receive LST + APR in return'
+            : 'Stake your USDC using CCIP/CCTP and receive LST + APR in return'}
         </p>
       </div>
 

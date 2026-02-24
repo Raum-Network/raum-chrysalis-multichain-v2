@@ -90,8 +90,8 @@ export function useWallet() {
     window.dispatchEvent(new CustomEvent('crossmarkAddress', { detail: addr }));
   };
 
-  const address = networkOverride === 'stellar-testnet' ? crossmarkAddress : wagmiAddress;
-  const isConnected = networkOverride === 'stellar-testnet' ? !!crossmarkAddress : wagmiIsConnected;
+  const address = networkOverride === 'ripple-testnet' ? crossmarkAddress : wagmiAddress;
+  const isConnected = networkOverride === 'ripple-testnet' ? !!crossmarkAddress : wagmiIsConnected;
 
   // Add effect to monitor network changes
   useEffect(() => {
@@ -171,7 +171,7 @@ export function useWallet() {
   };
 
   const handleConnect = async () => {
-    if (networkOverride === 'stellar-testnet') {
+    if (networkOverride === 'ripple-testnet') {
       try {
         const crossmarkSdk = window.xrpl?.crossmark || window.crossmark;
         if (crossmarkSdk) {
@@ -184,8 +184,8 @@ export function useWallet() {
             throw new Error("signInAndWait not found on crossmark SDK");
           }
           console.log('Crossmark connected:', result);
-          const addr = result?.response?.data?.address || result?.address || 'stellar-wallet-address';
-          setOverride('stellar-testnet', addr);
+          const addr = result?.response?.data?.address || result?.address;
+          setOverride('ripple-testnet', addr);
 
           window.dispatchEvent(new CustomEvent('walletBalanceUpdated', {
             detail: { balance: '0', feesBalance: 0 }
@@ -252,8 +252,8 @@ export function useWallet() {
 
   const handleDisconnect = async () => {
     try {
-      if (networkOverride === 'stellar-testnet') {
-        setOverride('stellar-testnet', null);
+      if (networkOverride === 'ripple-testnet') {
+        setOverride('ripple-testnet', null);
       }
       await disconnect();
       return {
@@ -270,8 +270,8 @@ export function useWallet() {
   };
 
   const handleSwitchNetwork = async (network: Networks) => {
-    if (network === 'stellar-testnet') {
-      setOverride('stellar-testnet', null);
+    if (network === 'ripple-testnet') {
+      setOverride('ripple-testnet', null);
       console.log('Switched to Ripple Testnet (pending connection)');
       return;
     }
@@ -290,7 +290,7 @@ export function useWallet() {
   return {
     address,
     isConnected,
-    chainId: networkOverride === 'stellar-testnet' ? 0 : chainId,
+    chainId: networkOverride === 'ripple-testnet' ? 0 : chainId,
     network: getCurrentNetworkConfig().key,
     networkConfig: getCurrentNetworkConfig().config,
     balance: balance(),

@@ -121,7 +121,7 @@ const Dashboard = () => {
           <h1 className="text-2xl mb-2">Connect Your Wallet</h1>
           <p className="opacity-70">Please connect your wallet to view your dashboard</p>
         </div>
-        <ConnectKitButton.Custom>
+        {/* <ConnectKitButton.Custom>
           {({ show }) => (
             <Button onClick={() => {
 
@@ -130,7 +130,7 @@ const Dashboard = () => {
               Connect Wallet
             </Button>
           )}
-        </ConnectKitButton.Custom>
+        </ConnectKitButton.Custom> */}
       </div>
     );
   }

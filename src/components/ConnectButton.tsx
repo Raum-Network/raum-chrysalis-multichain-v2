@@ -129,7 +129,7 @@ const ConnectButton = () => {
                   action: 'Click',
                   label: address ? `Connected Wallet ${address}` : 'Connect Wallet Button'
                 });
-                if (network === 'stellar-testnet') {
+                if (network === 'ripple-testnet') {
                   connect();
                 } else {
                   show?.();

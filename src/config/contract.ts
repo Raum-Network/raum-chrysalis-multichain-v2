@@ -21,7 +21,7 @@ export type NetworkConfig = {
   };
 };
 
-export type Networks = 'arbitrum-sepolia' | 'base-sepolia' | 'lisk-sepolia' | 'plume-testnet' | 'stellar-testnet';
+export type Networks = 'arbitrum-sepolia' | 'base-sepolia' | 'lisk-sepolia' | 'plume-testnet' | 'ripple-testnet';
 
 export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
   'arbitrum-sepolia': {
@@ -104,13 +104,13 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       destName: 'ethereum-testnet-sepolia'
     }
   },
-  'stellar-testnet': {
+  'ripple-testnet': {
     name: 'Ripple Testnet',
     chainId: 0,
     rpcUrl: 'https://s.altnet.rippletest.net:51234', // Update to XRP Testnet RPC
     wssUrl: 'wss://s.altnet.rippletest.net:51233', // Add WSS for xrpl client
     publicRpc: 'https://s.altnet.rippletest.net:51234',
-    explorer: 'https://stellar.expert/explorer/testnet',
+    explorer: 'https://xrpscan.com/testnet',
     contracts: {
       ccip: '', // Placeholder
       usdc: '', // Placeholder

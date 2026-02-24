@@ -161,7 +161,7 @@ const Transactions = () => {
       blockTimestamp: item.receipt.stakedAt ? item.receipt.stakedAt * 1000 : Date.now(),
       origin: item.receipt.staker || address,
       sender: item.receipt.staker || address,
-      receiver: SUPPORTED_NETWORKS['stellar-testnet'].contracts.cctpDestinationCaller || address,
+      receiver: SUPPORTED_NETWORKS['ripple-testnet'].contracts.cctpDestinationCaller || address,
       sourceTxHash: item.receipt.txHash || '',
       destTransactionHash: '',
       hash: item.receipt.txHash || item.id,
@@ -735,7 +735,7 @@ const Transactions = () => {
           <h1 className="text-2xl mb-2">Connect Your Wallet</h1>
           <p className="opacity-70">Please connect your wallet to view transactions</p>
         </div>
-        <ConnectKitButton.Custom>
+        {/* <ConnectKitButton.Custom>
           {({ show, address }) => (
             <Button onClick={() => {
 
@@ -744,7 +744,7 @@ const Transactions = () => {
               Connect Wallet
             </Button>
           )}
-        </ConnectKitButton.Custom>
+        </ConnectKitButton.Custom> */}
       </div>
     );
   }

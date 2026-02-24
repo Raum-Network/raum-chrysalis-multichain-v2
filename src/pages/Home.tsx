@@ -9,8 +9,8 @@ import ReactGA from 'react-ga4';
 import { useEffect } from 'react';
 
 const Home = () => {
-  const { isConnected, connect , address } = useWallet();
-  
+  const { isConnected, connect, address } = useWallet();
+
   const terminalLogs: { message: string; type: 'success' | 'info' | 'error' | 'warning' | 'command'; timestamp: Date; }[] = [
     {
       message: 'Chrysalis Testnet initialized',
@@ -38,7 +38,7 @@ const Home = () => {
       }
     }
   };
-  
+
   const item = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 }
@@ -46,32 +46,32 @@ const Home = () => {
 
   useEffect(() => {
 
-    if(address) {
-    ReactGA.event({
-      category: 'Wallet',
-      action: 'Click',
-      label: `Connected Wallet ${address}`
-    });
-  }
-  } , [address])
+    if (address) {
+      ReactGA.event({
+        category: 'Wallet',
+        action: 'Click',
+        label: `Connected Wallet ${address}`
+      });
+    }
+  }, [address])
 
 
-  
+
 
   return (
 
 
-    
+
     <div className="h-full">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-        <motion.div 
+        <motion.div
           className="flex flex-col justify-center"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
           <div className="scanlines flex flex-col">
-            <motion.h1 
+            <motion.h1
               className="text-4xl md:text-5xl lg:text-6xl font-bold mb-2 leading-tight"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -79,7 +79,7 @@ const Home = () => {
             >
               Chrysalis
             </motion.h1>
-            <motion.p 
+            <motion.p
               className="text-lg md:text-xl opacity-80 mb-6"
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.8 }}
@@ -91,7 +91,7 @@ const Home = () => {
             <div className="mb-8">
               <Terminal logs={terminalLogs} className="hidden md:block" />
             </div>
-            
+
             {isConnected ? (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -99,8 +99,8 @@ const Home = () => {
                 transition={{ delay: 0.6, duration: 0.5 }}
               >
                 <Link to="/dashboard">
-                  <Button 
-                    size="lg" 
+                  <Button
+                    size="lg"
                     variant="primary"
                     icon={<ArrowRight size={18} />}
                   >
@@ -114,7 +114,7 @@ const Home = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
               >
-                <ConnectKitButton.Custom>
+                {/* <ConnectKitButton.Custom>
                   {({ show , address }) => (
                     <Button 
                       size="lg" 
@@ -127,40 +127,40 @@ const Home = () => {
                       Connect Wallet To Start
                     </Button>
                   )}
-                </ConnectKitButton.Custom>
+                </ConnectKitButton.Custom> */}
               </motion.div>
             )}
           </div>
         </motion.div>
-        
-        <motion.div 
+
+        <motion.div
           className="flex items-center justify-center"
           variants={container}
           initial="hidden"
           animate="show"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
-            <FeatureCard 
-              title="Liquid Staking" 
-              icon={<Database size={20} />} 
+            <FeatureCard
+              title="Liquid Staking"
+              icon={<Database size={20} />}
               description="Stake your ETH while maintaining liquidity"
               variants={item}
             />
-            <FeatureCard 
-              title="High APY" 
-              icon={<DollarSign size={20} />} 
+            <FeatureCard
+              title="High APY"
+              icon={<DollarSign size={20} />}
               description="Earn competitive rewards on your staked assets"
               variants={item}
             />
-            <FeatureCard 
-              title="Security" 
-              icon={<Shield size={20} />} 
+            <FeatureCard
+              title="Security"
+              icon={<Shield size={20} />}
               description="Your assets are securely managed and protected"
               variants={item}
             />
-            <FeatureCard 
-              title="Institutional Grade" 
-              icon={<Landmark size={20} />} 
+            <FeatureCard
+              title="Institutional Grade"
+              icon={<Landmark size={20} />}
               description="Built for both retail and institutional stakers"
               variants={item}
             />
@@ -189,7 +189,7 @@ const Home = () => {
 
 const FeatureCard = ({ title, description, icon, variants }: any) => {
   return (
-    <motion.div 
+    <motion.div
       className="border border-amber-700/40 rounded-lg p-4 bg-amber-900/20 backdrop-blur-sm"
       variants={variants}
     >
