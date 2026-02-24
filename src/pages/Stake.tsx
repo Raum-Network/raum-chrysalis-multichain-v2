@@ -512,8 +512,8 @@ const Stake = () => {
                       className="border border-amber-700/50 rounded-md p-4 bg-amber-900/20 flex flex-col relative overflow-hidden backdrop-blur-sm cursor-pointer hover:border-amber-500/70 transition-colors"
                       onClick={() => setExpandedNFT(expandedNFT === item.id ? null : item.id)}
                     >
-                      <div className="absolute top-0 right-0 bg-amber-500/20 text-amber-300 text-[9px] px-2 py-1 rounded-bl-md font-mono border-l border-b border-amber-500/20">
-                        {item.id.substring(0, 8)}...
+                      <div className="absolute top-0 right-0 bg-amber-500/20 text-black text-[9px] px-2 py-1 rounded-bl-md font-mono border-l border-b border-amber-500/20">
+                        Info
                       </div>
                       <h3 className="text-sm font-medium text-amber-400 mb-1 truncate pr-16">{item.receipt.pool}</h3>
                       <div className="flex items-end mb-3">
@@ -571,7 +571,7 @@ const Stake = () => {
                               <div className="flex justify-between">
                                 <span className="text-gray-400">Tx Hash</span>
                                 <a
-                                  href={`https://sepolia.etherscan.io/tx/${item.receipt.txHash}`}
+                                  href={`https://testnet.axelarscan.io/gmp//${item.receipt.txHash}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-blue-400 hover:text-blue-300 underline break-all text-right ml-4"
