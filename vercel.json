@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/ccip-api/:path*",
+      "destination": "https://ccip.chain.link/api/h/atlas/:path*"
+    },
+    {
+      "source": "/circle-api/v2/:path*",
+      "destination": "https://iris-api-sandbox.circle.com/v2/:path*"
+    },
+    {
+      "source": "/circle-api/attestations/:path*",
+      "destination": "https://iris-api-sandbox.circle.com/v1/attestations/:path*"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

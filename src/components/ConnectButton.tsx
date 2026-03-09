@@ -1,6 +1,6 @@
 import { useWallet } from '../lib/walletConnect';
 import { ConnectKitButton } from 'connectkit';
-import { Wallet, LogOut } from 'lucide-react';
+import { LogOut, Wallet2, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import NetworkSwitcher from './NetworkSwitcher';
@@ -12,27 +12,23 @@ const ConnectButton = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleDisconnect = () => {
+    ReactGA.event({
+      category: 'Wallet',
+      action: 'Disconnect',
+      label: address ? `Disconnect ${address}` : 'Disconnect Wallet'
+    });
     disconnect();
   };
 
-  const truncateAddress = (addr: string) => {
-    return addr.slice(0, 6) + '...' + addr.slice(-4);
-  };
+  const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
   const handleNetworkSwitcherOpen = () => {
-    setIsOpen(false); // Close the connected modal when network switcher opens
+    setIsOpen(false);
   };
 
   if (isConnected) {
-
-    ReactGA.event({
-      category: 'Wallet',
-      action: 'Click',
-      label: address ? `Connected Wallet ${address}` : 'Connect Wallet Button'
-    });
-
     return (
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-2">
         <div className="hidden sm:block">
           <NetworkSwitcher
             currentNetwork={network as Networks}
@@ -42,64 +38,59 @@ const ConnectButton = () => {
         </div>
 
         <div className="relative">
-          <div
+          <button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-md
-                      border border-green-500/40 bg-black/90
-                      hover:text-black/90
-                      hover: border border-black/90 hover:bg-gray-100/10 hover:border-black/90
-                      transition-all duration-200 
-                      text-green-500 cursor-pointer"
+            className="premium-card flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors hover:border-[rgba(var(--accent),0.24)]"
           >
-            <div className="pulse-dot"></div>
-            <span className="text-sm hidden md:inline">{truncateAddress(address || '')}</span>
-          </div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[rgba(var(--accent),0.1)] text-[rgb(var(--accent-strong))]">
+              <Wallet2 size={15} />
+            </div>
+            <div className="hidden text-left md:block">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] muted-copy">Wallet</div>
+              <div className="text-sm font-semibold">{truncateAddress(address || '')}</div>
+            </div>
+            <div className="block text-sm font-semibold md:hidden">{truncateAddress(address || '')}</div>
+          </button>
 
           {isOpen && (
             <motion.div
-              initial={{ opacity: 0, y: 5 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`
-                absolute top-full right-0 mt-2 p-2 
-                bg-gray-800 border border-amber-700/40 rounded-md shadow-lg 
-                text-xs whitespace-nowrap z-20
-                ${window.innerWidth < 768 ? 'w-[200px]' : ''}
-              `}
+              className="premium-surface absolute right-0 top-full z-30 mt-3 w-[280px] rounded-[24px] p-4"
             >
-              {/* Mobile view */}
-              <div className="md:hidden">
-                <div className="text-green-400 truncate">
-                  Connected:{truncateAddress(address || '')}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] muted-copy">Connected wallet</div>
+                  <div className="mt-2 break-all text-sm font-semibold">{address}</div>
                 </div>
-                <div className="text-green-400">
-                  Balance:{Number(balance).toFixed(4)} {nativeCurrencySymbol}
-                </div>
-                <div className="text-green-400">
-                  Network:{network}
-                </div>
-                <div className="text-green-400">
-                  Chain ID:{chainId} ETH
+                <div className="premium-pill inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold">
+                  <ShieldCheck size={12} />
+                  Active
                 </div>
               </div>
 
-              {/* Desktop view */}
-              <div className="hidden md:block">
-                <div className="text-green-400">Connected: {address}</div>
-                <div className="text-green-400">Balance: {Number(balance).toFixed(4)} {nativeCurrencySymbol}</div>
-                <div className="text-green-400">Network: {network}</div>
-                <div className="text-green-400">Chain ID: {chainId}</div>
+              <div className="mt-4 grid gap-2">
+                <div className="premium-card rounded-2xl px-3 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] muted-copy">Balance</div>
+                  <div className="mt-1 font-semibold">{Number(balance).toFixed(4)} {nativeCurrencySymbol}</div>
+                </div>
+                <div className="premium-card rounded-2xl px-3 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] muted-copy">Network</div>
+                  <div className="mt-1 font-semibold">{network}</div>
+                </div>
+                <div className="premium-card rounded-2xl px-3 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] muted-copy">Chain ID</div>
+                  <div className="mt-1 font-semibold">{chainId}</div>
+                </div>
               </div>
 
-              {/* Disconnect button */}
-              <div className="mt-1 pt-1 border-t border-green-700/40">
-                <button
-                  onClick={handleDisconnect}
-                  className="flex items-center space-x-2 text-red-400 hover:text-red-500 transition-colors"
-                >
-                  <LogOut size={16} />
-                  <span>Disconnect</span>
-                </button>
-              </div>
+              <button
+                onClick={handleDisconnect}
+                className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-red-500/20 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
+              >
+                <LogOut size={15} />
+                <span>Disconnect</span>
+              </button>
             </motion.div>
           )}
         </div>
@@ -108,8 +99,7 @@ const ConnectButton = () => {
   }
 
   return (
-    <div className="flex items-center space-x-2">
-      {/* Network Switcher - Only visible on desktop */}
+    <div className="flex items-center gap-2">
       <div className="hidden sm:block">
         <NetworkSwitcher
           currentNetwork={network as Networks}
@@ -118,35 +108,27 @@ const ConnectButton = () => {
         />
       </div>
       <ConnectKitButton.Custom>
-        {({ isConnecting, show, address, ensName }) => {
-          return (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                ReactGA.event({
-                  category: 'Wallet',
-                  action: 'Click',
-                  label: address ? `Connected Wallet ${address}` : 'Connect Wallet Button'
-                });
-                if (network === 'ripple-testnet') {
-                  connect();
-                } else {
-                  show?.();
-                }
-              }}
-              className={`
-                flex items-center justify-center px-3 py-1.5 rounded-md
-                border border-green-500/40 bg-black/90 hover:text-black/90
-                      hover: border border-black/90 hover:bg-gray-100/10 hover:border-black/90
-                transition-colors text-green-500 transition-all duration-40
-                
-              `}
-            >
-              <span className="text-sm">{isConnecting ? "Connecting..." : "Connect"}</span>
-            </motion.button>
-          );
-        }}
+        {({ isConnecting, show, address: connectedAddress }) => (
+          <motion.button
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={async () => {
+              ReactGA.event({
+                category: 'Wallet',
+                action: 'Click',
+                label: connectedAddress ? `Connected Wallet ${connectedAddress}` : 'Connect Wallet Button'
+              });
+              if (network === 'ripple-testnet') {
+                await connect();
+              } else {
+                show?.();
+              }
+            }}
+            className="rounded-2xl bg-[rgb(var(--ink-strong))] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.16)] transition-colors hover:bg-[rgb(var(--accent-strong))]"
+          >
+            {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+          </motion.button>
+        )}
       </ConnectKitButton.Custom>
     </div>
   );

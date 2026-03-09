@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Send } from 'lucide-react';
 import { useWallet } from '../lib/walletConnect';
 import { useStaking } from '../hooks/useStaking';
-import { SUPPORTED_NETWORKS } from '../config/contract';
 import stakeManager, { StakeStatus } from '../lib/stakeManager';
+import { useTheme } from '../context/ThemeContext';
 
 interface Log {
   message: string;
@@ -21,11 +21,11 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
   const [allLogs, setAllLogs] = useState<Log[]>(logs);
   const [command, setCommand] = useState('');
   const [stakeState, setStakeState] = useState<'idle' | 'protocol' | 'amount'>('idle');
-  const [selectedProtocol, setSelectedProtocol] = useState<'CCIP' | 'CCTP' | null>(null);
-  const [stakeAmount, setStakeAmount] = useState<string>('');
+  const [selectedProtocol, setSelectedProtocol] = useState<'CCIP' | 'CCTP' | 'Axelar ITS' | null>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
-  const { getFormattedBalance, chainId, networkConfig } = useWallet();
-  const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, usdcBalance, linkBalance } = useStaking();
+  const { theme } = useTheme();
+  const { getFormattedBalance } = useWallet();
+  const { stake, bridgeProtocol, setBridgeProtocol, usdcBalance, linkBalance, supportedProtocols, assetSymbol } = useStaking();
 
   useEffect(() => {
     // Auto-scroll to bottom when logs update
@@ -51,14 +51,23 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
     // Handle different states of staking process
     if (stakeState === 'protocol') {
       const protocol = command.trim().toUpperCase();
-      const isBaseSepolia = chainId === SUPPORTED_NETWORKS['base-sepolia'].chainId;
-      const isLiskSepolia = chainId === SUPPORTED_NETWORKS['lisk-sepolia'].chainId;
-      // For Base Sepolia and Lisk Sepolia, only allow CCIP
-      if ((isBaseSepolia || isLiskSepolia) && protocol !== 'CCIP') {
+      const normalizedProtocol = protocol === 'AXELAR' ? 'AXELAR ITS' : protocol;
+      const isProtocolInput = (value: string): value is 'CCIP' | 'CCTP' | 'AXELAR ITS' =>
+        value === 'CCIP' || value === 'CCTP' || value === 'AXELAR ITS';
+      const protocolMap = new Map([
+        ['CCIP', 'CCIP'],
+        ['CCTP', 'CCTP'],
+        ['AXELAR ITS', 'Axelar ITS'],
+      ] as const);
+      const selected = isProtocolInput(normalizedProtocol)
+        ? protocolMap.get(normalizedProtocol)
+        : undefined;
+
+      if (!selected || !supportedProtocols.includes(selected)) {
         setAllLogs([
           ...newLogs,
           {
-            message: 'Only CCIP protocol is supported on Base Sepolia and Lisk Sepolia. Please enter CCIP:',
+            message: `Unsupported protocol. Allowed protocols: ${supportedProtocols.join(', ')}`,
             type: 'error',
             timestamp: new Date()
           }
@@ -67,29 +76,17 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         return;
       }
 
-      // For other chains, allow both CCIP and CCTP
-      if (protocol === 'CCIP' || protocol === 'CCTP') {
-        setSelectedProtocol(protocol);
-        setBridgeProtocol(protocol);
-        setStakeState('amount');
-        setAllLogs([
-          ...newLogs,
-          {
-            message: `Selected protocol: ${protocol}. Please enter the amount of USDC to stake:`,
-            type: 'info',
-            timestamp: new Date()
-          }
-        ]);
-      } else {
-        setAllLogs([
-          ...newLogs,
-          {
-            message: 'Invalid protocol. Please enter either CCIP or CCTP:',
-            type: 'error',
-            timestamp: new Date()
-          }
-        ]);
-      }
+      setSelectedProtocol(selected);
+      setBridgeProtocol(selected);
+      setStakeState('amount');
+      setAllLogs([
+        ...newLogs,
+        {
+          message: `Selected protocol: ${selected}. Please enter the amount of ${assetSymbol} to stake:`,
+          type: 'info',
+          timestamp: new Date()
+        }
+      ]);
       setCommand('');
       return;
     }
@@ -127,11 +124,10 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       }
 
       if (amount > usdcBalance) {
-        const tokenLabel = networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC';
         setAllLogs([
           ...newLogs,
           {
-            message: `Insufficient ${tokenLabel} balance. Your current ${tokenLabel} balance is ${usdcBalance.toFixed(2)} ${tokenLabel}`,
+            message: `Insufficient ${assetSymbol} balance. Your current ${assetSymbol} balance is ${usdcBalance.toFixed(2)} ${assetSymbol}`,
             type: 'error',
             timestamp: new Date()
           }
@@ -154,12 +150,11 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       }
 
       try {
-        const tokenLabel = networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC';
-        const protoLabel = networkConfig.name === 'Ripple Testnet' ? 'Axelar ITS' : selectedProtocol;
+        const protoLabel = selectedProtocol || bridgeProtocol;
         setAllLogs([
           ...newLogs,
           {
-            message: `Staking ${amount} ${tokenLabel} using ${protoLabel} protocol...`,
+            message: `Staking ${amount} ${assetSymbol} using ${protoLabel} protocol...`,
             type: 'info',
             timestamp: new Date()
           }
@@ -169,7 +164,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         setAllLogs([
           ...newLogs,
           {
-            message: `Staking Completed. Staked ${amount} ${tokenLabel} using ${protoLabel} protocol...`,
+            message: `Staking Completed. Staked ${amount} ${assetSymbol} using ${protoLabel} protocol...`,
             type: 'success',
             timestamp: new Date()
           }
@@ -216,22 +211,18 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       if (command.toLowerCase().includes('help')) {
         responseMessage = 'Available commands: stake, balance';
       } else if (command.toLowerCase().includes('stake')) {
-        // On Ripple Testnet, skip protocol selection — go straight to amount
-        if (networkConfig.name === 'Ripple Testnet') {
-          setSelectedProtocol(null);
-          setBridgeProtocol('Axelar ITS');
+        if (supportedProtocols.length === 1) {
+          setSelectedProtocol(supportedProtocols[0]);
+          setBridgeProtocol(supportedProtocols[0]);
           setStakeState('amount');
-          responseMessage = 'Staking via Axelar ITS. Please enter the amount of XRP to stake:';
+          responseMessage = `Staking via ${supportedProtocols[0]}. Please enter the amount of ${assetSymbol} to stake:`;
         } else {
           setStakeState('protocol');
-          const isBaseSepolia = chainId === SUPPORTED_NETWORKS['base-sepolia'].chainId;
-          responseMessage = isBaseSepolia
-            ? 'Please select a bridge protocol (CCIP only):'
-            : 'Please select a bridge protocol (CCIP or CCTP):';
+          responseMessage = `Please select a bridge protocol (${supportedProtocols.join(' or ')}):`;
         }
       } else if (command.toLowerCase().includes('balance')) {
-        const usdcBalance = getFormattedBalance();
-        responseMessage = `Current USDC balance: ${usdcBalance} USDC`;
+        const balance = assetSymbol === 'USDC' ? getFormattedBalance() : usdcBalance.toFixed(4);
+        responseMessage = `Current ${assetSymbol} balance: ${balance} ${assetSymbol}`;
         responseType = 'success';
       }
 
@@ -267,19 +258,25 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
   };
 
   return (
-    <div className={`terminal-container rounded-md border border-amber-700/50 overflow-hidden ${className}`}>
-      <div className="terminal-header bg-amber-800 text-green-100 px-3 py-1 text-xs flex items-center justify-between">
-        <span>terminal:~$</span>
+    <div
+      className={`terminal-container flex h-full min-h-0 flex-col overflow-hidden rounded-[24px] border ${
+        theme === 'night'
+          ? 'border-white/10 bg-slate-950 shadow-[0_18px_44px_rgba(0,0,0,0.32)]'
+          : 'border-slate-800/10 bg-slate-900 shadow-[0_18px_44px_rgba(15,23,42,0.16)]'
+      } ${className}`}
+    >
+      <div className="terminal-header flex items-center justify-between bg-slate-900 px-3 py-2 text-xs font-mono text-slate-300">
+        <span>ops.console</span>
         <span>{new Date().toLocaleString()}</span>
       </div>
 
       <div
         ref={terminalRef}
-        className="terminal-content bg-gray-900 p-3 h-64 overflow-y-auto font-mono text-xs leading-relaxed"
+        className="terminal-content min-h-[180px] flex-1 overflow-y-auto bg-slate-800 px-4 py-3 font-mono text-xs leading-relaxed"
       >
         {allLogs.map((log, index) => (
           <div key={index} className={`my-1 ${getLogStyle(log.type)}`}>
-            <span className="opacity-50">[{log.timestamp.toLocaleTimeString()}] </span>
+            <span className="text-slate-400">[{log.timestamp.toLocaleTimeString()}] </span>
             <span>{log.message}</span>
           </div>
         ))}
@@ -290,21 +287,22 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       </div>
 
       {interactive && (
-        <form onSubmit={handleCommandSubmit} className="terminal-input flex border-t border-amber-700/50">
-          <span className="bg-amber-800/50 px-2 py-1 text-xs font-mono flex items-center">$</span>
+        <form onSubmit={handleCommandSubmit} className="terminal-input flex border-t border-white/10 bg-slate-900">
+          <span className="flex items-center px-3 py-2 text-xs font-mono text-emerald-300">$</span>
           <input
             type="text"
             value={command}
             onChange={(e) => setCommand(e.target.value)}
-            className="flex-1 bg-gray-800 px-2 py-1 text-xs font-mono focus:outline-none text-yellow-100"
-            placeholder={stakeState === 'protocol' ?
-              (chainId === SUPPORTED_NETWORKS['base-sepolia'].chainId ? 'Enter protocol (CCIP only)...' : 'Enter protocol (CCIP/CCTP)...') :
-              stakeState === 'amount' ? 'Enter amount...' :
-                'Type command...'}
+            className="flex-1 bg-slate-900 px-2 py-2 text-xs font-mono text-slate-100 focus:outline-none"
+            placeholder={stakeState === 'protocol'
+              ? `Enter protocol (${supportedProtocols.join('/')})...`
+              : stakeState === 'amount'
+                ? `Enter amount in ${assetSymbol}...`
+                : 'Type command...'}
           />
           <button
             type="submit"
-            className="bg-amber-700 hover:bg-amber-600 px-3 text-beige-100"
+            className="px-3 text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
           >
             <Send size={14} />
           </button>

@@ -1,15 +1,14 @@
 import { ethers } from 'ethers';
-import { useWriteContract, useReadContract, useWaitForTransactionReceipt, useTransaction, useSimulateContract } from 'wagmi';
 import stakeABI from '../lib/abi/ChrysalisSender.json';
 import stakeCCTPABI from '../lib/abi/ChrysalisSenderCCTP.json';
 import { createPublicClient, http } from 'viem'
-import { arbitrumSepolia } from 'viem/chains'
 import { simulateContract } from "@wagmi/core"
 import stakedUserBalance from './sepoliaContract';
 import { config } from './walletConnect';
 import Web3 from 'web3';
 import ReceiverAbiCCTP from './abi/ChrysalisReceiverCCTP.json';
 import { getCCIPStatus, getCCTPAttestation } from '../services/api';
+import { normalizeEvmAddress } from './networkSupport';
 import { SUPPORTED_NETWORKS } from '../config/contract';
 
 const abiCoder = new ethers.AbiCoder();
@@ -32,12 +31,22 @@ const tupleType = `tuple(
 
 let userAddress: string;
 
+type WriteContractAsyncFn = (params: {
+  address: `0x${string}`;
+  abi: unknown;
+  functionName: string;
+  args: readonly unknown[];
+}) => Promise<string>;
+
+type DestinationExecutionError = Error & { destinationExecutionFailed?: boolean };
+
 export type StakeStatus = {
   sourceTxHash: string;
   ccipMessageId: string | null;
-  destinationTxHash: any;
+  destinationTxHash: string | null;
+  protocol?: 'CCIP' | 'CCTP' | 'Axelar ITS';
   status: 'UNTOUCHED' | 'IN_PROGRESS' | 'SUCCESS' | 'FAILURE' | 'COMMITTED' | 'BLESSED' | 'BRIDGING_BACK';
-  bridgingMessageId: any;
+  bridgingMessageId: string | null;
   timestamp: number;
   timeElapsed: string;
   expectedTime: string;
@@ -66,9 +75,9 @@ class StakeManager {
   private web3!: Web3;
   private sepoliaWeb3!: Web3;
   private networkConfig!: typeof SUPPORTED_NETWORKS[keyof typeof SUPPORTED_NETWORKS];
-  private publicClient: any;
+  private publicClient!: ReturnType<typeof createPublicClient>;
 
-  statusInterval: any;
+  statusInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(chainId: number) {
     this.updateChainId(chainId);
@@ -114,8 +123,7 @@ class StakeManager {
     receiver: string,
     amount: number,
     gasLimit: string,
-    writeContractAsync: any,
-    simulateTransaction: any,
+    writeContractAsync: WriteContractAsyncFn,
     onStatusUpdate: (status: StakeStatus) => void
   ): Promise<void> {
     try {
@@ -138,6 +146,7 @@ class StakeManager {
         sourceTxHash: txHashStake,
         ccipMessageId: null,
         destinationTxHash: null,
+        protocol: 'CCIP',
         status: 'IN_PROGRESS',
         bridgingMessageId: null,
         timestamp: initialTimestamp,
@@ -182,6 +191,7 @@ class StakeManager {
 
       this.currentStatus = {
         ...this.currentStatus,
+        protocol: 'CCIP',
         ccipMessageId: messageId,
         status: 'IN_PROGRESS',
         origin: userAddress,
@@ -220,8 +230,7 @@ class StakeManager {
     burnToken: string,
     destinationCaller: string,
     address: string,
-    writeContractAsync: any,
-    simulateTransaction: any,
+    writeContractAsync: WriteContractAsyncFn,
     onStatusUpdate: (status: StakeStatus) => void
   ): Promise<void> {
     try {
@@ -238,6 +247,7 @@ class StakeManager {
         sourceTxHash: txHashStake,
         ccipMessageId: null,
         destinationTxHash: null,
+        protocol: 'CCTP',
         status: 'IN_PROGRESS',
         bridgingMessageId: null,
         timestamp: initialTimestamp,
@@ -246,7 +256,7 @@ class StakeManager {
         isCommitted: false,
         isBlessed: false,
         attestationStatus: 'pending',
-        sourceChain: 'arbitrum_sepolia',
+        sourceChain: this.networkConfig.ccipNames.sourceName || this.networkConfig.name,
         origin: address,
         receiver: mintReceipient,
         amount: amount
@@ -256,23 +266,40 @@ class StakeManager {
       this.notifyStatusSubscribers(this.currentStatus);
       this.startTimer(initialTimestamp, onStatusUpdate);
 
-      const receipt = await this.pollTransactionReceipt(txHashStake);
-      const eventTopic = this.web3.utils.keccak256('MessageSent(bytes)');
-      const log = receipt.logs.find((l: any) => l.topics[0] === eventTopic);
-
-      if (log && log.data) {
-        const messageBytes = this.web3.eth.abi.decodeParameters(['bytes'], log.data)[0];
-        const messageHash = this.web3.utils.keccak256(messageBytes as string);
-
-        // Update status with messageBytes
-        this.currentStatus = {
-          ...this.currentStatus,
-          messageBytes: messageBytes as string
-        };
-        this.updateStatus(this.currentStatus, onStatusUpdate);
-
-        await this.pollAttestation(messageHash, messageBytes as string, amount, address, onStatusUpdate);
+      let receiptLogs: Array<{ topics: string[]; data: string }> = [];
+      try {
+        const receipt = await this.publicClient.waitForTransactionReceipt({
+          hash: txHashStake as `0x${string}`
+        });
+        receiptLogs = (receipt.logs ?? []).map((entry) => ({
+          topics: (entry.topics ?? []).map((topic) => String(topic)),
+          data: String(entry.data)
+        }));
+      } catch (waitError) {
+        console.warn('waitForTransactionReceipt failed, falling back to Web3 polling:', waitError);
+        const web3Receipt = await this.pollTransactionReceipt(txHashStake);
+        receiptLogs = (web3Receipt.logs ?? []) as Array<{ topics: string[]; data: string }>;
       }
+      const eventTopic = this.web3.utils.keccak256('MessageSent(bytes)');
+      const log = receiptLogs.find(
+        (entry) => (entry.topics?.[0] || '').toLowerCase() === eventTopic.toLowerCase()
+      );
+
+      if (!log?.data) {
+        throw new Error('CCTP MessageSent log not found in source transaction receipt');
+      }
+
+      const messageBytes = this.web3.eth.abi.decodeParameters(['bytes'], log.data)[0];
+      const messageHash = this.web3.utils.keccak256(messageBytes as string);
+
+      // Update status with messageBytes
+      this.currentStatus = {
+        ...this.currentStatus,
+        messageBytes: messageBytes as string
+      };
+      this.updateStatus(this.currentStatus, onStatusUpdate);
+
+      await this.pollAttestation(messageHash, messageBytes as string, amount, address, onStatusUpdate);
 
     } catch (error) {
       this.stopTimer();
@@ -282,7 +309,7 @@ class StakeManager {
   }
 
 
-  private async pollTransactionReceipt(txHash: string, maxRetries = 10, interval = 2000) {
+  private async pollTransactionReceipt(txHash: string, maxRetries = 120, interval = 2000) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
 
       const receipt = await this.web3.eth.getTransactionReceipt(txHash);
@@ -306,12 +333,18 @@ class StakeManager {
     console.log('Waiting 3 seconds before starting attestation polling...');
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    let attestationResponse = { status: 'pending_confirmations', attestation: '' };
+    let attestationResponse = { status: 'pending_confirmations', attestation: '', message: '' };
     let retryCount = 0;
 
-    while (attestationResponse.status === 'pending_confirmations') {
+    while (true) {
       try {
-        attestationResponse = await getCCTPAttestation(messageHash);
+        attestationResponse = await getCCTPAttestation({
+          messageHash,
+          sourceDomainId: this.networkConfig.sourceDomainId,
+          transactionHash: this.currentStatus?.sourceTxHash,
+          useMessagesV2: this.networkConfig.name === 'Arc Testnet',
+        });
+        const attestationStatus = attestationResponse.status || 'pending_confirmations';
 
         // Reset retry count on successful call
         retryCount = 0;
@@ -326,18 +359,81 @@ class StakeManager {
           expectedTime: this.currentStatus?.expectedTime || '',
           isCommitted: this.currentStatus?.isCommitted || false,
           isBlessed: this.currentStatus?.isBlessed || false,
-          attestationStatus: attestationResponse.status,
+          attestationStatus,
+          messageBytes: attestationResponse.message || this.currentStatus?.messageBytes,
         };
         onStatusUpdate(this.currentStatus);
 
-        if (attestationResponse.status === 'complete') {
-          await this.callSepoliaContract(messageBytes, attestationResponse.attestation, amount, address, onStatusUpdate);
+        if (attestationStatus === 'complete') {
+          const cctpMessage = attestationResponse.message || messageBytes;
+          console.log('CCTP destination execution context:', {
+            network: this.networkConfig.name,
+            sourceTxHash: this.currentStatus?.sourceTxHash,
+            sourceDomainId: this.networkConfig.sourceDomainId,
+            receiver: normalizeEvmAddress(this.networkConfig.contracts.cctpDestinationCaller),
+            usingApiMessage: Boolean(attestationResponse.message),
+            messageHash: this.web3.utils.keccak256(cctpMessage),
+          });
+          try {
+            await this.callSepoliaContract(cctpMessage, attestationResponse.attestation, amount, address, onStatusUpdate);
+          } catch (executionError) {
+            const destinationError = new Error(
+              `Destination execution failed: ${(executionError as Error)?.message || 'unknown error'}`
+            ) as DestinationExecutionError;
+            destinationError.destinationExecutionFailed = true;
+            throw destinationError;
+          }
           break;
         }
-      } catch (error: any) {
+
+        await new Promise((r) => setTimeout(r, 2000));
+      } catch (error: unknown) {
         console.error('Error fetching attestation:', error);
 
-        if (error.response?.status === 404) {
+        const isDestinationExecutionFailure = (
+          typeof error === 'object' &&
+          error !== null &&
+          'destinationExecutionFailed' in error &&
+          Boolean((error as DestinationExecutionError).destinationExecutionFailed)
+        );
+        if (isDestinationExecutionFailure) {
+          this.currentStatus = {
+            sourceTxHash: this.currentStatus?.sourceTxHash ?? '',
+            ccipMessageId: this.currentStatus?.ccipMessageId ?? null,
+            destinationTxHash: this.currentStatus?.destinationTxHash ?? null,
+            protocol: this.currentStatus?.protocol ?? 'CCTP',
+            status: 'FAILURE',
+            bridgingMessageId: this.currentStatus?.bridgingMessageId ?? null,
+            timestamp: this.currentStatus?.timestamp ?? Date.now(),
+            timeElapsed: this.formatTimeElapsed(this.currentStatus?.timestamp ?? Date.now()),
+            expectedTime: this.currentStatus?.expectedTime ?? '',
+            isCommitted: false,
+            isBlessed: false,
+            attestationStatus: 'complete',
+            sourceChain: this.currentStatus?.sourceChain ?? 'arbitrum_sepolia',
+            messageBytes: this.currentStatus?.messageBytes ?? '',
+            attestation: this.currentStatus?.attestation ?? ''
+          } as StakeStatus;
+          onStatusUpdate(this.currentStatus);
+          this.stopTimer();
+          throw error;
+        }
+
+        const responseStatus = (
+          typeof error === 'object' &&
+            error !== null &&
+            'status' in error &&
+            typeof (error as { status?: number }).status === 'number'
+            ? (error as { status?: number }).status
+            : typeof error === 'object' &&
+              error !== null &&
+              'response' in error &&
+              typeof (error as { response?: { status?: number } }).response?.status === 'number'
+              ? (error as { response?: { status?: number } }).response?.status
+              : undefined
+        );
+
+        if (responseStatus === 404) {
           console.log('Attestation not found (404), retrying in 2 seconds...');
           await new Promise(r => setTimeout(r, 2000));
           continue;
@@ -353,6 +449,7 @@ class StakeManager {
             sourceTxHash: this.currentStatus?.sourceTxHash ?? '',
             ccipMessageId: this.currentStatus?.ccipMessageId ?? null,
             destinationTxHash: this.currentStatus?.destinationTxHash ?? null,
+            protocol: this.currentStatus?.protocol ?? 'CCTP',
             status: 'FAILURE',
             bridgingMessageId: this.currentStatus?.bridgingMessageId ?? null,
             timestamp: this.currentStatus?.timestamp ?? Date.now(),
@@ -392,25 +489,75 @@ class StakeManager {
       const account = this.sepoliaWeb3.eth.accounts.privateKeyToAccount(
         import.meta.env.VITE_PRIVATE_KEY
       );
-      this.sepoliaWeb3.eth.accounts.wallet.add(account);
+      if (!this.sepoliaWeb3.eth.accounts.wallet.get(account.address)) {
+        this.sepoliaWeb3.eth.accounts.wallet.add(account);
+      }
 
       const contract = new this.sepoliaWeb3.eth.Contract(
         ReceiverAbiCCTP,
-        `0x${this.networkConfig.contracts.cctpDestinationCaller}` as `0x${string}`
+        normalizeEvmAddress(this.networkConfig.contracts.cctpDestinationCaller)
       );
 
-      const hookData = await contract.methods.getHookData(
-        amount,
-        address.toLowerCase()
-      ).call();
+      let hookData: string | null = null;
+      const receiverAddress = normalizeEvmAddress(this.networkConfig.contracts.cctpDestinationCaller);
+      const normalizedRecipient = normalizeEvmAddress(address);
+      const sourceDomainId = this.networkConfig.sourceDomainId ?? 0;
 
+      // New Arc/Op/Polygon receiver deployments use getHookData(uint256,address,uint32).
+      try {
+        const callDataV3 = this.sepoliaWeb3.eth.abi.encodeFunctionCall(
+          {
+            name: 'getHookData',
+            type: 'function',
+            inputs: [
+              { type: 'uint256', name: 'amount' },
+              { type: 'address', name: 'recipient' },
+              { type: 'uint32', name: 'sourceDomain' }
+            ]
+          },
+          [String(amount), normalizedRecipient, String(sourceDomainId)]
+        );
+        const responseV3 = await this.sepoliaWeb3.eth.call({ to: receiverAddress, data: callDataV3 });
+        if (responseV3 && responseV3 !== '0x') {
+          hookData = this.sepoliaWeb3.eth.abi.decodeParameter('bytes', responseV3) as string;
+        }
+      } catch (hookDataV3Error) {
+        console.warn('3-arg getHookData call failed, trying legacy 2-arg signature:', hookDataV3Error);
+      }
+
+      // Legacy receiver uses getHookData(uint256,address).
+      if (!hookData) {
+        try {
+          hookData = await contract.methods.getHookData(
+            amount,
+            normalizedRecipient
+          ).call();
+        } catch (hookDataV2Error) {
+          console.warn('2-arg getHookData call failed, using local ABI encoding fallback:', hookDataV2Error);
+        }
+      }
+
+      if (!hookData) {
+        hookData = sourceDomainId > 0
+          ? abiCoder.encode(
+            ['uint256', 'address', 'uint32'],
+            [BigInt(amount), normalizedRecipient, sourceDomainId]
+          )
+          : abiCoder.encode(
+            ['uint256', 'address'],
+            [BigInt(amount), normalizedRecipient]
+          );
+      }
+
+      console.log(hookData, messageBytes, attestation, "data");
       const tx = contract.methods.receiveUSDC(hookData, messageBytes, attestation);
       const gas = await tx.estimateGas({ from: account.address });
       const gasPrice = await this.sepoliaWeb3.eth.getGasPrice();
+      console.log(gas, gasPrice, "gas");
 
       const txData = {
         from: account.address,
-        to: `0x${this.networkConfig.contracts.cctpDestinationCaller}` as `0x${string}`,
+        to: receiverAddress,
         data: tx.encodeABI(),
         gas,
         gasPrice,
@@ -576,6 +723,7 @@ class StakeManager {
           sourceTxHash: txHash,
           ccipMessageId: messageId,
           destinationTxHash: ccipStatus.receiptTransactionHash || null,
+          protocol: this.currentStatus?.protocol ?? 'CCIP',
           status: newStatus,
           bridgingMessageId: null,
           timestamp: initialTimestamp,
@@ -652,6 +800,10 @@ class StakeManager {
     return () => {
       this.statusSubscribers = this.statusSubscribers.filter(cb => cb !== callback);
     };
+  }
+
+  public getCurrentStatus() {
+    return this.currentStatus;
   }
 
   private notifyStatusSubscribers(status: StakeStatus) {

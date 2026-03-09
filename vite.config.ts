@@ -19,6 +19,14 @@ export default defineConfig({
           'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept'
         },
       },
+      '/circle-api/v2': {
+        target: 'https://iris-api-sandbox.circle.com',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/circle-api/, ''),
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
+      },
       '/circle-api': {
         target: 'https://iris-api-sandbox.circle.com',
         changeOrigin: true,

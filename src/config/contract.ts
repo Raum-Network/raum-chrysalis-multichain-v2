@@ -2,9 +2,13 @@ export type NetworkConfig = {
   name: string;
   chainId: number;
   rpcUrl: string;
-  wssUrl?: string; // Add optional WSS URL property
+  wssUrl?: string;
   publicRpc: string;
   explorer: string;
+  supportedProtocols: BridgeProtocol[];
+  assetSymbol: 'USDC' | 'XRP';
+  destinationDomain?: number;
+  sourceDomainId?: number;
   contracts: {
     ccip: string;
     usdc: string;
@@ -21,12 +25,24 @@ export type NetworkConfig = {
   };
 };
 
-export type Networks = 'arbitrum-sepolia' | 'base-sepolia' | 'lisk-sepolia' | 'plume-testnet' | 'ripple-testnet';
+export type BridgeProtocol = 'CCIP' | 'CCTP' | 'Axelar ITS';
+
+export type Networks =
+  | 'arbitrum-sepolia'
+  | 'base-sepolia'
+  | 'lisk-sepolia'
+  | 'plume-testnet'
+  | 'arc-testnet'
+  | 'ripple-testnet';
 
 export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
   'arbitrum-sepolia': {
     name: 'Arbitrum Sepolia',
     chainId: 421614,
+    supportedProtocols: ['CCIP', 'CCTP'],
+    assetSymbol: 'USDC',
+    destinationDomain: 0,
+    sourceDomainId: 3,
     publicRpc: "https://sepolia-rollup.arbitrum.io/rpc",
     rpcUrl: 'https://arbitrum-sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64',
     explorer: 'https://sepolia.arbiscan.io',
@@ -47,6 +63,8 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
   'base-sepolia': {
     name: 'Base Sepolia',
     chainId: 84532,
+    supportedProtocols: ['CCIP'],
+    assetSymbol: 'USDC',
     rpcUrl: 'https://sepolia.base.org',
     publicRpc: 'https://sepolia.base.org',
     explorer: 'https://sepolia.basescan.org',
@@ -67,6 +85,8 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
   'lisk-sepolia': {
     name: 'Lisk Sepolia',
     chainId: 4202,
+    supportedProtocols: ['CCIP'],
+    assetSymbol: 'USDC',
     rpcUrl: 'https://lisk-sepolia.drpc.org/',
     publicRpc: 'https://lisk-sepolia.drpc.org/',
     explorer: 'https://sepolia-blockscout.lisk.com/',
@@ -87,6 +107,8 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
   'plume-testnet': {
     name: 'Plume Testnet',
     chainId: 98867,
+    supportedProtocols: ['CCIP'],
+    assetSymbol: 'USDC',
     rpcUrl: 'https://testnet-rpc.plume.org',
     publicRpc: 'https://testnet-rpc.plume.org',
     explorer: 'https://testnet-explorer.plume.org',
@@ -104,19 +126,93 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
       destName: 'ethereum-testnet-sepolia'
     }
   },
+  'arc-testnet': {
+    name: 'Arc Testnet',
+    chainId: 5042002,
+    supportedProtocols: ['CCTP'],
+    assetSymbol: 'USDC',
+    destinationDomain: 0,
+    sourceDomainId: 26,
+    rpcUrl: 'https://arc-testnet.g.alchemy.com/v2/rhTXLao3kvghbdRHQrcvM',
+    publicRpc: 'https://arc-testnet.g.alchemy.com/v2/rhTXLao3kvghbdRHQrcvM',
+    explorer: 'https://testnet.arcscan.app',
+    contracts: {
+      ccip: '0x0000000000000000000000000000000000000000',
+      usdc: '0x3600000000000000000000000000000000000000',
+      fees: '0x0000000000000000000000000000000000000000',
+      cctp: '0x459922d991923FcA7948dbee715C8dEBeF53948d',
+      cctpDestinationCaller: '0x50fDEE816a0eD2736AceB493D8Dae337835C65C8',
+      destination: '0x50fDEE816a0eD2736AceB493D8Dae337835C65C8',
+      decimal: 6
+    },
+    ccipNames: {
+      sourceName: 'arc_testnet',
+      destName: 'sepolia'
+    }
+  },
+  // 'op-sepolia': {
+  //   name: 'Optimism Sepolia',
+  //   chainId: 11155420,
+  //   supportedProtocols: ['CCTP'],
+  //   assetSymbol: 'USDC',
+  //   destinationDomain: 0,
+  //   sourceDomainId: 2,
+  //   rpcUrl: 'https://optimism-sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64',
+  //   publicRpc: 'https://optimism-sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64',
+  //   explorer: 'https://sepolia-optimism.etherscan.io',
+  //   contracts: {
+  //     ccip: '0x0000000000000000000000000000000000000000',
+  //     usdc: '0x5fd84259d66Cd46123540766Be93DFE6D43130D7',
+  //     fees: '0x0000000000000000000000000000000000000000',
+  //     cctp: '0x459922d991923FcA7948dbee715C8dEBeF53948d',
+  //     cctpDestinationCaller: '0x4EFF55608e01E7C4592dDB38F77E1ae1fE49fF73',
+  //     destination: '0x4EFF55608e01E7C4592dDB38F77E1ae1fE49fF73',
+  //     decimal: 6
+  //   },
+  //   ccipNames: {
+  //     sourceName: 'op_sepolia',
+  //     destName: 'sepolia'
+  //   }
+  // },
+  // 'polygon-amoy': {
+  //   name: 'Polygon Amoy',
+  //   chainId: 80002,
+  //   supportedProtocols: ['CCTP'],
+  //   assetSymbol: 'USDC',
+  //   destinationDomain: 0,
+  //   sourceDomainId: 7,
+  //   rpcUrl: 'https://polygon-amoy.infura.io/v3/cea2942c462d447983f9f20783cd2f64',
+  //   publicRpc: 'https://polygon-amoy.infura.io/v3/cea2942c462d447983f9f20783cd2f64',
+  //   explorer: 'https://www.oklink.com/amoy',
+  //   contracts: {
+  //     ccip: '0x0000000000000000000000000000000000000000',
+  //     usdc: '0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582',
+  //     fees: '0x0000000000000000000000000000000000000000',
+  //     cctp: '0x47ca18a5d1B79Bca11a3f41cD528c660299984d5',
+  //     cctpDestinationCaller: '0x4EFF55608e01E7C4592dDB38F77E1ae1fE49fF73',
+  //     destination: '0x4EFF55608e01E7C4592dDB38F77E1ae1fE49fF73',
+  //     decimal: 6
+  //   },
+  //   ccipNames: {
+  //     sourceName: 'polygon-testnet-amoy',
+  //     destName: 'ethereum-testnet-sepolia'
+  //   }
+  // },
   'ripple-testnet': {
     name: 'Ripple Testnet',
     chainId: 0,
-    rpcUrl: 'https://s.altnet.rippletest.net:51234', // Update to XRP Testnet RPC
-    wssUrl: 'wss://s.altnet.rippletest.net:51233', // Add WSS for xrpl client
+    supportedProtocols: ['Axelar ITS'],
+    assetSymbol: 'XRP',
+    rpcUrl: 'https://s.altnet.rippletest.net:51234',
+    wssUrl: 'wss://s.altnet.rippletest.net:51233',
     publicRpc: 'https://s.altnet.rippletest.net:51234',
     explorer: 'https://xrpscan.com/testnet',
     contracts: {
-      ccip: '', // Placeholder
-      usdc: '', // Placeholder
-      fees: '', // Placeholder
-      cctp: '', // Placeholder
-      cctpDestinationCaller: '0xfA2B78FD59E3E86425e7Bee5768fA5e7FA41D18c', // Axelar EVM Destination
+      ccip: '',
+      usdc: '',
+      fees: '',
+      cctp: '',
+      cctpDestinationCaller: '0xfA2B78FD59E3E86425e7Bee5768fA5e7FA41D18c',
       destination: 'rNrjh1KGZk2jBR3wPfAQnoidtFFYQKbQn2',
       decimal: 6
     },

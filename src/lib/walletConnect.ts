@@ -5,7 +5,6 @@ import {
   useConnect,
   useDisconnect,
   useReadContract,
-  useContractWrite,
   useChainId,
   useSwitchChain
 } from 'wagmi';
@@ -17,11 +16,24 @@ import { useEffect, useState } from 'react';
 import { erc20Abi } from 'viem';
 import { SUPPORTED_NETWORKS, Networks } from '../config/contract';
 
+type CrossmarkSdk = {
+  methods?: {
+    signInAndWait?: () => Promise<unknown>;
+    signAndSubmitAndWait?: (payload: unknown) => Promise<unknown>;
+  };
+  signInAndWait?: () => Promise<unknown>;
+  signAndSubmitAndWait?: (payload: unknown) => Promise<unknown>;
+};
+
+type Eip1193Provider = {
+  request: (args: { method: string; params?: unknown[] | object }) => Promise<string>;
+};
+
 declare global {
   interface Window {
-    crossmark?: any;
-    xrpl?: any;
-    ethereum?: any;
+    crossmark?: CrossmarkSdk;
+    xrpl?: { crossmark?: CrossmarkSdk };
+    ethereum?: Eip1193Provider;
   }
 }
 
@@ -44,15 +56,31 @@ const plumeTestnet = defineChain({
   testnet: true,
 });
 
+const arcTestnet = defineChain({
+  id: 5042002,
+  name: 'Arc Testnet',
+  network: 'arc-testnet',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://arc-testnet.g.alchemy.com/v2/rhTXLao3kvghbdRHQrcvM'] },
+    public: { http: ['https://arc-testnet.g.alchemy.com/v2/rhTXLao3kvghbdRHQrcvM'] },
+  },
+  blockExplorers: {
+    default: { name: 'ArcScan', url: 'https://testnet.arcscan.app' },
+  },
+  testnet: true,
+});
+
 // Config with all supported chains
 export const config = createConfig(
   getDefaultConfig({
-    chains: [arbitrumSepolia, baseSepolia, liskSepolia, plumeTestnet],
+    chains: [arbitrumSepolia, baseSepolia, liskSepolia, plumeTestnet, arcTestnet],
     transports: {
       [arbitrumSepolia.id]: http('https://sepolia-rollup.arbitrum.io/rpc'),
       [baseSepolia.id]: http('https://sepolia.base.org'),
       [liskSepolia.id]: http('https://lisk-sepolia.drpc.org/'),
       [plumeTestnet.id]: http('https://testnet-rpc.plume.org'),
+      [arcTestnet.id]: http('https://arc-testnet.g.alchemy.com/v2/rhTXLao3kvghbdRHQrcvM'),
     },
     walletConnectProjectId: "ffd25e3cc20b883d266134ce525caf88",
     appName: "Chrysalis - SteadyStake",
@@ -74,8 +102,12 @@ export function useWallet() {
   const [xrpBalance, setXrpBalance] = useState<number>(0);
 
   useEffect(() => {
-    const handleOverride = (e: any) => setNetworkOverride(e.detail);
-    const handleAddress = (e: any) => setCrossmarkAddress(e.detail);
+    const handleOverride = (event: Event) => {
+      setNetworkOverride((event as CustomEvent<Networks | null>).detail);
+    };
+    const handleAddress = (event: Event) => {
+      setCrossmarkAddress((event as CustomEvent<string | null>).detail);
+    };
     window.addEventListener('networkOverride', handleOverride);
     window.addEventListener('crossmarkAddress', handleAddress);
     return () => {
@@ -160,7 +192,7 @@ export function useWallet() {
       return { config: SUPPORTED_NETWORKS[networkOverride], key: networkOverride };
     }
     const network = Object.entries(SUPPORTED_NETWORKS).find(
-      ([_, config]) => config.chainId === chainId
+      (entry) => entry[1].chainId === chainId
     );
     return {
       config: network ? network[1] : SUPPORTED_NETWORKS['arbitrum-sepolia'],

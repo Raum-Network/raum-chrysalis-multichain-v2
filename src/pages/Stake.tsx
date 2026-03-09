@@ -1,21 +1,73 @@
 import { useState, useEffect } from 'react';
 import { useWallet } from '../lib/walletConnect';
-import { useStaking, StakingReceipt } from '../hooks/useStaking';
+import { useStaking } from '../hooks/useStaking';
 import stakeManager, { StakeStatus } from '../lib/stakeManager';
 import Button from '../components/Button';
 import Window from '../components/Window';
 import AmountInput from '../components/AmountInput';
-import { Progress } from '../components/Progress';
-import { ArrowRightLeft, Loader2, ChevronRight, CheckCircle2, XCircle, X, ArrowUpRight } from 'lucide-react';
+import { ArrowRightLeft, XCircle, X, ArrowUpRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SUPPORTED_NETWORKS } from '../config/contract';
+import { BridgeProtocol } from '../config/contract';
 import { getLidoAPY } from '../services/api';
 import ReactGA from 'react-ga4';
-import { ConnectKitButton } from 'connectkit';
+import { getTxExplorerUrl } from '../lib/networkSupport';
+
+type UiReceipt = {
+  [key: string]: string | number | undefined;
+  pool?: string;
+  amount?: string | number;
+  token?: string;
+  staker?: string;
+  mintedStETH?: string | number;
+  apy?: string | number;
+  days?: number;
+  stakedAt?: number;
+  txHash?: string;
+  id?: string;
+  v?: string | number;
+};
+
+const PROTOCOL_META: Record<BridgeProtocol, { title: string; subtitle: string }> = {
+  CCIP: {
+    title: 'Chainlink CCIP',
+    subtitle: 'Cross-Chain Interoperability Protocol'
+  },
+  CCTP: {
+    title: 'Circle CCTP',
+    subtitle: 'Cross-Chain Transfer Protocol'
+  },
+  'Axelar ITS': {
+    title: 'Axelar ITS',
+    subtitle: 'Interchain Token Service'
+  }
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  SUCCESS: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40',
+  FAILURE: 'bg-red-500/20 text-red-300 border-red-400/40',
+  IN_PROGRESS: 'bg-amber-500/20 text-amber-200 border-amber-400/40',
+  COMMITTED: 'bg-blue-500/20 text-blue-300 border-blue-400/40',
+  BLESSED: 'bg-blue-500/20 text-blue-300 border-blue-400/40',
+  BRIDGING_BACK: 'bg-purple-500/20 text-purple-300 border-purple-400/40',
+  UNTOUCHED: 'bg-zinc-500/20 text-zinc-300 border-zinc-400/40'
+};
 
 const Stake = () => {
   const { isConnected, networkConfig, address } = useWallet();
-  const { stake, stakeStatus, isStaking, bridgeProtocol, setBridgeProtocol, checkAllowance, isApproving, usdcBalance, linkBalance, xrpBalance, stakingNFTs, stakingOffers } = useStaking();
+  const {
+    stake,
+    bridgeProtocol,
+    setBridgeProtocol,
+    checkAllowance,
+    isStaking,
+    isApproving,
+    usdcBalance,
+    linkBalance,
+    stakingNFTs,
+    stakingOffers,
+    supportedProtocols,
+    assetSymbol
+  } = useStaking();
   const [stakeAmount, setStakeAmount] = useState(0);
   const [hasAllowance, setHasAllowance] = useState(false);
   const [stakeView, setStakeView] = useState<'form' | 'confirming' | 'success'>('form');
@@ -25,28 +77,9 @@ const Stake = () => {
   const [showSuccessDelay, setShowSuccessDelay] = useState(false);
   const [lidoAPY, setLidoAPY] = useState<number | null>(null);
   const [expandedNFT, setExpandedNFT] = useState<string | null>(null);
-
-  const getExplorerUrl = (txHash: string) => {
-    const network = Object.values(SUPPORTED_NETWORKS).find(net => net.chainId === networkConfig.chainId);
-    if (!network) return `https://sepolia.arbiscan.io/tx/${txHash}`;
-
-    switch (network.name.toLowerCase()) {
-      case 'arbitrum sepolia':
-        return `https://sepolia.arbiscan.io/tx/${txHash}`;
-      case 'base sepolia':
-        return `https://sepolia.basescan.org/tx/${txHash}`;
-      case 'lisk sepolia':
-        return `https://sepolia-blockscout.lisk.com/tx/${txHash}`;
-      case 'polygon amoy':
-        return `https://www.oklink.com/amoy/tx/${txHash}`;
-      case 'plume testnet':
-        return `https://testnet-explorer.plume.org/tx/${txHash}`;
-      case 'ripple testnet':
-        return `https://testnet.axelarscan.io/gmp/${txHash}`;
-      default:
-        return `https://sepolia.arbiscan.io/tx/${txHash}`;
-    }
-  };
+  const isRippleNetwork = supportedProtocols.includes('Axelar ITS');
+  const getExplorerUrl = (txHash: string, protocol: BridgeProtocol | string = bridgeProtocol) =>
+    getTxExplorerUrl(txHash, networkConfig.name, protocol);
 
   // Check allowance whenever stakeAmount changes
   useEffect(() => {
@@ -63,6 +96,15 @@ const Stake = () => {
 
   // Subscribe to StakeManager updates
   useEffect(() => {
+    const activeStatus = stakeManager.getCurrentStatus();
+    if (activeStatus) {
+      setCurrentStake(activeStatus);
+      setShowTransactionBox(true);
+      if (activeStatus.status === 'SUCCESS') {
+        setStakeView('success');
+      }
+    }
+
     const handleStatusUpdate = (status: StakeStatus) => {
       setCurrentStake(status);
       setShowTransactionBox(true);
@@ -118,7 +160,7 @@ const Stake = () => {
       ReactGA.event({
         category: 'Social Links',
         action: 'Click',
-        label: `Staking USDC ${address} on ${networkConfig.name} using ${bridgeProtocol}`,
+        label: `Staking ${assetSymbol} ${address} on ${networkConfig.name} using ${bridgeProtocol}`,
       });
       await stake(stakeAmount, lidoAPY ? lidoAPY.toFixed(2) : undefined);
     } catch (error) {
@@ -141,67 +183,39 @@ const Stake = () => {
   };
 
   const renderProtocolSelector = () => {
-    if (networkConfig.name === 'Ripple Testnet') {
+    if (supportedProtocols.length === 1) {
+      const protocol = supportedProtocols[0];
       return (
-        <div className="mb-4">
-          <button
-            className="p-3 rounded-md border border-amber-500 bg-amber-900/30 shadow-lg shadow-amber-900/20 w-full"
-            onClick={() => setBridgeProtocol("Axelar ITS")}
-          >
-            <div className="flex flex-col items-center space-y-2">
-              <span className="text-sm font-medium">Axelar ITS</span>
-              <span className="text-xs opacity-70">Interchain Token Service</span>
+        <div className="mb-2 premium-card rounded-xl border border-black/5 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="eyebrow mb-1">Protocol Route</div>
+              <div className="text-base font-semibold">{PROTOCOL_META[protocol].title}</div>
+              <div className="muted-copy text-xs">{PROTOCOL_META[protocol].subtitle}</div>
             </div>
-          </button>
+            <span className="premium-pill rounded-full px-3 py-1 text-xs">Active</span>
+          </div>
         </div>
       );
     }
 
-    // For Base Sepolia and Lisk Sepolia, only show CCIP
-    if (networkConfig.name === 'Base Sepolia' || networkConfig.name === 'Lisk Sepolia' || networkConfig.name === 'Plume Testnet') {
-      return (
-        <div className="mb-4">
-          <button
-            className="p-3 rounded-md border border-amber-500 bg-amber-900/30 shadow-lg shadow-amber-900/20 w-full"
-            onClick={() => setBridgeProtocol("CCIP")}
-          >
-            <div className="flex flex-col items-center space-y-2">
-              <span className="text-sm font-medium">Chainlink CCIP</span>
-              <span className="text-xs opacity-70">Cross-Chain Interoperability Protocol</span>
-            </div>
-          </button>
-        </div>
-      );
-    }
-
-    // For other networks, show both CCIP and CCTP
     return (
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        {['CCIP', 'CCTP'].map((protocol) => (
+      <div className={`grid gap-3 mb-2 ${supportedProtocols.length > 2 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+        {supportedProtocols.map((protocol) => (
           <button
             key={protocol}
-            onClick={() => setBridgeProtocol(protocol as "CCIP" | "CCTP" | "Axelar ITS")}
+            onClick={() => setBridgeProtocol(protocol as BridgeProtocol)}
             className={`
-              p-3 rounded-md border transition-all duration-200
+              p-4 rounded-xl border transition-all duration-200 text-left
               ${bridgeProtocol === protocol
-                ? 'bg-gray-800 text-green-500 border-green-500/30'
-                : 'border-amber-700/40 bg-amber-900/10 hover:bg-amber-900/20'
+                ? 'premium-pill border-[rgba(var(--accent),0.24)] shadow-lg shadow-[rgba(16,122,110,0.12)]'
+                : 'premium-card hover:border-[rgba(var(--accent),0.24)]'
               }
             `}
           >
-            <div className="flex flex-col items-center space-y-2">
-              <span className="text-sm font-medium">
-                {protocol === 'CCIP' ? 'Chainlink CCIP' : 'Circle CCTP'}
-              </span>
-              <h4 className="text-sm font-medium opacity-80">
-                {networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}
-              </h4>
-              <span className="text-xs opacity-70">
-                {protocol === 'CCIP'
-                  ? 'Cross-Chain Interoperability Protocol'
-                  : 'Cross-Chain Transfer Protocol'
-                }
-              </span>
+            <div className="flex flex-col space-y-1">
+              <span className="text-sm font-semibold">{PROTOCOL_META[protocol as BridgeProtocol].title}</span>
+              <span className="muted-copy text-xs">{PROTOCOL_META[protocol as BridgeProtocol].subtitle}</span>
             </div>
           </button>
         ))}
@@ -211,63 +225,58 @@ const Stake = () => {
 
   const renderTransactionBox = () => {
     if (!currentStake || !showTransactionBox) return null;
-
-    const getProgressValue = () => {
-      if (currentStake.status === 'SUCCESS') return 100;
-      if (currentStake.status === 'FAILURE') return 100;
-      if (currentStake.isBlessed) return 75;
-      if (currentStake.isCommitted) return 50;
-      if (currentStake.status === 'IN_PROGRESS') return 25;
-      return 0;
-    };
+    const transactionProtocol = currentStake.protocol || bridgeProtocol;
+    const statusStyle = STATUS_STYLES[currentStake.status] || STATUS_STYLES.UNTOUCHED;
 
     return (
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className="mt-4 p-4 border border-amber-700/40 rounded-md bg-amber-900/10"
+        className="mt-4 p-4 rounded-xl premium-card"
       >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-medium">Transaction Status</h3>
           <button
             onClick={() => setShowTransactionBox(false)}
-            className="p-1 hover:bg-amber-700/30 rounded-full"
+            className="rounded-full p-1 hover:bg-black/5"
           >
             <X size={20} />
           </button>
         </div>
 
         <div className="space-y-4">
-          <div className="flex justify-between text-sm">
-            <span>Status: {currentStake.status}</span>
+          <div className="flex justify-between items-center text-sm">
+            <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${statusStyle}`}>
+              {currentStake.status.replace('_', ' ')}
+            </span>
             <span>Expected Time: {currentStake.expectedTime}</span>
           </div>
 
           {currentStake.sourceTxHash && (
-            <div className="text-sm break-all">
-              <span className="text-amber-500">Source Tx:</span>
+            <div className="text-sm break-all premium-card rounded-lg p-3">
+              <span className="eyebrow">Source Tx</span>
               <a
-                href={getExplorerUrl(currentStake.sourceTxHash)}
+                href={getExplorerUrl(currentStake.sourceTxHash, transactionProtocol)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-2 text-amber-400 hover:text-green-500"
+                className="mt-1 flex items-center text-[rgb(var(--accent-strong))] hover:opacity-80"
               >
                 {currentStake.sourceTxHash}
               </a>
-              <p className="text-xs opacity-70 mt-1">Stake {stakeAmount || '0'} {networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}</p>
+              <p className="muted-copy mt-1 text-xs">Stake {stakeAmount || '0'} {assetSymbol}</p>
             </div>
           )}
 
           {/* Show CCIP Message ID only for CCIP transactions */}
-          {bridgeProtocol === 'CCIP' && currentStake.ccipMessageId && (
-            <div className="text-sm break-all">
-              <span className="text-amber-500">CCIP Message ID:</span>
+          {transactionProtocol === 'CCIP' && currentStake.ccipMessageId && (
+            <div className="text-sm break-all premium-card rounded-lg p-3">
+              <span className="eyebrow">CCIP Message ID</span>
               <a
                 href={`https://ccip.chain.link/msg/${currentStake.ccipMessageId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-2 text-amber-400 hover:text-green-500"
+                className="mt-1 flex items-center text-[rgb(var(--accent-strong))] hover:opacity-80"
               >
                 {currentStake.ccipMessageId}
               </a>
@@ -275,13 +284,13 @@ const Stake = () => {
           )}
 
           {currentStake.destinationTxHash && (
-            <div className="text-sm break-all">
-              <span className="text-amber-500">Destination Tx:</span>
+            <div className="text-sm break-all premium-card rounded-lg p-3">
+              <span className="eyebrow">Destination Tx</span>
               <a
                 href={`https://sepolia.etherscan.io/tx/${currentStake.destinationTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-2 text-amber-400 hover:text-green-500"
+                className="mt-1 flex items-center text-[rgb(var(--accent-strong))] hover:opacity-80"
               >
                 {currentStake.destinationTxHash}
               </a>
@@ -289,7 +298,7 @@ const Stake = () => {
           )}
 
           {/* Show countdown for CCTP transactions */}
-          {bridgeProtocol === 'CCTP' && currentStake.status === 'SUCCESS' && !showSuccessDelay && (
+          {transactionProtocol === 'CCTP' && currentStake.status === 'SUCCESS' && !showSuccessDelay && (
             <div className="mt-4 text-sm text-center">
               {/* <p>Showing transaction details for 30 seconds...</p>
               <p className="text-xs opacity-70">You will be redirected to the dashboard view shortly</p> */}
@@ -304,19 +313,39 @@ const Stake = () => {
     <div className="space-y-4 p-2">
       {!currentStake && renderProtocolSelector()}
 
-      <div className="p-3 rounded-md border border-amber-700/40 bg-amber-900/10">
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-sm opacity-70">Available {networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}</span>
-          <div>Available: {parseFloat(usdcBalance.toString()).toFixed(4)} {networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}</div>
+      <div className="premium-card rounded-xl p-4">
+        <div className="eyebrow mb-3">Supported On This Network</div>
+        <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+          <div>
+            <span className="muted-copy">Network</span>
+            <div className="mt-1 font-medium">{networkConfig.name}</div>
+          </div>
+          <div>
+            <span className="muted-copy">Protocols</span>
+            <div className="mt-1 font-medium">{supportedProtocols.join(', ')}</div>
+          </div>
+          <div>
+            <span className="muted-copy">Asset</span>
+            <div className="mt-1 font-medium">{assetSymbol}</div>
+          </div>
         </div>
-        <div className="border-t border-amber-700/30 pt-3 mt-2">
+      </div>
+
+      <div className="premium-card rounded-xl p-4">
+        <div className="flex justify-between items-center mb-3">
+          <span className="eyebrow">Available Balance</span>
+          <div className="text-sm font-medium">
+            {parseFloat(usdcBalance.toString()).toFixed(4)} {assetSymbol}
+          </div>
+        </div>
+        <div className="border-t premium-divider pt-3">
           <AmountInput
             value={stakeAmount}
             onChange={setStakeAmount}
             min={0}
             step={0.01}
             label={`Stake Amount (${bridgeProtocol})`}
-            suffix={networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}
+            suffix={assetSymbol}
             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
         </div>
@@ -333,10 +362,11 @@ const Stake = () => {
           currentStake?.status === 'IN_PROGRESS'
         }
         fullWidth
+        className="h-11 rounded-xl"
       >
         {isApproving ? 'Approving...'
           : isStaking || currentStake?.status === 'IN_PROGRESS' ? 'Staking in Progress...'
-            : stakeAmount > usdcBalance ? `Insufficient ${networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}`
+            : stakeAmount > usdcBalance ? `Insufficient ${assetSymbol}`
               : bridgeProtocol === "CCIP" && linkBalance < 10 ? 'Insufficient LINK Balance'
                 : !hasAllowance ? `Approve and Stake in ${bridgeProtocol}`
                   : `Stake with ${bridgeProtocol}`}
@@ -348,18 +378,6 @@ const Stake = () => {
     </div>
   );
 
-  const renderConfirming = () => (
-    <div className="p-4 flex flex-col items-center justify-center">
-      <div className="mb-6">
-        <Loader2 size={48} className="animate-spin text-amber-500" />
-      </div>
-      <h3 className="text-xl mb-2">Confirming Transaction</h3>
-      <p className="text-sm opacity-70 text-center">
-        Please confirm the transaction in your wallet
-      </p>
-    </div>
-  );
-
   const renderSuccess = () => (
     <div className="p-4">
       <div className="mb-6">
@@ -367,25 +385,25 @@ const Stake = () => {
           <h3 className="text-xl">Stake Complete</h3>
           <Button
             onClick={resetForm}
-            className="hover:bg-amber-900/20"
+            className="hover:bg-black/5"
           >
             Stake More
           </Button>
         </div>
-        <p className="text-sm opacity-70 mt-2">
-          Successfully staked {stakeAmount.toFixed(4)} {networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}
+        <p className="muted-copy mt-2 text-sm">
+          Successfully staked {stakeAmount.toFixed(4)} {assetSymbol}
         </p>
       </div>
 
       <div className="mt-6 space-y-4">
         {currentStake?.sourceTxHash && (
-          <div className="p-3 rounded border border-amber-700/30 bg-amber-900/10">
-            <div className="text-xs opacity-70 mb-1">Transaction Hash</div>
+          <div className="premium-card rounded-xl p-4">
+            <div className="eyebrow mb-2">Transaction Hash</div>
             <a
-              href={getExplorerUrl(currentStake.sourceTxHash)}
+              href={getExplorerUrl(currentStake.sourceTxHash, bridgeProtocol)}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center space-x-1 hover:text-amber-400"
+              className="flex items-center space-x-1 text-[rgb(var(--accent-strong))] hover:opacity-80"
             >
               <span className="break-all">{currentStake.sourceTxHash}</span>
               <ArrowUpRight size={14} />
@@ -415,22 +433,33 @@ const Stake = () => {
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl mb-1">Stake Asset</h1>
-        <p className="text-sm opacity-70">
-          {networkConfig.name === 'Ripple Testnet'
-            ? 'Stake your XRP using Axelar ITS and receive LST + APR in return'
-            : 'Stake your USDC using CCIP/CCTP and receive LST + APR in return'}
-        </p>
+    <div className="route-scroll">
+      <div className="page-canvas page-wide flex min-h-full flex-col gap-4">
+      <div className="premium-surface rounded-[32px] p-5 sm:p-6">
+        <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr] xl:items-end">
+          <div>
+            <div className="eyebrow">Cross-chain staking desk</div>
+            <h1 className="mt-4 text-4xl font-semibold">Stake Asset</h1>
+            <p className="muted-copy mt-3 max-w-2xl text-base leading-7">
+              {isRippleNetwork
+                ? 'Stake XRP using Axelar ITS and receive LST + APR in return'
+                : 'Stake your USDC using CCIP/CCTP and receive LST + APR in return'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs font-semibold xl:justify-end">
+            <span className="premium-pill rounded-full px-3 py-1.5">{networkConfig.name}</span>
+            <span className="premium-card rounded-full px-3 py-1.5">{supportedProtocols.join(' / ')}</span>
+            <span className="premium-card rounded-full px-3 py-1.5">Asset: {assetSymbol}</span>
+          </div>
+        </div>
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-md">
+        <div className="premium-card rounded-[24px] border border-red-500/25 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <XCircle size={20} className="text-red-400 mr-2" />
-              <span className="text-red-400">{error}</span>
+              <span className="text-red-300">{error}</span>
             </div>
             <Button onClick={handleClearError} variant="danger" size="sm">
               Try Again
@@ -439,35 +468,35 @@ const Stake = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Window title={`Stake Asset`}>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-5">
+        <Window title="Stake Asset" className="xl:col-span-3">
           {stakeView === 'success'
             ? renderSuccess()
             : renderStakeForm()
           }
         </Window>
 
-        <div className="flex flex-col gap-6">
-          {networkConfig.name === 'Ripple Testnet' && stakingOffers && stakingOffers.length > 0 && (
+        <div className="flex min-h-0 flex-col gap-4 xl:col-span-2 xl:overflow-auto">
+          {isRippleNetwork && stakingOffers && stakingOffers.length > 0 && (
             <Window title="Action Required: Pending Receipts">
               <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[300px] p-2 pr-3">
-                {stakingOffers.map((item: { id: string, offerIndex: string, receipt: any }) => (
-                  <div key={item.id} className="border border-indigo-500/50 rounded-md p-4 bg-indigo-900/20 flex flex-col relative overflow-hidden backdrop-blur-sm">
-                    <div className="absolute top-0 right-0 bg-indigo-500/20 text-indigo-300 text-[9px] px-2 py-1 rounded-bl-md font-mono border-l border-b border-indigo-500/20">
+                {stakingOffers.map((item: { id: string, offerIndex: string, receipt: UiReceipt }) => (
+                  <div key={item.id} className="premium-card rounded-[24px] p-4 flex flex-col relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-indigo-500/15 text-indigo-600 text-[9px] px-2 py-1 rounded-bl-md font-mono border-l border-b border-indigo-500/20">
                       {item.id.substring(0, 8)}...
                     </div>
-                    <h3 className="text-sm font-medium text-indigo-400 mb-1 truncate pr-16">{item.receipt.pool}</h3>
+                    <h3 className="text-sm font-medium text-indigo-600 mb-1 truncate pr-16">{item.receipt.pool}</h3>
                     <div className="flex items-end mb-3">
                       <span className="text-2xl font-semibold tracking-tight">{item.receipt.amount}</span>
-                      <span className="ml-1.5 text-sm opacity-80 mb-1 font-medium bg-indigo-900/50 px-1.5 py-0.5 rounded text-indigo-200">{item.receipt.token}</span>
+                      <span className="ml-1.5 text-sm opacity-80 mb-1 font-medium bg-indigo-500/10 px-1.5 py-0.5 rounded text-indigo-700">{item.receipt.token}</span>
                     </div>
 
-                    <div className="mt-2 pt-3 border-t border-indigo-500/40">
+                    <div className="mt-2 pt-3 border-t border-indigo-500/20">
                       <Button
                         size="sm"
                         onClick={async () => {
                           try {
-                            // @ts-ignore
+                            // @ts-expect-error crossmark SDK is injected at runtime.
                             const crossmarkSdk = window.xrpl?.crossmark || window.crossmark;
                             if (!crossmarkSdk) throw new Error("Crossmark extension not found");
                             const tx = {
@@ -502,25 +531,25 @@ const Stake = () => {
             </Window>
           )}
 
-          {networkConfig.name === 'Ripple Testnet' ? (
+          {isRippleNetwork ? (
             <Window title="Your Minted Staking Receipts (XRPL NFTs)">
               {stakingNFTs.length > 0 ? (
                 <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[500px] p-2 pr-3">
-                  {stakingNFTs.map((item: { id: string, receipt: any }) => (
+                  {stakingNFTs.map((item: { id: string, receipt: UiReceipt }) => (
                     <div
                       key={item.id}
-                      className="border border-amber-700/50 rounded-md p-4 bg-amber-900/20 flex flex-col relative overflow-hidden backdrop-blur-sm cursor-pointer hover:border-amber-500/70 transition-colors"
+                      className="premium-card rounded-[24px] p-4 flex flex-col relative overflow-hidden cursor-pointer hover:border-[rgba(var(--accent),0.28)] transition-colors"
                       onClick={() => setExpandedNFT(expandedNFT === item.id ? null : item.id)}
                     >
-                      <div className="absolute top-0 right-0 bg-amber-500/20 text-black text-[9px] px-2 py-1 rounded-bl-md font-mono border-l border-b border-amber-500/20">
+                      <div className="absolute top-0 right-0 bg-[rgba(var(--accent),0.12)] text-[rgb(var(--accent-strong))] text-[9px] px-2 py-1 rounded-bl-md font-mono border-l border-b border-[rgba(var(--accent),0.12)]">
                         Info
                       </div>
-                      <h3 className="text-sm font-medium text-amber-400 mb-1 truncate pr-16">{item.receipt.pool}</h3>
+                      <h3 className="text-sm font-medium mb-1 truncate pr-16">{item.receipt.pool}</h3>
                       <div className="flex items-end mb-3">
                         <span className="text-2xl font-semibold tracking-tight">{item.receipt.amount}</span>
-                        <span className="ml-1.5 text-sm opacity-80 mb-1 font-medium bg-amber-900/50 px-1.5 py-0.5 rounded text-amber-200">{item.receipt.token}</span>
+                        <span className="ml-1.5 text-sm opacity-80 mb-1 font-medium bg-black/5 px-1.5 py-0.5 rounded">{item.receipt.token}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs opacity-70 mt-auto pt-3 border-t border-amber-700/40">
+                      <div className="grid grid-cols-2 gap-2 text-xs opacity-80 mt-auto pt-3 border-t border-black/5">
                         <div className="flex flex-col">
                           <span className="opacity-60 mb-0.5">Minted Asset</span>
                           <span className="text-amber-100 font-medium">{item.receipt.mintedStETH || '0'} stETH</span>
@@ -532,40 +561,40 @@ const Stake = () => {
                       </div>
 
                       {expandedNFT === item.id && (
-                        <div className="mt-3 pt-3 border-t border-gray-600/60 space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
-                          <h4 className="text-white font-semibold text-sm mb-2">Full Metadata</h4>
-                          <div className="grid grid-cols-1 gap-2 bg-gray-900 border border-gray-700/60 rounded-lg p-3.5 font-mono text-[11px]">
+                        <div className="mt-3 pt-3 border-t border-black/5 space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                          <h4 className="font-semibold text-sm mb-2">Full Metadata</h4>
+                          <div className="grid grid-cols-1 gap-2 premium-card border rounded-lg p-3.5 font-mono text-[11px]">
                             <div className="flex justify-between">
-                              <span className="text-gray-400">NFToken ID</span>
-                              <span className="text-white break-all text-right ml-4">{item.id}</span>
+                              <span className="muted-copy">NFToken ID</span>
+                              <span className="break-all text-right ml-4">{item.id}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Staker</span>
-                              <span className="text-white break-all text-right ml-4">{item.receipt.staker}</span>
+                              <span className="muted-copy">Staker</span>
+                              <span className="break-all text-right ml-4">{item.receipt.staker}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Amount</span>
-                              <span className="text-white">{item.receipt.amount} {item.receipt.token}</span>
+                              <span className="muted-copy">Amount</span>
+                              <span>{item.receipt.amount} {item.receipt.token}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Pool</span>
-                              <span className="text-white">{item.receipt.pool}</span>
+                              <span className="muted-copy">Pool</span>
+                              <span>{item.receipt.pool}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Minted stETH</span>
-                              <span className="text-white">{item.receipt.mintedStETH || '0'}</span>
+                              <span className="muted-copy">Minted stETH</span>
+                              <span>{item.receipt.mintedStETH || '0'}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">APY</span>
+                              <span className="muted-copy">APY</span>
                               <span className="text-green-400 font-semibold">{item.receipt.apy}%</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Lock Period</span>
-                              <span className="text-white">{item.receipt.days > 0 ? `${item.receipt.days} days` : 'Flexible'}</span>
+                              <span className="muted-copy">Lock Period</span>
+                              <span>{item.receipt.days > 0 ? `${item.receipt.days} days` : 'Flexible'}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Staked At</span>
-                              <span className="text-white">{item.receipt.stakedAt ? new Date(item.receipt.stakedAt * 1000).toLocaleString() : '--'}</span>
+                              <span className="muted-copy">Staked At</span>
+                              <span>{item.receipt.stakedAt ? new Date(item.receipt.stakedAt * 1000).toLocaleString() : '--'}</span>
                             </div>
                             {item.receipt.txHash && (
                               <div className="flex justify-between">
@@ -582,12 +611,12 @@ const Stake = () => {
                               </div>
                             )}
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Receipt ID</span>
-                              <span className="text-white">{item.receipt.id}</span>
+                              <span className="muted-copy">Receipt ID</span>
+                              <span>{item.receipt.id}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Version</span>
-                              <span className="text-white">v{item.receipt.v}</span>
+                              <span className="muted-copy">Version</span>
+                              <span>v{item.receipt.v}</span>
                             </div>
                           </div>
                         </div>
@@ -596,49 +625,50 @@ const Stake = () => {
                   ))}
                 </div>
               ) : (
-                <div className="p-8 text-center flex flex-col items-center justify-center h-full border border-amber-700/30 rounded-md bg-amber-900/10 min-h-[160px] m-2">
-                  <h3 className="text-amber-400 font-medium mb-1">No Minted Receipts</h3>
-                  <p className="text-sm opacity-60">Stake USDC using Axelar ITS to mint a receipt NFT on the XRPL.</p>
+                <div className="p-8 text-center flex flex-col items-center justify-center h-full premium-card rounded-[24px] min-h-[160px] m-2">
+                  <h3 className="font-medium mb-1">No Minted Receipts</h3>
+                  <p className="muted-copy text-sm">Stake XRP using Axelar ITS to mint a receipt NFT on the XRPL.</p>
                 </div>
               )}
             </Window>
           ) : (
-            <Window title="Staking Information">
+            <Window title="Staking Intelligence">
               <div className="space-y-4 p-2">
-                <div className="p-3 rounded-md border border-amber-700/40 bg-amber-900/10">
+                <div className="premium-card rounded-[24px] p-4">
                   <h3 className="text-sm font-medium mb-2">About rnstETH</h3>
-                  <p className="text-sm opacity-80 leading-relaxed">
-                    rnstETH is a token that represents your staked USDC in the LIDO protocol.
-                    You can transfer or trade rnstETH like any other token while continuing to earn staking rewards.
+                  <p className="muted-copy text-sm leading-relaxed">
+                    rnstETH represents your staked USDC in the Lido strategy flow.
+                    It stays transferable while the underlying stake keeps accruing yield.
                   </p>
                 </div>
 
-                <div className="p-3 rounded-md border border-amber-700/40 bg-amber-900/10">
-                  <h3 className="text-sm font-medium mb-2">Current Statistics</h3>
+                <div className="premium-card rounded-[24px] p-4">
+                  <h3 className="text-sm font-medium mb-3">Current Statistics</h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="opacity-70">Total USDC Staked</span>
+                      <span className="muted-copy">Total USDC Staked</span>
                       <span>-- USDC</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="opacity-70">Current APR</span>
+                      <span className="muted-copy">Current APR</span>
                       <span className="text-green-400">{lidoAPY ? `${lidoAPY.toFixed(2)}%` : '--'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="opacity-70">Total Stakers</span>
+                      <span className="muted-copy">Total Stakers</span>
                       <span>--</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-center">
-                  <ArrowRightLeft size={24} className="mr-2" />
-                  <span className="text-sm opacity-80">{networkConfig.name === 'Ripple Testnet' ? '1 rnstETH = 1 stETH' : '1 rnstETH = 1 stETH'}</span>
+                <div className="flex items-center justify-center premium-card rounded-[24px] p-4">
+                  <ArrowRightLeft size={20} className="mr-2 text-[rgb(var(--accent-strong))]" />
+                  <span className="text-sm">1 rnstETH = 1 stETH</span>
                 </div>
               </div>
             </Window>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

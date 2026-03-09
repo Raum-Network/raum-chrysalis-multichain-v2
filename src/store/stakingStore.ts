@@ -10,7 +10,7 @@ interface Transaction {
   sourceDecimals: number;
   sourceNetworkName: string;
   destNetworkName: string;
-  blockTimestamp: any;
+  blockTimestamp: number | string | null;
   state: number;
   messageId: string;
   status: string;
@@ -69,6 +69,7 @@ interface StakingStore {
 
 const getNetworkDecimals = (chainName: string): number => {
   const networkKey = Object.keys(SUPPORTED_NETWORKS).find(key => 
+    SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].name.toLowerCase() === chainName.toLowerCase() ||
     SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].ccipNames.sourceName.toLowerCase() === chainName.toLowerCase() ||
     SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].ccipNames.destName.toLowerCase() === chainName.toLowerCase()
   );
@@ -83,12 +84,13 @@ const getNetworkName = (chainName: string): string => {
   
   
   const networkKey = Object.keys(SUPPORTED_NETWORKS).find(key => {
+    const name = SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].name.toLowerCase();
     const sourceName = SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].ccipNames.sourceName.toLowerCase();
     const destName = SUPPORTED_NETWORKS[key as keyof typeof SUPPORTED_NETWORKS].ccipNames.destName.toLowerCase();
     const inputName = chainName.toLowerCase();
     
     
-    return sourceName === inputName || destName === inputName;
+    return name === inputName || sourceName === inputName || destName === inputName;
   });
   
   

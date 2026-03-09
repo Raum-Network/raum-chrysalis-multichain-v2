@@ -1,51 +1,34 @@
-import { ArrowRight, TreePine, Database, Shield, Wallet, DollarSign, Landmark } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Orbit, ShieldCheck, SplitSquareVertical, Waves } from 'lucide-react';
 import Button from '../components/Button';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useWallet } from '../lib/walletConnect';
 import Terminal from '../components/Terminal';
-import { ConnectKitButton } from 'connectkit';
 import ReactGA from 'react-ga4';
 import { useEffect } from 'react';
 
 const Home = () => {
-  const { isConnected, connect, address } = useWallet();
+  const { isConnected, address, networkConfig } = useWallet();
 
-  const terminalLogs: { message: string; type: 'success' | 'info' | 'error' | 'warning' | 'command'; timestamp: Date; }[] = [
+  const terminalLogs: { message: string; type: 'success' | 'info' | 'error' | 'warning' | 'command'; timestamp: Date }[] = [
     {
-      message: 'Chrysalis Testnet initialized',
+      message: 'Chrysalis orchestration layer ready',
       type: 'success',
       timestamp: new Date()
     },
     {
-      message: 'Welcome to the Chrysalis liquid staking dapp',
-      type: 'success',
+      message: `Network context loaded: ${networkConfig.name}`,
+      type: 'info',
       timestamp: new Date()
     },
     {
-      message: 'Running on Testnet',
+      message: 'Routing matrix available for stake and transaction flows',
       type: 'success',
       timestamp: new Date()
     }
   ];
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  };
-
   useEffect(() => {
-
     if (address) {
       ReactGA.event({
         category: 'Wallet',
@@ -53,152 +36,138 @@ const Home = () => {
         label: `Connected Wallet ${address}`
       });
     }
-  }, [address])
+  }, [address]);
 
-
-
+  const featureCards = [
+    {
+      title: 'Protocol-aware routing',
+      copy: 'Stake through CCIP, CCTP, or Axelar ITS based on the network capability matrix.',
+      icon: <SplitSquareVertical size={18} />
+    },
+    {
+      title: 'Live execution visibility',
+      copy: 'Source, message, attestation, and destination status stay visible as the bridge flow progresses.',
+      icon: <Orbit size={18} />
+    },
+    {
+      title: 'Minimal operator UX',
+      copy: 'The interface keeps the flow readable under load without hiding protocol or asset context.',
+      icon: <Waves size={18} />
+    },
+    {
+      title: 'Guarded by network config',
+      copy: 'Supported protocols, assets, and explorer links are derived from config rather than hardcoded page rules.',
+      icon: <ShieldCheck size={18} />
+    }
+  ];
 
   return (
-
-
-
-    <div className="h-full">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+    <div className="route-scroll">
+      <div className="page-canvas page-grid page-wide lg:grid-rows-[minmax(0,1fr)_auto]">
+      <section className="grid min-h-0 gap-4 xl:grid-cols-[1.3fr_0.8fr]">
         <motion.div
-          className="flex flex-col justify-center"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
+          className="premium-surface soft-grid h-full rounded-[32px] p-5 sm:p-6"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45 }}
         >
-          <div className="scanlines flex flex-col">
-            <motion.h1
-              className="text-4xl md:text-5xl lg:text-6xl font-bold mb-2 leading-tight"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-            >
-              Chrysalis
-            </motion.h1>
-            <motion.p
-              className="text-lg md:text-xl opacity-80 mb-6"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.8 }}
-              transition={{ delay: 0.4, duration: 0.5 }}
-            >
-              A Cross-Chain liquid staking platform <br /> with minimal complexities
-            </motion.p>
+          <div className="max-w-3xl">
+            <div className="eyebrow">Cross-chain liquid staking</div>
+            <h1 className="mt-3 text-4xl font-semibold leading-[1.02] sm:text-5xl lg:text-[3.35rem]">
+              A cleaner control surface for multi-protocol staking.
+            </h1>
+            <p className="muted-copy mt-4 max-w-2xl text-base leading-7">
+              Chrysalis keeps the staking workflow intact while making protocol support, network context, balances, and execution state easier to read across CCIP, CCTP, and Ripple flows.
+            </p>
 
-            <div className="mb-8">
-              <Terminal logs={terminalLogs} className="hidden md:block" />
+            <div className="mt-6 flex flex-wrap gap-3">
+              <div className="premium-pill rounded-full px-3 py-1.5 text-xs font-semibold">Active network: {networkConfig.name}</div>
+              <div className="premium-card rounded-full px-3 py-1.5 text-xs font-semibold">Protocol-specific status tracking</div>
             </div>
 
-            {isConnected ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.5 }}
-              >
+            <div className="mt-6 flex flex-wrap gap-3">
+              {isConnected ? (
                 <Link to="/dashboard">
-                  <Button
-                    size="lg"
-                    variant="primary"
-                    icon={<ArrowRight size={18} />}
-                  >
-                    Go to Dashboard
+                  <Button size="lg" icon={<ArrowRight size={16} />}>
+                    Open Dashboard
                   </Button>
                 </Link>
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.5 }}
-              >
-                {/* <ConnectKitButton.Custom>
-                  {({ show , address }) => (
-                    <Button 
-                      size="lg" 
-                      variant="primary"
-                      onClick={() => {
-                        
-                        show?.();
-                      }}
-                    >
-                      Connect Wallet To Start
-                    </Button>
-                  )}
-                </ConnectKitButton.Custom> */}
-              </motion.div>
-            )}
+              ) : (
+                <div className="premium-card rounded-2xl px-4 py-3 text-sm font-medium muted-copy">
+                  Connect a wallet from the header to start a stake.
+                </div>
+              )}
+              <Link to="/stake">
+                <Button size="lg" variant="secondary">
+                  Enter Stake Flow
+                </Button>
+              </Link>
+            </div>
           </div>
         </motion.div>
 
         <motion.div
-          className="flex items-center justify-center"
-          variants={container}
-          initial="hidden"
-          animate="show"
+          className="premium-card flex h-full min-h-0 flex-col rounded-[32px] p-5 sm:p-6"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08, duration: 0.45 }}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
-            <FeatureCard
-              title="Liquid Staking"
-              icon={<Database size={20} />}
-              description="Stake your ETH while maintaining liquidity"
-              variants={item}
-            />
-            <FeatureCard
-              title="High APY"
-              icon={<DollarSign size={20} />}
-              description="Earn competitive rewards on your staked assets"
-              variants={item}
-            />
-            <FeatureCard
-              title="Security"
-              icon={<Shield size={20} />}
-              description="Your assets are securely managed and protected"
-              variants={item}
-            />
-            <FeatureCard
-              title="Institutional Grade"
-              icon={<Landmark size={20} />}
-              description="Built for both retail and institutional stakers"
-              variants={item}
-            />
+          <div className="eyebrow">Operational feed</div>
+          <div className="mt-3 min-h-0">
+            <Terminal logs={terminalLogs} className="hidden md:block" />
+          </div>
+          <div className="mt-4 grid gap-3">
+            <div className="rounded-[24px] border border-black/5 p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] muted-copy">Workflow</div>
+              <div className="mt-2 text-sm font-medium">Select network, confirm protocol, stake asset, track destination settlement.</div>
+            </div>
+            <a
+              href="https://faucet.raum.network"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-between rounded-[24px] border border-black/5 px-4 py-4 text-sm font-medium transition-colors hover:border-[rgba(var(--accent),0.24)] hover:bg-[rgba(var(--accent),0.05)]"
+            >
+              <span>Get testnet funds</span>
+              <ArrowUpRight size={16} />
+            </a>
           </div>
         </motion.div>
-      </div>
+      </section>
 
-      {/* Tally Button */}
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {featureCards.map((card, index) => (
+          <motion.div
+            key={card.title}
+            className="premium-card rounded-[28px] p-5"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 + index * 0.06, duration: 0.35 }}
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(var(--accent),0.1)] text-[rgb(var(--accent-strong))]">
+              {card.icon}
+            </div>
+            <h3 className="mt-5 text-lg font-semibold">{card.title}</h3>
+            <p className="muted-copy mt-2 text-sm leading-6">{card.copy}</p>
+          </motion.div>
+        ))}
+      </section>
+
       <motion.button
-        className="hidden md:flex fixed bottom-10 right-10 bg-black text-green-400 px-4 py-2 rounded-lg transition-all duration-200 items-center gap-2 border border-green-500/40 hover:bg-gray-100/10 hover:text-black hover:border-black/90"
-        initial={{ opacity: 0, y: 20 }}
+        className="premium-card fixed bottom-8 right-8 hidden items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-colors hover:border-[rgba(var(--accent),0.24)] md:flex"
+        initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8, duration: 0.5 }}
+        transition={{ delay: 0.35, duration: 0.35 }}
         data-tally-open="3q7V77"
         data-tally-align-left="1"
         data-tally-overlay="1"
-        data-tally-emoji-text="👋"
-        data-tally-emoji-animation="bounce"
+        data-tally-emoji-text="wave"
         data-tally-auto-close="3000"
       >
-        <span>Feedback</span>
+        <span>Share product feedback</span>
+        <ArrowUpRight size={14} />
       </motion.button>
-    </div>
-  );
-};
-
-const FeatureCard = ({ title, description, icon, variants }: any) => {
-  return (
-    <motion.div
-      className="border border-amber-700/40 rounded-lg p-4 bg-amber-900/20 backdrop-blur-sm"
-      variants={variants}
-    >
-      <div className="bg-amber-700/30 rounded-full w-10 h-10 flex items-center justify-center mb-3">
-        {icon}
       </div>
-      <h3 className="text-lg font-medium mb-1">{title}</h3>
-      <p className="text-sm opacity-70">{description}</p>
-    </motion.div>
+    </div>
   );
 };
 

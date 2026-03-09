@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import { SUPPORTED_NETWORKS } from '../config/contract';
 import { decodeAccountID } from "xrpl";
+import { isProtocolSupported, normalizeEvmAddress } from './networkSupport';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -11,7 +12,7 @@ function formatAddressForEVM(address: string): string {
     try {
       const accountIDBytes = decodeAccountID(address);
       return `0x${Buffer.from(accountIDBytes).toString("hex")}`;
-    } catch (e) {
+    } catch {
       return address;
     }
   }
@@ -40,8 +41,8 @@ class SepoliaContract {
     const evmDestinationAddress = chainId === 0
       ? this.networkConfig.contracts.cctpDestinationCaller!
       : this.networkConfig.contracts.destination!;
-
-    const safeEvmDestinationAddress = evmDestinationAddress.startsWith('0x') ? evmDestinationAddress : `0x${evmDestinationAddress}`;
+    const safeEvmDestinationAddress = normalizeEvmAddress(evmDestinationAddress);
+    const cctpDestinationCaller = normalizeEvmAddress(this.networkConfig.contracts.cctpDestinationCaller);
 
     this.contract = new ethers.Contract(
       safeEvmDestinationAddress,
@@ -49,7 +50,7 @@ class SepoliaContract {
       this.provider
     );
     this.contractCCTP = new ethers.Contract(
-      `0x${SUPPORTED_NETWORKS['arbitrum-sepolia'].contracts.cctpDestinationCaller}`,
+      cctpDestinationCaller,
       ['function stakedAmount(address) view returns (uint256)'],
       this.provider
     );
@@ -69,10 +70,13 @@ class SepoliaContract {
 
   async getBalanceCCTP(address: string): Promise<string> {
     try {
+      if (!isProtocolSupported(this.networkConfig, 'CCTP')) {
+        return '0';
+      }
       const formattedAddress = formatAddressForEVM(address);
       const balance = await this.contractCCTP.stakedAmount(formattedAddress);
       return (Number(balance) / 1e18).toString();
-    } catch (error) {
+    } catch {
       // console.log('Error getting CCTP balance:', error);
       return '0';
     }

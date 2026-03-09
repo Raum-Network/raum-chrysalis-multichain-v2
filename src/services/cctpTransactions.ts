@@ -83,7 +83,7 @@ export const fetchCCTPTransactions = async (userAddress: string): Promise<CCTPTr
     const destLogs = await sepoliaProvider.getLogs(destFilter);
 
     // Fetch transactions from all supported networks
-    for (const [networkKey, network] of Object.entries(SUPPORTED_NETWORKS)) {
+    for (const [, network] of Object.entries(SUPPORTED_NETWORKS)) {
       // Skip networks without CCTP contract or with zero address (base/lisk sepolia)
       if (!network.contracts.cctp || network.contracts.cctp === '0x0000000000000000000000000000000000000000') continue;
 
@@ -132,7 +132,7 @@ export const fetchCCTPTransactions = async (userAddress: string): Promise<CCTPTr
         );
 
         allTransactions.push(...networkTransactions);
-      } catch (error) {
+      } catch {
         // console.log(`Error fetching CCTP transactions for ${network.name}:`, error);
         // Continue with other networks even if one fails
         continue;

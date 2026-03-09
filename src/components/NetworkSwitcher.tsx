@@ -1,26 +1,22 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SUPPORTED_NETWORKS, Networks } from '../config/contract';
-import { useTheme } from '../context/ThemeContext';
 
 interface NetworkSwitcherProps {
   currentNetwork: Networks;
   onNetworkChange: (network: Networks) => void;
-  onOpen?: () => void; // New callback prop
+  onOpen?: () => void;
 }
 
 const NetworkSwitcher = ({ currentNetwork, onNetworkChange, onOpen }: NetworkSwitcherProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { theme } = useTheme();
   const currentNetworkConfig = SUPPORTED_NETWORKS[currentNetwork];
 
   const handleToggle = () => {
-    const newIsOpen = !isOpen;
-    setIsOpen(newIsOpen);
-    
-    // Call onOpen callback when opening the dropdown
-    if (newIsOpen && onOpen) {
+    const nextIsOpen = !isOpen;
+    setIsOpen(nextIsOpen);
+    if (nextIsOpen && onOpen) {
       onOpen();
     }
   };
@@ -30,36 +26,24 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange, onOpen }: NetworkSwi
       <div className="flex items-center gap-2">
         <button
           onClick={handleToggle}
-          className={`
-            flex items-center space-x-2 px-3 py-1.5 rounded-md
-            border border-green-500/40 bg-black/90
-            transition-colors hover:text-black/90
-            hover:border-black/90 hover:bg-gray-100/10
-            text-green-500
-          `}
+          className="premium-card flex min-w-[180px] items-center justify-between gap-3 rounded-2xl px-4 py-2.5 text-left transition-colors hover:border-[rgba(var(--accent),0.24)]"
         >
-          <span className="text-sm">{currentNetworkConfig.name}</span>
-          {/* Desktop Chevron */}
-          <ChevronDown size={16} 
-            className={`hidden sm:block transition-transform ${isOpen ? 'rotate-180' : ''}`} 
-          />
-          {/* Mobile Chevron */}
-          <ChevronUp size={16} 
-            className={`sm:hidden transition-transform ${isOpen ? 'rotate-180' : ''}`} 
-          />
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] muted-copy">Network</div>
+            <div className="mt-1 text-sm font-semibold">{currentNetworkConfig.name}</div>
+          </div>
+          <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
 
-        {/* Tally Button for Mobile */}
         <button
-          className="md:hidden flex items-center space-x-2 px-3 py-1.5 rounded-md border border-green-500/40 bg-black/90 hover:bg-gray-900 transition-colors text-green-500"
+          className="premium-card rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors hover:border-[rgba(var(--accent),0.24)] md:hidden"
           data-tally-open="3q7V77"
           data-tally-align-left="1"
           data-tally-overlay="1"
-          data-tally-emoji-text="👋"
-          data-tally-emoji-animation="bounce"
+          data-tally-emoji-text="wave"
           data-tally-auto-close="3000"
         >
-          <span className="text-sm hover:bg-gray-100/10">Feedback</span>
+          Feedback
         </button>
       </div>
 
@@ -73,44 +57,35 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange, onOpen }: NetworkSwi
               className="fixed inset-0 z-20"
               onClick={() => setIsOpen(false)}
             />
-            
+
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className={`
-                absolute w-56 rounded-md shadow-lg z-30
-                bg-gray-900
-                sm:top-full sm:right-0 sm:mt-2
-                bottom-full right-0 mb-2
-                backdrop-blur-md
-              `}
+              exit={{ opacity: 0, y: 8 }}
+              className="premium-surface absolute bottom-full right-0 z-30 mb-3 w-80 rounded-[24px] p-2 sm:bottom-auto sm:top-full sm:mb-0 sm:mt-3"
             >
-              <div className="py-1 px-1">
-                {(Object.keys(SUPPORTED_NETWORKS) as Networks[]).map((network) => (
-                  <button
-                    key={network}
-                    onClick={() => {
-                      onNetworkChange(network);
-                      setIsOpen(false);
-                    }}
-                    className={`
-                      w-full px-4 py-2 text-sm flex items-center justify-between
-                      hover:text-black/90
-                      hover: border border-black/90 hover:bg-gray-100/10 hover:border-black/90 transition-colors
-                      ${currentNetwork === network ? 'bg-gray-800' : 'bg-gray-800'}
-                      rounded-md mb-1
-                      last:mb-0
-                      text-green-500
-                    `}
-                  >
-                    {SUPPORTED_NETWORKS[network].name}
-                    {currentNetwork === network && (
-                      <CheckCircle2 size={16} className="text-green-500" />
-                    )}
-                  </button>
-                ))}
-              </div>
+              {(Object.keys(SUPPORTED_NETWORKS) as Networks[]).map((network) => (
+                <button
+                  key={network}
+                  onClick={() => {
+                    onNetworkChange(network);
+                    setIsOpen(false);
+                  }}
+                  className={`mb-1 flex w-full items-start justify-between rounded-[18px] px-4 py-3 text-left transition-colors last:mb-0 ${
+                    currentNetwork === network
+                      ? 'bg-[rgba(var(--accent),0.1)]'
+                      : 'hover:bg-black/5'
+                  }`}
+                >
+                  <div>
+                    <div className="text-sm font-semibold">{SUPPORTED_NETWORKS[network].name}</div>
+                    <div className="mt-1 text-[11px] uppercase tracking-[0.14em] muted-copy">
+                      {SUPPORTED_NETWORKS[network].supportedProtocols.join(' / ')}
+                    </div>
+                  </div>
+                  {currentNetwork === network && <CheckCircle2 size={16} className="mt-0.5 text-[rgb(var(--accent-strong))]" />}
+                </button>
+              ))}
             </motion.div>
           </>
         )}

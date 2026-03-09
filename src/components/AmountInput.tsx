@@ -9,7 +9,7 @@ interface AmountInputProps {
   step?: number;
   label?: string;
   suffix?: string;
-  className?:any;
+  className?: string;
 }
 
 const AmountInput: React.FC<AmountInputProps> = ({
@@ -42,53 +42,50 @@ const AmountInput: React.FC<AmountInputProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    
+
     if (newValue === '') {
       onChange(0);
       return;
     }
-    
-    // Remove leading zeros
+
     const cleanValue = newValue.replace(/^0+/, '') || '0';
-    
-    // Limit to 6 decimal places
     const parts = cleanValue.split('.');
     if (parts[1] && parts[1].length > 6) {
       const limitedValue = `${parts[0]}.${parts[1].slice(0, 6)}`;
       setInputValue(limitedValue);
       const numValue = parseFloat(limitedValue);
-      if (!isNaN(numValue)) {
+      if (!Number.isNaN(numValue)) {
         onChange(Math.max(min, Math.min(max, numValue)));
       }
       return;
     }
-    
+
     setInputValue(cleanValue);
     const numValue = parseFloat(cleanValue);
-    if (!isNaN(numValue)) {
+    if (!Number.isNaN(numValue)) {
       onChange(Math.max(min, Math.min(max, numValue)));
     }
   };
 
   return (
     <div className="w-full">
-      {label && <label className="block text-sm opacity-70 mb-1">{label}</label>}
-      <div 
-        className={`
-          flex items-center border rounded-md overflow-hidden
-          ${focused ? 'border-amber-500' : 'border-amber-700/50'}
-          bg-amber-900/20 backdrop-blur-sm
-        `}
+      {label && <label className="mb-2 block text-sm font-medium muted-copy">{label}</label>}
+      <div
+        className={`flex items-center overflow-hidden rounded-[24px] border px-1 transition-all duration-200 ${
+          focused
+            ? 'border-[rgba(var(--accent),0.3)] shadow-[0_0_0_4px_rgba(16,122,110,0.08)]'
+            : 'border-black/5'
+        } premium-card ${className || ''}`}
       >
         <button
           type="button"
           onClick={handleDecrement}
           disabled={value <= min}
-          className="p-2 hover:bg-amber-700/30 disabled:opacity-50"
+          className="rounded-[18px] p-3 transition-colors hover:bg-black/5 disabled:opacity-40"
         >
           <Minus size={16} />
         </button>
-        
+
         <input
           type="text"
           inputMode="decimal"
@@ -99,18 +96,20 @@ const AmountInput: React.FC<AmountInputProps> = ({
           step={step}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          className="w-full bg-transparent px-2 py-1 text-center focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="w-full bg-transparent px-3 py-4 text-center text-lg font-semibold focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
-        
+
         {suffix && (
-          <span className="px-2 text-sm opacity-70">{suffix}</span>
+          <span className="rounded-[18px] bg-black/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] muted-copy">
+            {suffix}
+          </span>
         )}
-        
+
         <button
           type="button"
           onClick={handleIncrement}
           disabled={value >= max}
-          className="p-2 hover:bg-amber-700/30 disabled:opacity-50"
+          className="ml-1 rounded-[18px] p-3 transition-colors hover:bg-black/5 disabled:opacity-40"
         >
           <Plus size={16} />
         </button>

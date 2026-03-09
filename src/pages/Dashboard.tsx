@@ -1,30 +1,24 @@
 import { useMemo, useEffect, useState } from 'react';
 import { useWallet } from '../lib/walletConnect';
 import Window from '../components/Window';
-import StatBox from '../components/StatBox';
 import Terminal from '../components/Terminal';
 import Button from '../components/Button';
-import { CreditCard, DollarSign, BarChart3, Clock, ChevronRight } from 'lucide-react';
+import { CreditCard, BarChart3, Clock, ChevronRight, ShieldCheck, Landmark } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import stakedUserBalance from '../lib/sepoliaContract';
 import { getLidoAPY } from '../services/api';
 import stakeManager, { StakeStatus } from '../lib/stakeManager';
-import { ConnectKitButton } from 'connectkit';
 import ReactGA from 'react-ga4';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { Buffer } from "buffer";
-
 import { useStaking } from '../hooks/useStaking';
 
 const Dashboard = () => {
-  const { usdcBalance, stakingNFTs } = useStaking();
+  const { usdcBalance, stakingNFTs, supportedProtocols, assetSymbol } = useStaking();
   const { isConnected, address, chainId, networkConfig } = useWallet();
   const [stakedBalance, setStakedBalance] = useState<string>('0');
   const [lidoAPY, setLidoAPY] = useState<number | null>(null);
+  const isRippleNetwork = supportedProtocols.includes('Axelar ITS');
 
   useEffect(() => {
-
     if (address) {
       ReactGA.event({
         category: 'Wallet',
@@ -32,7 +26,7 @@ const Dashboard = () => {
         label: `Connected Wallet ${address}`
       });
     }
-  }, [address])
+  }, [address]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,9 +34,7 @@ const Dashboard = () => {
         try {
           const balance = await stakedUserBalance.getBalance(address);
           const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
-
           setStakedBalance((Number(balance) + Number(cctpBalance)).toString());
-
           const apy = await getLidoAPY();
           setLidoAPY(apy);
         } catch (error) {
@@ -60,11 +52,8 @@ const Dashboard = () => {
     const handleStakeUpdate = async (status: StakeStatus) => {
       if (status.destinationTxHash && address) {
         try {
-          // Fetch updated balances
           const balance = await stakedUserBalance.getBalance(address);
           const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
-
-          // Update staked balance
           setStakedBalance((Number(balance) + Number(cctpBalance)).toString());
         } catch (error) {
           console.error('Error updating staked balance:', error);
@@ -72,10 +61,7 @@ const Dashboard = () => {
       }
     };
 
-    // Subscribe to stake status updates
     const unsubscribe = stakeManager.subscribeToStatus(handleStakeUpdate);
-
-    // Cleanup subscription
     return () => unsubscribe();
   }, [address]);
 
@@ -95,189 +81,168 @@ const Dashboard = () => {
       type: 'success',
       timestamp: new Date()
     }
-  ] as any[], []);
-
-  // Dynamic XRPL NFT Data Aggregation
-  const totalMintedStETH = useMemo(() => {
-    return stakingNFTs.reduce((total, item) => {
-      return total + Number(item.receipt.mintedStETH || 0);
-    }, 0);
-  }, [stakingNFTs]);
-
-  // Mocked staking data
-  const stakingData = {
-    stakedAmount: networkConfig.name === 'Ripple Testnet' ? parseFloat(stakedBalance) : parseFloat(stakedBalance),
-    totalRewards: 0.125,
-    apr: networkConfig.name === 'Ripple Testnet' ? lidoAPY : (lidoAPY || 4.8),
-    nextReward: '3d 14h',
-    stakers: 1452,
-    totalStaked: 24582
-  };
+  ] as Array<{
+    message: string;
+    type: 'success' | 'info' | 'error' | 'warning' | 'command' | 'loading';
+    timestamp: Date;
+  }>, []);
 
   if (!isConnected) {
     return (
-      <div className="h-full flex flex-col items-center justify-center">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl mb-2">Connect Your Wallet</h1>
-          <p className="opacity-70">Please connect your wallet to view your dashboard</p>
+      <div className="flex h-full flex-col items-center justify-center">
+        <div className="premium-surface max-w-xl rounded-[32px] p-8 text-center">
+          <h1 className="text-3xl font-semibold">Connect your wallet</h1>
+          <p className="muted-copy mt-2 text-sm">A wallet connection is required to load balances, receipts, and protocol activity.</p>
         </div>
-        {/* <ConnectKitButton.Custom>
-          {({ show }) => (
-            <Button onClick={() => {
-
-              show?.();
-            }} size="lg">
-              Connect Wallet
-            </Button>
-          )}
-        </ConnectKitButton.Custom> */}
       </div>
     );
   }
 
+  const stakingData = {
+    stakedAmount: parseFloat(stakedBalance),
+    apr: lidoAPY || 4.8,
+    nextReward: '--'
+  };
+
+  const metricCards = [
+    {
+      title: 'Staked position',
+      value: `${stakingData.stakedAmount.toFixed(4)} ${isRippleNetwork ? 'stETH' : 'ETH'}`,
+      icon: <CreditCard size={18} />,
+      hint: 'Destination-side live balance'
+    },
+    {
+      title: `Wallet ${assetSymbol}`,
+      value: `${parseFloat(usdcBalance.toString()).toFixed(4)} ${assetSymbol}`,
+      icon: <Landmark size={18} />,
+      hint: 'Available to deposit'
+    },
+    {
+      title: 'Reference APR',
+      value: `${stakingData.apr.toFixed(2)}%`,
+      icon: <BarChart3 size={18} />,
+      hint: 'Pulled from the Lido feed'
+    },
+    {
+      title: 'Next reward window',
+      value: stakingData.nextReward,
+      icon: <Clock size={18} />,
+      hint: 'Settles after destination execution'
+    }
+  ];
+
   return (
-    <div className="grid gap-4 md:gap-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-        <div>
-          <h1 className="text-2xl mb-1">Dashboard</h1>
-          <p className="text-sm opacity-70">Overview of your staking performance</p>
+    <div className="route-scroll">
+      <div className="page-canvas page-grid page-wide lg:grid-rows-[auto_auto_minmax(0,1fr)]">
+      <section className="premium-surface rounded-[32px] p-5 sm:p-6">
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr] xl:items-end">
+          <div>
+            <div className="eyebrow">Portfolio command center</div>
+            <h1 className="mt-4 text-4xl font-semibold">Dashboard</h1>
+            <p className="muted-copy mt-3 max-w-2xl text-base leading-7">
+              Review staking balances, routing support, and execution health for the active network without losing protocol context.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold">
+              <span className="premium-pill rounded-full px-3 py-1.5">{networkConfig.name}</span>
+              <span className="premium-card rounded-full px-3 py-1.5">{supportedProtocols.join(' / ')}</span>
+              <span className="premium-card rounded-full px-3 py-1.5">Asset: {assetSymbol}</span>
+            </div>
+          </div>
+          <div className="flex justify-start xl:justify-end">
+            <Link to="/stake">
+              <Button size="lg" icon={<ChevronRight size={16} />}>
+                Stake More
+              </Button>
+            </Link>
+          </div>
         </div>
-        <div className="mt-2 md:mt-0 flex space-x-2">
-          <Link to="/stake">
-            <Button variant="primary">
-              Stake More
-              <ChevronRight size={16} className="ml-1" />
-            </Button>
-          </Link>
-        </div>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatBox
-          title="Your Staked Asset"
-          value={stakingData.stakedAmount.toFixed(4)}
-          suffix={networkConfig.name === 'Ripple Testnet' ? 'stETH' : 'ETH'}
-          icon={<CreditCard size={18} />}
-        // change={{ value: 2.5, isPositive: true }}
-        />
-        <StatBox
-          title="Your Rewards"
-          value="--"
-          suffix="ETH"
-          icon={<DollarSign size={18} />}
-        // change={{ value: 5.2, isPositive: true }}
-        />
-        <StatBox
-          title="Current APR"
-          value={`${stakingData.apr}%`}
-          icon={<BarChart3 size={18} />}
-        // change={{ value: 0.3, isPositive: true }}
-        />
-        <StatBox
-          title="Next Reward"
-          value="--"
-          icon={<Clock size={18} />}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-2">
-        <Window title="Staking Summary" className="lg:col-span-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="border border-amber-700/30 rounded-md p-3 bg-amber-900/20">
-              <h3 className="text-sm mb-2">Your Staking Balance</h3>
-              <div className="flex items-end mb-3">
-                <span className="text-2xl font-medium">{stakingData.stakedAmount.toFixed(4)}</span>
-                <span className="ml-1 text-sm opacity-70">{networkConfig.name === 'Ripple Testnet' ? 'stETH' : 'ETH'}</span>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {metricCards.map((metric) => (
+          <div key={metric.title} className="premium-card rounded-[28px] p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="eyebrow">{metric.title}</div>
+                <div className="mt-3 text-2xl font-semibold">{metric.value}</div>
+                <div className="muted-copy mt-2 text-sm">{metric.hint}</div>
               </div>
-              {/* <ProgressBar value={stakingData.stakedAmount} max={10} /> */}
-
-              <div className="mt-4">
-                <h4 className="text-xs opacity-70 mb-1">Available to Stake</h4>
-                <div className="flex items-end">
-                  <span className="text-lg">{usdcBalance}</span>
-                  <span className="ml-1 text-xs opacity-70">{networkConfig.name === 'Ripple Testnet' ? 'XRP' : 'USDC'}</span>
-                </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[rgba(var(--accent),0.1)] text-[rgb(var(--accent-strong))]">
+                {metric.icon}
               </div>
             </div>
+          </div>
+        ))}
+      </section>
 
-            <div className="border border-amber-700/30 rounded-md p-3 bg-amber-900/20">
-              <h3 className="text-sm mb-2">Rewards Overview</h3>
-              <div className="flex items-end mb-3">
-                <span className="text-2xl font-medium">--</span>
-                <span className="ml-1 text-sm opacity-70"></span>
+      <section className="grid min-h-0 gap-4 lg:grid-cols-[1.15fr_0.95fr]">
+        <Window title="Network Capability Matrix">
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="premium-card rounded-[24px] p-4">
+                <div className="eyebrow">Active network</div>
+                <div className="mt-3 text-base font-semibold">{networkConfig.name}</div>
               </div>
-
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                <div>
-                  <h4 className="text-xs opacity-70 mb-1">Current Rate</h4>
-                  <div className="text-lg">{`${stakingData.apr}%`}</div>
-                </div>
-                <div>
-                  <h4 className="text-xs opacity-70 mb-1">Next Reward</h4>
-                  <div className="text-lg">--</div>
-                </div>
+              <div className="premium-card rounded-[24px] p-4">
+                <div className="eyebrow">Supported protocols</div>
+                <div className="mt-3 text-base font-semibold">{supportedProtocols.join(', ')}</div>
+              </div>
+              <div className="premium-card rounded-[24px] p-4">
+                <div className="eyebrow">Staking asset</div>
+                <div className="mt-3 text-base font-semibold">{assetSymbol}</div>
               </div>
             </div>
-
-            <div className="border border-amber-700/30 rounded-md p-3 bg-amber-900/20 sm:col-span-2">
-              <h3 className="text-sm mb-2">Protocol Stats</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div>
-                  <h4 className="text-xs opacity-70 mb-1">Total Stakers</h4>
-                  <div className="text-lg">--</div>
-                </div>
-                <div>
-                  <h4 className="text-xs opacity-70 mb-1">Total ETH Staked</h4>
-                  <div className="text-lg">--</div>
-                </div>
-                <div>
-                  <h4 className="text-xs opacity-70 mb-1">Protocol Health</h4>
-                  <div className="text-lg text-green-400">Excellent</div>
-                </div>
+            <div className="premium-card mt-4 flex items-center gap-3 rounded-[24px] p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(var(--success),0.12)] text-emerald-600">
+                <ShieldCheck size={18} />
               </div>
+              <p className="text-sm">
+                Protocol support and explorer resolution are derived from the network configuration for the current session.
+              </p>
             </div>
           </div>
         </Window>
 
-        <Window title="Activity Console">
-          <Terminal logs={initialLogs} interactive={true} />
+        <Window title="Operations Feed" className="min-h-0">
+          <Terminal logs={initialLogs} interactive={true} className="h-full" />
         </Window>
-      </div>
+      </section>
 
-      {networkConfig.name === 'Ripple Testnet' && stakingNFTs.length > 0 && (
-        <div className="mt-4">
-          <Window title="Your Minted Staking Receipts (XRPL NFTs)">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {stakingNFTs.map((item) => (
-                <div key={item.id} className="border border-amber-700/50 hover:bg-amber-900/30 transition-colors rounded-md p-4 bg-amber-900/20 flex flex-col relative overflow-hidden backdrop-blur-sm">
-                  <div className="absolute top-0 right-0 bg-amber-500/20 text-amber-300 text-[9px] px-2 py-1 rounded-bl-md font-mono border-l border-b border-amber-500/20">
-                    {item.id.substring(0, 8)}...
+      {isRippleNetwork && stakingNFTs.length > 0 && (
+        <Window title="Minted Staking Receipts">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {stakingNFTs.map((item) => (
+              <div key={item.id} className="premium-card relative overflow-hidden rounded-[26px] p-5">
+                <div className="absolute right-0 top-0 rounded-bl-2xl bg-[rgba(var(--accent),0.12)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[rgb(var(--accent-strong))]">
+                  {item.id.substring(0, 8)}...
+                </div>
+                <h3 className="pr-16 text-sm font-semibold">{item.receipt.pool}</h3>
+                <div className="mt-4 flex items-end gap-2">
+                  <span className="text-3xl font-semibold">{item.receipt.amount}</span>
+                  <span className="rounded-full bg-black/5 px-2 py-1 text-xs font-semibold">{item.receipt.token}</span>
+                </div>
+                <div className="mt-5 grid grid-cols-3 gap-3 border-t border-black/5 pt-4 text-xs">
+                  <div>
+                    <div className="muted-copy">Staked on</div>
+                    <div className="mt-1 font-semibold">{new Date(item.receipt.stakedAt * 1000).toLocaleDateString()}</div>
                   </div>
-                  <h3 className="text-sm font-medium text-amber-400 mb-1 truncate pr-16">{item.receipt.pool}</h3>
-                  <div className="flex items-end mb-3">
-                    <span className="text-2xl font-semibold tracking-tight">{item.receipt.amount}</span>
-                    <span className="ml-1.5 text-sm opacity-80 mb-1 font-medium bg-amber-900/50 px-1.5 py-0.5 rounded text-amber-200">{item.receipt.token}</span>
+                  <div>
+                    <div className="muted-copy">Minted</div>
+                    <div className="mt-1 font-semibold text-emerald-600">
+                      {item.receipt.mintedStETH !== '0' ? `${item.receipt.mintedStETH} stETH` : 'Pending'}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-xs opacity-70 mt-auto pt-3 border-t border-amber-700/40">
-                    <div>
-                      <div className="mb-0.5 uppercase tracking-wider text-[10px] opacity-70">Staked On</div>
-                      <div className="font-medium">{new Date(item.receipt.stakedAt * 1000).toLocaleDateString()}</div>
-                    </div>
-                    <div>
-                      <div className="mb-0.5 uppercase tracking-wider text-[10px] opacity-70">Minted</div>
-                      <div className="font-medium text-emerald-400">{item.receipt.mintedStETH !== "0" ? `${item.receipt.mintedStETH} stETH` : "Pending"}</div>
-                    </div>
-                    <div>
-                      <div className="mb-0.5 uppercase tracking-wider text-[10px] opacity-70">Current APY</div>
-                      <div className="font-medium text-amber-400">{item.receipt.apy}%</div>
-                    </div>
+                  <div>
+                    <div className="muted-copy">APY</div>
+                    <div className="mt-1 font-semibold">{item.receipt.apy}%</div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </Window>
-        </div>
+              </div>
+            ))}
+          </div>
+        </Window>
       )}
+      </div>
     </div>
   );
 };
