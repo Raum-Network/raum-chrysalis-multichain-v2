@@ -132,7 +132,10 @@ export default async function handler(req, res) {
       });
     } catch (error) {
       console.error('Failed to fetch transactions from Upstash:', error);
-      return json(res, 500, { error: 'Failed to fetch transactions' });
+      return json(res, 500, {
+        error: 'Failed to fetch transactions',
+        detail: error instanceof Error ? error.message : 'Unknown fetch error',
+      });
     }
   }
 
@@ -172,6 +175,9 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Failed to persist transaction to Upstash:', error);
-    return json(res, 500, { error: 'Failed to persist transaction' });
+    return json(res, 500, {
+      error: 'Failed to persist transaction',
+      detail: error instanceof Error ? error.message : 'Unknown persist error',
+    });
   }
 }
