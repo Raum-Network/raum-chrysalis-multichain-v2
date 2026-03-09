@@ -35,6 +35,10 @@ export default defineConfig({
           'Access-Control-Allow-Origin': '*',
         },
       },
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
 });

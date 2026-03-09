@@ -10,8 +10,11 @@ const json = (res, statusCode, payload) => {
 const normalizeAddress = (address) => String(address || '').toLowerCase();
 
 const getStorageConfig = () => {
-  const url = process.env.REDIS_URL;
-  const token = process.env.KV_REST_API_TOKEN;
+  const url = process.env.KV_REST_API_URL
+    || process.env.UPSTASH_REDIS_REST_URL
+    || process.env.REDIS_URL;
+  const token = process.env.KV_REST_API_TOKEN
+    || process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!url || !token) {
     return null;
@@ -142,7 +145,7 @@ export default async function handler(req, res) {
 
   if (!storage) {
     return json(res, 503, {
-      error: 'Transaction storage is not configured. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.',
+      error: 'Transaction storage is not configured. Set KV_REST_API_URL and KV_REST_API_TOKEN.',
     });
   }
 
