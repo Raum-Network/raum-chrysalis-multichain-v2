@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '../lib/walletConnect';
 import { useWriteContract, useReadContract } from 'wagmi';
 import { erc20Abi } from 'viem';
@@ -75,6 +75,7 @@ export function useStaking() {
   const [xrpBalance, setXrpBalance] = useState<number>(0);
   const [stakingNFTs, setStakingNFTs] = useState<{ id: string, receipt: StakingReceipt }[]>([]);
   const [stakingOffers, setStakingOffers] = useState<{ id: string, receipt: StakingReceipt, offerIndex: string }[]>([]);
+  const persistedTransactionWritesRef = useRef(new Map<string, string>());
 
   const { writeContractAsync } = useWriteContract();
 
@@ -96,9 +97,36 @@ export function useStaking() {
     const amount = status.amount ? String(status.amount) : rawAmount;
     const now = Date.now();
     const messageId = status.ccipMessageId || status.sourceTxHash;
+    const id = createPersistedTransactionId(protocol, status.sourceTxHash, messageId);
+    const normalizedStatus = toPersistedStatus(status.status);
+    const payloadSignature = JSON.stringify({
+      id,
+      walletAddress: address.toLowerCase(),
+      protocol,
+      messageId,
+      sourceTxHash: status.sourceTxHash,
+      destinationTxHash: status.destinationTxHash || '',
+      sourceNetworkName,
+      destNetworkName,
+      sender: status.origin || address,
+      receiver: status.receiver || networkConfig.contracts.destination || '',
+      amount,
+      assetSymbol: protocol === 'Axelar ITS' ? 'XRP' : 'USDC',
+      sourceDecimals,
+      destDecimals,
+      status: normalizedStatus,
+      attestationStatus: status.attestationStatus || '',
+      createdAt: status.timestamp || now,
+    });
+
+    if (persistedTransactionWritesRef.current.get(id) === payloadSignature) {
+      return;
+    }
+
+    persistedTransactionWritesRef.current.set(id, payloadSignature);
 
     void upsertPersistedTransaction({
-      id: createPersistedTransactionId(protocol, status.sourceTxHash, messageId),
+      id,
       walletAddress: address,
       protocol,
       messageId,
@@ -112,7 +140,7 @@ export function useStaking() {
       assetSymbol: protocol === 'Axelar ITS' ? 'XRP' : 'USDC',
       sourceDecimals,
       destDecimals,
-      status: toPersistedStatus(status.status),
+      status: normalizedStatus,
       attestationStatus: status.attestationStatus,
       createdAt: status.timestamp || now,
       updatedAt: now,
