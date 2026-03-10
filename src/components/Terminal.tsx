@@ -259,11 +259,10 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
 
   return (
     <div
-      className={`terminal-container flex h-full min-h-0 flex-col overflow-hidden rounded-[24px] border ${
-        theme === 'night'
-          ? 'border-white/10 bg-slate-950 shadow-[0_18px_44px_rgba(0,0,0,0.32)]'
-          : 'border-slate-800/10 bg-slate-900 shadow-[0_18px_44px_rgba(15,23,42,0.16)]'
-      } ${className}`}
+      className={`terminal-container flex h-full min-h-0 flex-col overflow-hidden rounded-[24px] border ${theme === 'night'
+          ? 'border-white/10 bg-slate-800 shadow-[0_18px_44px_rgba(0,0,0,0.32)]'
+          : 'border-slate-800/10 bg-slate-800 shadow-[0_18px_44px_rgba(15,23,42,0.16)]'
+        } ${className}`}
     >
       <div className="terminal-header flex items-center justify-between bg-slate-900 px-3 py-2 text-xs font-mono text-slate-300">
         <span>ops.console</span>
@@ -272,7 +271,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
 
       <div
         ref={terminalRef}
-        className="terminal-content min-h-[180px] flex-1 overflow-y-auto bg-slate-800 px-4 py-3 font-mono text-xs leading-relaxed"
+        className="terminal-content flex-1 overflow-y-auto bg-slate-800 px-4 py-3 font-mono text-xs leading-relaxed"
       >
         {allLogs.map((log, index) => (
           <div key={index} className={`my-1 ${getLogStyle(log.type)}`}>

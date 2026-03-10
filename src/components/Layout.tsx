@@ -24,7 +24,7 @@ const Layout = () => {
         </div>
       </div>
 
-      <div className="sm:hidden fixed bottom-3 left-3 right-3 z-50">
+      <div className="xl:hidden fixed bottom-3 left-3 right-3 z-50">
         <div className="premium-surface rounded-[24px] px-3 py-3 shadow-[0_22px_50px_rgba(15,23,42,0.16)]">
           <div className="flex justify-center">
             <NetworkSwitcher
@@ -35,7 +35,7 @@ const Layout = () => {
         </div>
       </div>
       <style>{`
-        @media (max-width: 640px) {
+        @media (max-width: 1280px) {
           .screen-container { padding-bottom: 92px !important; }
         }
       `}</style>

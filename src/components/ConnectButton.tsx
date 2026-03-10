@@ -6,10 +6,15 @@ import { motion } from 'framer-motion';
 import NetworkSwitcher from './NetworkSwitcher';
 import { Networks } from '../config/contract';
 import ReactGA from 'react-ga4';
+import {
+  useTheme
+} from '../context/ThemeContext';
 
-const ConnectButton = () => {
+const ConnectButton = ({ hideNetworkSwitcher = false }: { hideNetworkSwitcher?: boolean }) => {
   const { isConnected, address, balance, nativeCurrencySymbol, network, chainId, switchNetwork, disconnect, connect } = useWallet();
   const [isOpen, setIsOpen] = useState(false);
+  const { theme } = useTheme();
+  const iconColour = theme === 'night' ? 'text-white' : 'text-slate-900';
 
   const handleDisconnect = () => {
     ReactGA.event({
@@ -29,27 +34,23 @@ const ConnectButton = () => {
   if (isConnected) {
     return (
       <div className="flex items-center gap-2">
-        <div className="hidden sm:block">
-          <NetworkSwitcher
-            currentNetwork={network as Networks}
-            onNetworkChange={switchNetwork}
-            onOpen={handleNetworkSwitcherOpen}
-          />
-        </div>
+        {!hideNetworkSwitcher && (
+          <div className="hidden sm:block">
+            <NetworkSwitcher
+              currentNetwork={network as Networks}
+              onNetworkChange={switchNetwork}
+              onOpen={handleNetworkSwitcherOpen}
+            />
+          </div>
+        )}
 
         <div className="relative">
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="premium-card flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors hover:border-[rgba(var(--accent),0.24)]"
+            className="inline-flex items-center gap-2 rounded-2xl border border-black/5 px-4 py-2 text-sm font-medium transition-all hover:border-[rgba(var(--accent),0.24)] hover:bg-[rgba(var(--accent),0.05)]"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[rgba(var(--accent),0.1)] text-[rgb(var(--accent-strong))]">
-              <Wallet2 size={15} />
-            </div>
-            <div className="hidden text-left md:block">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] muted-copy">Wallet</div>
-              <div className="text-sm font-semibold">{truncateAddress(address || '')}</div>
-            </div>
-            <div className="block text-sm font-semibold md:hidden">{truncateAddress(address || '')}</div>
+            <Wallet2 size={15} className={iconColour} />
+            <span className="font-semibold">{truncateAddress(address || '')}</span>
           </button>
 
           {isOpen && (
@@ -100,13 +101,15 @@ const ConnectButton = () => {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="hidden sm:block">
-        <NetworkSwitcher
-          currentNetwork={network as Networks}
-          onNetworkChange={switchNetwork}
-          onOpen={handleNetworkSwitcherOpen}
-        />
-      </div>
+      {!hideNetworkSwitcher && (
+        <div className="hidden sm:block">
+          <NetworkSwitcher
+            currentNetwork={network as Networks}
+            onNetworkChange={switchNetwork}
+            onOpen={handleNetworkSwitcherOpen}
+          />
+        </div>
+      )}
       <ConnectKitButton.Custom>
         {({ isConnecting, show, address: connectedAddress }) => (
           <motion.button
