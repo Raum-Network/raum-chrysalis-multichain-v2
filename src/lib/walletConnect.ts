@@ -9,7 +9,6 @@ import {
   useSwitchChain
 } from 'wagmi';
 import { createConfig, http } from 'wagmi';
-import { arbitrumSepolia, baseSepolia, liskSepolia } from 'wagmi/chains';
 import { defineChain } from 'viem';
 import { getDefaultConfig } from 'connectkit';
 import { useEffect, useState } from 'react';
@@ -39,22 +38,7 @@ declare global {
 
 let globalNetworkOverride: Networks | null = null;
 let globalCrossmarkAddress: string | null = null;
-
-// Custom Plume Testnet chain definition
-const plumeTestnet = defineChain({
-  id: 98867,
-  name: 'Plume Testnet',
-  network: 'plume-testnet',
-  nativeCurrency: { name: 'Plume', symbol: 'PLUME', decimals: 18 },
-  rpcUrls: {
-    default: { http: ['https://testnet-rpc.plume.org'] },
-    public: { http: ['https://testnet-rpc.plume.org'] },
-  },
-  blockExplorers: {
-    default: { name: 'Plume Explorer', url: 'https://testnet-explorer.plume.org' },
-  },
-  testnet: true,
-});
+const ONLY_ENABLED_NETWORK: Networks = 'arc-testnet';
 
 const arcTestnet = defineChain({
   id: 5042002,
@@ -71,15 +55,11 @@ const arcTestnet = defineChain({
   testnet: true,
 });
 
-// Config with all supported chains
+// Arc-only wallet config while this terminal is focused on Arc Testnet.
 export const config = createConfig(
   getDefaultConfig({
-    chains: [arbitrumSepolia, baseSepolia, liskSepolia, plumeTestnet, arcTestnet],
+    chains: [arcTestnet],
     transports: {
-      [arbitrumSepolia.id]: http('https://sepolia-rollup.arbitrum.io/rpc'),
-      [baseSepolia.id]: http('https://sepolia.base.org'),
-      [liskSepolia.id]: http('https://lisk-sepolia.drpc.org/'),
-      [plumeTestnet.id]: http('https://testnet-rpc.plume.org'),
       [arcTestnet.id]: http('https://arc-testnet.g.alchemy.com/v2/rhTXLao3kvghbdRHQrcvM'),
     },
     walletConnectProjectId: "ffd25e3cc20b883d266134ce525caf88",
@@ -161,22 +141,20 @@ export function useWallet() {
   const address = networkOverride === 'ripple-testnet' ? crossmarkAddress : wagmiAddress;
   const isConnected = networkOverride === 'ripple-testnet' ? !!crossmarkAddress : wagmiIsConnected;
 
-  // Add effect to monitor network changes
+  // Keep the terminal pinned to Arc Testnet.
   useEffect(() => {
     const checkAndSwitchNetwork = async () => {
       if (isConnected) {
         const provider = window.ethereum;
         if (provider) {
           const currentChainId = await provider.request({ method: 'eth_chainId' });
-          const isSupportedNetwork = Object.values(SUPPORTED_NETWORKS).some(
-            network => network.chainId === parseInt(currentChainId, 16)
-          );
+          const isArcTestnet = parseInt(currentChainId, 16) === SUPPORTED_NETWORKS[ONLY_ENABLED_NETWORK].chainId;
 
-          if (!isSupportedNetwork) {
+          if (!isArcTestnet) {
             try {
-              await switchChain({ chainId: SUPPORTED_NETWORKS['arbitrum-sepolia'].chainId });
+              await switchChain({ chainId: SUPPORTED_NETWORKS[ONLY_ENABLED_NETWORK].chainId });
             } catch (error) {
-              console.error('Failed to switch network:', error);
+              console.error('Failed to switch to Arc Testnet:', error);
             }
           }
         }
@@ -192,11 +170,11 @@ export function useWallet() {
       return { config: SUPPORTED_NETWORKS[networkOverride], key: networkOverride };
     }
     const network = Object.entries(SUPPORTED_NETWORKS).find(
-      (entry) => entry[1].chainId === chainId
+      (entry) => entry[0] === ONLY_ENABLED_NETWORK && entry[1].chainId === chainId
     );
     return {
-      config: network ? network[1] : SUPPORTED_NETWORKS['arbitrum-sepolia'],
-      key: network ? network[0] : 'arbitrum-sepolia'
+      config: network ? network[1] : SUPPORTED_NETWORKS[ONLY_ENABLED_NETWORK],
+      key: network ? network[0] : ONLY_ENABLED_NETWORK
     };
   };
 
@@ -286,17 +264,15 @@ export function useWallet() {
       const provider = window.ethereum;
       if (provider) {
         const currentChainId = await provider.request({ method: 'eth_chainId' });
-        const isSupportedNetwork = Object.values(SUPPORTED_NETWORKS).some(
-          network => network.chainId === parseInt(currentChainId, 16)
-        );
+        const isArcTestnet = parseInt(currentChainId, 16) === SUPPORTED_NETWORKS[ONLY_ENABLED_NETWORK].chainId;
 
-        console.log('Current chain ID:', parseInt(currentChainId, 16), 'Is supported:', isSupportedNetwork);
+        console.log('Current chain ID:', parseInt(currentChainId, 16), 'Is Arc Testnet:', isArcTestnet);
 
-        if (!isSupportedNetwork) {
+        if (!isArcTestnet) {
           try {
-            await switchChain({ chainId: SUPPORTED_NETWORKS['arbitrum-sepolia'].chainId });
+            await switchChain({ chainId: SUPPORTED_NETWORKS[ONLY_ENABLED_NETWORK].chainId });
           } catch (error) {
-            console.error('Failed to switch network:', error);
+            console.error('Failed to switch to Arc Testnet:', error);
           }
         }
       }
@@ -343,19 +319,17 @@ export function useWallet() {
   };
 
   const handleSwitchNetwork = async (network: Networks) => {
-    if (network === 'ripple-testnet') {
-      setOverride('ripple-testnet', null);
-      console.log('Switched to Ripple Testnet (pending connection)');
-      return;
+    if (network !== ONLY_ENABLED_NETWORK) {
+      throw new Error('Only Arc Testnet is enabled in this terminal.');
     }
 
-    const targetChainId = SUPPORTED_NETWORKS[network].chainId;
+    const targetChainId = SUPPORTED_NETWORKS[ONLY_ENABLED_NETWORK].chainId;
     try {
       setOverride(null);
       await switchChain({ chainId: targetChainId });
-      console.log(`Switched to ${network} with chain ID ${targetChainId}`);
+      console.log(`Switched to Arc Testnet with chain ID ${targetChainId}`);
     } catch (error) {
-      console.error('Failed to switch network:', error);
+      console.error('Failed to switch to Arc Testnet:', error);
       throw error;
     }
   };

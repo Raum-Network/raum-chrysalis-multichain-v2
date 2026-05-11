@@ -12,6 +12,7 @@ interface NetworkSwitcherProps {
 const NetworkSwitcher = ({ currentNetwork, onNetworkChange, onOpen }: NetworkSwitcherProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const currentNetworkConfig = SUPPORTED_NETWORKS[currentNetwork];
+  const enabledNetworks: Networks[] = ['arc-testnet'];
 
   const handleToggle = () => {
     const nextIsOpen = !isOpen;
@@ -26,24 +27,13 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange, onOpen }: NetworkSwi
       <div className="flex items-center gap-2">
         <button
           onClick={handleToggle}
-          className="premium-card flex min-w-[180px] items-center justify-between gap-3 rounded-2xl px-4 py-2.5 text-left transition-colors hover:border-[rgba(var(--accent),0.24)]"
+          className="flex min-w-[170px] items-center justify-between gap-3 rounded-md border border-emerald-400/20 bg-white/[0.04] px-3 py-2 text-left transition-colors hover:bg-emerald-400/10"
         >
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] muted-copy">Network</div>
-            <div className="mt-1 text-sm font-semibold">{currentNetworkConfig.name}</div>
+            <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Network</div>
+            <div className="mt-1 text-sm font-semibold text-slate-100">{currentNetworkConfig.name}</div>
           </div>
-          <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
-
-        <button
-          className="premium-card rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors hover:border-[rgba(var(--accent),0.24)] md:hidden"
-          data-tally-open="3q7V77"
-          data-tally-align-left="1"
-          data-tally-overlay="1"
-          data-tally-emoji-text="wave"
-          data-tally-auto-close="3000"
-        >
-          Feedback
+          <ChevronDown size={16} className={`text-emerald-300 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
       </div>
 
@@ -62,28 +52,28 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange, onOpen }: NetworkSwi
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              className="premium-surface absolute bottom-full right-0 z-30 mb-3 w-80 rounded-[24px] p-2 sm:bottom-auto sm:top-full sm:mb-0 sm:mt-3"
+              className="absolute right-0 top-full z-30 mt-2 w-80 rounded-lg border border-emerald-400/15 bg-black/95 p-2 shadow-[0_28px_70px_rgba(0,0,0,0.45)] backdrop-blur"
             >
-              {(Object.keys(SUPPORTED_NETWORKS) as Networks[]).map((network) => (
+              {enabledNetworks.map((network) => (
                 <button
                   key={network}
                   onClick={() => {
                     onNetworkChange(network);
                     setIsOpen(false);
                   }}
-                  className={`mb-1 flex w-full items-start justify-between rounded-[18px] px-4 py-3 text-left transition-colors last:mb-0 ${
+                  className={`mb-1 flex w-full items-start justify-between rounded-md px-4 py-3 text-left transition-colors last:mb-0 ${
                     currentNetwork === network
-                      ? 'bg-[rgba(var(--accent),0.1)]'
-                      : 'hover:bg-black/5'
+                      ? 'bg-emerald-400/10'
+                      : 'hover:bg-white/5'
                   }`}
                 >
                   <div>
-                    <div className="text-sm font-semibold">{SUPPORTED_NETWORKS[network].name}</div>
-                    <div className="mt-1 text-[11px] uppercase tracking-[0.14em] muted-copy">
+                    <div className="text-sm font-semibold text-slate-100">{SUPPORTED_NETWORKS[network].name}</div>
+                    <div className="mt-1 font-mono text-[11px] uppercase tracking-[0.14em] text-slate-400">
                       {SUPPORTED_NETWORKS[network].supportedProtocols.join(' / ')}
                     </div>
                   </div>
-                  {currentNetwork === network && <CheckCircle2 size={16} className="mt-0.5 text-[rgb(var(--accent-strong))]" />}
+                  {currentNetwork === network && <CheckCircle2 size={16} className="mt-0.5 text-emerald-300" />}
                 </button>
               ))}
             </motion.div>

@@ -19,6 +19,7 @@ import { mintStakingNFT, acceptSellOffer } from "./mintNFT.js";
 import { decodeHexUri } from "./stakingMetadata.js";
 import config from "./config.js";
 import cors from "cors";
+import { handleAgentCommand } from "./api/_agentCommandCore.js";
 
 const app = express();
 app.use(express.json());
@@ -34,6 +35,9 @@ app.get("/cors-enable", (_req, res, next) => {
     next();
 });
 app.use(cors());
+
+// ── POST /api/agent/command ─────────────────────────────────────────────────
+app.post("/api/agent/command", handleAgentCommand);
 
 // --- Global sequence reservation queue ---
 let sequenceLock = null;

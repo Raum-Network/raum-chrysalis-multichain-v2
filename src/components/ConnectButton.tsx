@@ -40,14 +40,14 @@ const ConnectButton = () => {
         <div className="relative">
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="premium-card flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors hover:border-[rgba(var(--accent),0.24)]"
+            className="flex items-center gap-3 rounded-md border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 transition-colors hover:bg-emerald-400/15"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[rgba(var(--accent),0.1)] text-[rgb(var(--accent-strong))]">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-400/10 text-emerald-300">
               <Wallet2 size={15} />
             </div>
             <div className="hidden text-left md:block">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] muted-copy">Wallet</div>
-              <div className="text-sm font-semibold">{truncateAddress(address || '')}</div>
+              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Wallet</div>
+              <div className="text-sm font-semibold text-slate-100">{truncateAddress(address || '')}</div>
             </div>
             <div className="block text-sm font-semibold md:hidden">{truncateAddress(address || '')}</div>
           </button>
@@ -70,15 +70,15 @@ const ConnectButton = () => {
               </div>
 
               <div className="mt-4 grid gap-2">
-                <div className="premium-card rounded-2xl px-3 py-3 text-sm">
+                <div className="premium-card rounded-lg px-3 py-3 text-sm">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] muted-copy">Balance</div>
                   <div className="mt-1 font-semibold">{Number(balance).toFixed(4)} {nativeCurrencySymbol}</div>
                 </div>
-                <div className="premium-card rounded-2xl px-3 py-3 text-sm">
+                <div className="premium-card rounded-lg px-3 py-3 text-sm">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] muted-copy">Network</div>
                   <div className="mt-1 font-semibold">{network}</div>
                 </div>
-                <div className="premium-card rounded-2xl px-3 py-3 text-sm">
+                <div className="premium-card rounded-lg px-3 py-3 text-sm">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] muted-copy">Chain ID</div>
                   <div className="mt-1 font-semibold">{chainId}</div>
                 </div>
@@ -124,7 +124,7 @@ const ConnectButton = () => {
                 show?.();
               }
             }}
-            className="rounded-2xl bg-[rgb(var(--ink-strong))] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.16)] transition-colors hover:bg-[rgb(var(--accent-strong))]"
+            className="rounded-md border border-emerald-400/30 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-50 shadow-[0_0_30px_rgba(16,185,129,0.08)] transition-colors hover:bg-emerald-400/20"
           >
             {isConnecting ? 'Connecting...' : 'Connect Wallet'}
           </motion.button>
