@@ -810,6 +810,17 @@
     padding: 1rem;
   }
 
+  .terminal-robot-panel {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    height: 100%;
+    min-height: 560px;
+    width: 100%;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
   .terminal-hero-panel::before,
   .terminal-only-panel::before {
     content: '';
@@ -1217,6 +1228,10 @@
       min-height: calc(100vh - 1.8rem);
       grid-template-columns: 1fr;
       grid-template-rows: minmax(420px, auto) minmax(560px, auto) auto;
+    }
+
+    .terminal-robot-panel {
+      min-height: 420px;
     }
 
     .relay-command-panel {

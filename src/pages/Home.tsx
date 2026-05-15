@@ -1,69 +1,100 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import ReactGA from 'react-ga4';
 import Terminal from '../components/Terminal';
-import RelayAnimation, { type BridgeSurfaceData } from '../components/RelayAnimation';
 import { useWallet } from '../lib/walletConnect';
 import { useStaking } from '../hooks/useStaking';
+import ChrysalisRobotMascot from '../components/ChrysalisRobotMascot';
+import stakeManager, { type StakeStatus } from '../lib/stakeManager';
+import { MASCOT_CUE_DURATIONS, type MascotCue, type MascotState } from '../lib/mascot';
 
 const Home = () => {
   const { isConnected, address, networkConfig } = useWallet();
   const { usdcBalance, linkBalance, supportedProtocols, assetSymbol } = useStaking();
+  const [terminalListening, setTerminalListening] = useState(false);
+  const [manualMascotState, setManualMascotState] = useState<MascotState | null>(null);
+  const mascotTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (address) {
       ReactGA.event({
         category: 'Wallet',
         action: 'Click',
-        label: `Connected Wallet ${address}`
+        label: `Connected Wallet ${address}`,
       });
     }
   }, [address]);
 
-  const destinationName = networkConfig.name === 'Arc Testnet' ? 'ARBITRUM SEPOLIA' : 'ARC TESTNET';
-  const primaryProtocol = supportedProtocols[0] ?? 'DIRECT';
-  const routeStage = networkConfig.sourceDomainId !== undefined && networkConfig.destinationDomain !== undefined
-    ? `DOMAIN ${networkConfig.sourceDomainId} → ${networkConfig.destinationDomain}`
-    : 'DIRECT ROUTE';
+  const triggerMascotCue = useCallback((cue: MascotCue) => {
+    if (mascotTimerRef.current !== null) {
+      window.clearTimeout(mascotTimerRef.current);
+      mascotTimerRef.current = null;
+    }
 
-  const bridgeData: BridgeSurfaceData = {
-    title: 'CHRYSALIS',
-    subtitle: 'ARC DIMENSIONAL BRIDGE SURFACE',
-    protocol: `${supportedProtocols.join(' / ') || 'DIRECT'} CROSS-CHAIN EXECUTION`,
-    activeNetwork: networkConfig.name.toUpperCase(),
-    status: isConnected ? 'LIVE TESTNET' : 'READ ONLY',
-    selectedRoute: '01',
-    routes: [
-      {
-        id: '01',
-        token: assetSymbol,
-        amount: usdcBalance.toFixed(4),
-        from: networkConfig.name.toUpperCase(),
-        to: destinationName,
-        protocol: primaryProtocol,
-        stage: routeStage,
-      },
-      ...(linkBalance > 0
-        ? [{
-            id: '02',
-            token: 'LINK',
-            amount: linkBalance.toFixed(2),
-            from: networkConfig.name.toUpperCase(),
-            to: 'EXECUTION ORACLE',
-            protocol: 'SERVICE',
-            stage: 'FEE RAIL',
-          }]
-        : []),
-    ],
-    metrics: {
-      mode: primaryProtocol,
-      network: networkConfig.name.toUpperCase(),
-      routes: String(supportedProtocols.length),
-      wallet: isConnected ? 'CONNECTED' : 'STANDBY',
-      execution: 'CONFIRM REQUIRED',
-      explorer: networkConfig.explorer.replace(/^https?:\/\//, '').toUpperCase(),
-    },
-  };
+    if (cue.state === 'idle') {
+      setManualMascotState(null);
+      return;
+    }
+
+    setManualMascotState(cue.state);
+
+    if (cue.sticky) {
+      return;
+    }
+
+    const duration = cue.durationMs ?? MASCOT_CUE_DURATIONS[cue.state] ?? 2400;
+    mascotTimerRef.current = window.setTimeout(() => {
+      setManualMascotState(null);
+      mascotTimerRef.current = null;
+    }, duration);
+  }, []);
+
+  useEffect(() => () => {
+    if (mascotTimerRef.current !== null) {
+      window.clearTimeout(mascotTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    const applyStakeCue = (status: StakeStatus) => {
+      if (status.status === 'FAILURE') {
+        triggerMascotCue({ state: 'error' });
+        return;
+      }
+
+      if (status.status === 'SUCCESS') {
+        triggerMascotCue({ state: 'staking-success' });
+        return;
+      }
+
+      if (
+        status.status === 'BRIDGING_BACK'
+        || status.status === 'COMMITTED'
+        || status.status === 'BLESSED'
+        || (status.protocol === 'CCTP' && status.attestationStatus && status.attestationStatus !== 'complete')
+      ) {
+        triggerMascotCue({ state: 'bridge-cross-chain', sticky: true });
+        return;
+      }
+
+      if (status.status === 'IN_PROGRESS') {
+        triggerMascotCue({ state: 'pending-transaction', sticky: true });
+      }
+    };
+
+    const currentStatus = stakeManager.getCurrentStatus();
+    if (currentStatus) {
+      applyStakeCue(currentStatus);
+    }
+
+    const unsubscribe = stakeManager.subscribeToStatus(applyStakeCue);
+    return () => unsubscribe();
+  }, [triggerMascotCue]);
+
+  const mascotState = useMemo<MascotState>(
+    () => manualMascotState ?? (terminalListening ? 'terminal-listening' : 'idle'),
+    [manualMascotState, terminalListening],
+  );
 
   const terminalLogs: { message: string; type: 'success' | 'info' | 'error' | 'warning' | 'command'; timestamp: Date }[] = [
     { message: 'BIOS v2.4.1 - Initializing Chrysalis agent subsystems...', type: 'success', timestamp: new Date() },
@@ -81,7 +112,7 @@ const Home = () => {
     { message: `Network: ${networkConfig.name} | Routes: ${supportedProtocols.join(', ')}`, type: 'info', timestamp: new Date() },
     { message: `Balance: ${usdcBalance.toFixed(4)} ${assetSymbol} | LINK: ${linkBalance.toFixed(2)}`, type: 'info', timestamp: new Date() },
     { message: 'Try: stake 10 USDC on Arc using the fastest route', type: 'command', timestamp: new Date() },
-    { message: 'Try: show routes | show balance | explain current network', type: 'command', timestamp: new Date() }
+    { message: 'Try: show routes | show balance | explain current network', type: 'command', timestamp: new Date() },
   ];
 
   return (
@@ -95,7 +126,9 @@ const Home = () => {
         transition={{ duration: 0.35 }}
       >
         <section className="terminal-hero-panel">
-          <RelayAnimation data={bridgeData} />
+          <div className="terminal-robot-panel">
+            <ChrysalisRobotMascot state={mascotState} className="h-full w-full" />
+          </div>
         </section>
 
         <section className="terminal-only-panel">
@@ -104,6 +137,8 @@ const Home = () => {
             logs={terminalLogs}
             interactive
             className="noel-terminal h-full"
+            onListeningChange={setTerminalListening}
+            onMascotCue={triggerMascotCue}
           />
         </section>
 

@@ -1,18 +1,58 @@
-import { useState, useEffect, useRef } from 'react';
-import { Bot, Send, ShieldCheck } from 'lucide-react';
-import { concatHex, createPublicClient, erc20Abi, formatEther, http, keccak256, pad, parseAbiItem, parseUnits, toHex } from 'viem';
-import { useWallet } from '../lib/walletConnect';
-import { useStaking } from '../hooks/useStaking';
-import stakeManager, { StakeStatus } from '../lib/stakeManager';
-import { useTheme } from '../context/ThemeContext';
-import { AgentPlan, planAgentCommand } from '../services/agentCommand';
-import stakeABI from '../lib/abi/ChrysalisSender.json';
-import stakeCCTPABI from '../lib/abi/ChrysalisSenderCCTP.json';
-import { normalizeEvmAddress } from '../lib/networkSupport';
+import { useState, useEffect, useRef } from "react";
+import { Bot, Send, ShieldCheck } from "lucide-react";
+import {
+  concatHex,
+  createPublicClient,
+  erc20Abi,
+  formatEther,
+  http,
+  keccak256,
+  pad,
+  parseAbiItem,
+  parseUnits,
+  toHex,
+} from "viem";
+import { useWallet } from "../lib/walletConnect";
+import { useStaking } from "../hooks/useStaking";
+import stakeManager, { StakeStatus } from "../lib/stakeManager";
+import { useTheme } from "../context/ThemeContext";
+import { AgentPlan, planAgentCommand } from "../services/agentCommand";
+import stakeABI from "../lib/abi/ChrysalisSender.json";
+import stakeCCTPABI from "../lib/abi/ChrysalisSenderCCTP.json";
+import { normalizeEvmAddress } from "../lib/networkSupport";
+import type { MascotCue } from "../lib/mascot";
+
+const extractWalletError = (error: unknown): string => {
+  if (!error) return "Unknown error.";
+
+  const rawMsg =
+    ((error as any)?.shortMessage as string) ||
+    ((error as any)?.details as string) ||
+    ((error as any)?.info?.error?.message as string) ||
+    (error instanceof Error ? error.message : "") ||
+    "";
+
+  const patterns: [RegExp, string][] = [
+    [/user\s+rejected/i, "User rejected the transaction in wallet."],
+    [/ACTION_REJECTED/i, "User rejected the transaction in wallet."],
+    [/User\s+denied/i, "User denied the transaction in wallet."],
+    [/insufficient\s+funds/i, "Insufficient funds for gas or value."],
+    [/execution\s+reverted/i, "Transaction reverted by the contract."],
+    [/nonce.*too\s+low/i, "Nonce too low. Submit again."],
+    [/replacement.*underpriced/i, "Replacement fee too low."],
+    [/chain\s+mismatch/i, "Network mismatch. Switch to the correct chain."],
+  ];
+
+  for (const [re, replacement] of patterns) {
+    if (re.test(rawMsg)) return replacement;
+  }
+
+  return rawMsg || (error instanceof Error ? error.message : "Unknown error.");
+};
 
 interface Log {
   message: string;
-  type: 'success' | 'info' | 'error' | 'warning' | 'command' | 'loading';
+  type: "success" | "info" | "error" | "warning" | "command" | "loading";
   timestamp: Date;
 }
 
@@ -20,19 +60,47 @@ interface TerminalProps {
   logs?: Log[];
   interactive?: boolean;
   className?: string;
+  onListeningChange?: (listening: boolean) => void;
+  onMascotCue?: (cue: MascotCue) => void;
 }
 
-const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalProps) => {
+const Terminal = ({
+  logs = [],
+  interactive = false,
+  className = "",
+  onListeningChange,
+  onMascotCue,
+}: TerminalProps) => {
   const [allLogs, setAllLogs] = useState<Log[]>(logs);
-  const [command, setCommand] = useState('');
-  const [stakeState, setStakeState] = useState<'idle' | 'protocol' | 'amount'>('idle');
-  const [selectedProtocol, setSelectedProtocol] = useState<'CCIP' | 'CCTP' | 'Axelar ITS' | null>(null);
+  const [command, setCommand] = useState("");
+  const [stakeState, setStakeState] = useState<"idle" | "protocol" | "amount">(
+    "idle",
+  );
+  const [selectedProtocol, setSelectedProtocol] = useState<
+    "CCIP" | "CCTP" | "Axelar ITS" | null
+  >(null);
   const [pendingPlan, setPendingPlan] = useState<AgentPlan | null>(null);
   const [isAgentThinking, setIsAgentThinking] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
-  const { address, isConnected, networkConfig, connect, disconnect, switchNetwork, getFormattedBalance } = useWallet();
-  const { stake, bridgeProtocol, setBridgeProtocol, usdcBalance, linkBalance, supportedProtocols, assetSymbol } = useStaking();
+  const {
+    address,
+    isConnected,
+    networkConfig,
+    connect,
+    disconnect,
+    switchNetwork,
+    getFormattedBalance,
+  } = useWallet();
+  const {
+    stake,
+    bridgeProtocol,
+    setBridgeProtocol,
+    usdcBalance,
+    linkBalance,
+    supportedProtocols,
+    assetSymbol,
+  } = useStaking();
 
   const extractAmount = (rawCommand: string) => {
     const match = rawCommand.match(/(\d+(?:\.\d+)?)/);
@@ -49,7 +117,11 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
   const mappingSlot = (key: `0x${string}`, slotIndex: number) =>
     keccak256(concatHex([pad(key), encodeUint256(slotIndex)]));
 
-  const nestedAllowanceSlot = (owner: `0x${string}`, spender: `0x${string}`, slotIndex: number) => {
+  const nestedAllowanceSlot = (
+    owner: `0x${string}`,
+    spender: `0x${string}`,
+    slotIndex: number,
+  ) => {
     const outer = keccak256(concatHex([pad(owner), encodeUint256(slotIndex)]));
     return keccak256(concatHex([pad(spender), outer]));
   };
@@ -58,7 +130,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
     client: ReturnType<typeof createPublicClient>,
     tokenAddress: `0x${string}`,
     owner: `0x${string}`,
-    targetValue: bigint
+    targetValue: bigint,
   ) => {
     for (let slotIndex = 0; slotIndex <= 20; slotIndex += 1) {
       const slot = mappingSlot(owner, slotIndex);
@@ -66,12 +138,14 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         const result = await client.readContract({
           address: tokenAddress,
           abi: erc20Abi,
-          functionName: 'balanceOf',
+          functionName: "balanceOf",
           args: [owner],
-          stateOverride: [{
-            address: tokenAddress,
-            stateDiff: [{ slot, value: encodeUint256(targetValue) }],
-          }],
+          stateOverride: [
+            {
+              address: tokenAddress,
+              stateDiff: [{ slot, value: encodeUint256(targetValue) }],
+            },
+          ],
         });
         if (result === targetValue) return slotIndex;
       } catch {
@@ -86,7 +160,7 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
     tokenAddress: `0x${string}`,
     owner: `0x${string}`,
     spender: `0x${string}`,
-    targetValue: bigint
+    targetValue: bigint,
   ) => {
     for (let slotIndex = 0; slotIndex <= 20; slotIndex += 1) {
       const slot = nestedAllowanceSlot(owner, spender, slotIndex);
@@ -94,12 +168,14 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         const result = await client.readContract({
           address: tokenAddress,
           abi: erc20Abi,
-          functionName: 'allowance',
+          functionName: "allowance",
           args: [owner, spender],
-          stateOverride: [{
-            address: tokenAddress,
-            stateDiff: [{ slot, value: encodeUint256(targetValue) }],
-          }],
+          stateOverride: [
+            {
+              address: tokenAddress,
+              stateDiff: [{ slot, value: encodeUint256(targetValue) }],
+            },
+          ],
         });
         if (result === targetValue) return slotIndex;
       } catch {
@@ -112,14 +188,16 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
   const estimateRouteGasFromRecentCctpSender = async (
     client: ReturnType<typeof createPublicClient>,
     amountInUnits: bigint,
-    tokenAddress: `0x${string}`
+    tokenAddress: `0x${string}`,
   ) => {
     const latestBlock = await client.getBlockNumber();
     const fromBlock = latestBlock > 20000n ? latestBlock - 20000n : 0n;
     const logs = await client.getLogs({
-      address: normalizeEvmAddress(networkConfig.contracts.cctp) as `0x${string}`,
+      address: normalizeEvmAddress(
+        networkConfig.contracts.cctp,
+      ) as `0x${string}`,
       event: parseAbiItem(
-        'event DepositForBurn(address indexed sender, uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller)'
+        "event DepositForBurn(address indexed sender, uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller)",
       ),
       fromBlock,
       toBlock: latestBlock,
@@ -130,23 +208,33 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         [...logs]
           .reverse()
           .map((log) => log.args.sender)
-          .filter((sender): sender is `0x${string}` => Boolean(sender))
-      )
+          .filter((sender): sender is `0x${string}` => Boolean(sender)),
+      ),
     ).slice(0, 8);
 
     for (const sender of recentSenders) {
       try {
         const gas = await client.estimateContractGas({
           account: sender,
-          address: normalizeEvmAddress(networkConfig.contracts.cctp) as `0x${string}`,
+          address: normalizeEvmAddress(
+            networkConfig.contracts.cctp,
+          ) as `0x${string}`,
           abi: stakeCCTPABI,
-          functionName: 'depositForBurnWithCaller',
+          functionName: "depositForBurnWithCaller",
           args: [
             amountInUnits,
             networkConfig.destinationDomain ?? 0,
-            toBytes32Address(networkConfig.contracts.cctpDestinationCaller || networkConfig.contracts.destination || ''),
+            toBytes32Address(
+              networkConfig.contracts.cctpDestinationCaller ||
+                networkConfig.contracts.destination ||
+                "",
+            ),
             tokenAddress,
-            toBytes32Address(networkConfig.contracts.cctpDestinationCaller || networkConfig.contracts.destination || ''),
+            toBytes32Address(
+              networkConfig.contracts.cctpDestinationCaller ||
+                networkConfig.contracts.destination ||
+                "",
+            ),
           ],
         });
         return { gas, sender };
@@ -155,34 +243,58 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       }
     }
 
-    throw new Error('Could not find a recent funded CCTP sender to simulate the stake leg.');
+    throw new Error(
+      "Could not find a recent funded CCTP sender to simulate the stake leg.",
+    );
   };
 
-  const estimateStakeFee = async (rawCommand: string): Promise<Log[]> => {
+  const estimateStakeFee = async (
+    planOrCommand: AgentPlan | string,
+  ): Promise<Log[]> => {
     const now = new Date();
-    const emit = (message: string, type: Log['type'] = 'info'): Log => ({ message, type, timestamp: now });
-    const amount = extractAmount(rawCommand);
-    const protocol = rawCommand.toLowerCase().includes('ccip')
-      ? 'CCIP'
-      : rawCommand.toLowerCase().includes('cctp') || supportedProtocols.includes('CCTP')
-        ? 'CCTP'
-        : supportedProtocols[0];
+    const emit = (message: string, type: Log["type"] = "info"): Log => ({
+      message,
+      type,
+      timestamp: now,
+    });
+    const amount =
+      typeof planOrCommand === "string"
+        ? extractAmount(planOrCommand)
+        : planOrCommand.amount;
+    const protocol =
+      typeof planOrCommand === "string"
+        ? planOrCommand.toLowerCase().includes("ccip")
+          ? "CCIP"
+          : planOrCommand.toLowerCase().includes("cctp") ||
+              supportedProtocols.includes("CCTP")
+            ? "CCTP"
+            : supportedProtocols[0]
+        : planOrCommand.protocol || supportedProtocols[0];
 
     if (!amount || amount <= 0) {
       return [
-        emit(`Tell me the amount to estimate, for example: fees for staking 10 ${assetSymbol}.`, 'warning')
+        emit(
+          `Tell me the amount to estimate, for example: fees for staking 10 ${assetSymbol}.`,
+          "warning",
+        ),
       ];
     }
 
-    if (!isConnected || !address || !address.startsWith('0x')) {
+    if (!isConnected || !address || !address.startsWith("0x")) {
       return [
-        emit('Connect an EVM wallet first so I can estimate gas from your account.', 'warning')
+        emit(
+          "Connect an EVM wallet first so I can estimate gas from your account.",
+          "warning",
+        ),
       ];
     }
 
     if (!protocol || !supportedProtocols.includes(protocol)) {
       return [
-        emit(`No fee estimate route is available on ${networkConfig.name}.`, 'error')
+        emit(
+          `No fee estimate route is available on ${networkConfig.name}.`,
+          "error",
+        ),
       ];
     }
 
@@ -193,8 +305,8 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         chain: {
           id: networkConfig.chainId,
           name: networkConfig.name,
-          network: networkConfig.name.toLowerCase().replace(/\s+/g, '-'),
-          nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+          network: networkConfig.name.toLowerCase().replace(/\s+/g, "-"),
+          nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
           rpcUrls: {
             default: { http: [networkConfig.rpcUrl] },
             public: { http: [networkConfig.publicRpc || networkConfig.rpcUrl] },
@@ -205,102 +317,156 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
 
       const gasPrice = await client.getGasPrice();
       const account = address as `0x${string}`;
-      const tokenAddress = normalizeEvmAddress(networkConfig.contracts.usdc) as `0x${string}`;
+      const tokenAddress = normalizeEvmAddress(
+        networkConfig.contracts.usdc,
+      ) as `0x${string}`;
       const spenderAddress = normalizeEvmAddress(
-        protocol === 'CCTP' ? networkConfig.contracts.cctp : networkConfig.contracts.ccip
+        protocol === "CCTP"
+          ? networkConfig.contracts.cctp
+          : networkConfig.contracts.ccip,
       ) as `0x${string}`;
       const warnings: string[] = [];
       const currentAllowance = await client.readContract({
         address: tokenAddress,
         abi: erc20Abi,
-        functionName: 'allowance',
+        functionName: "allowance",
         args: [account, spenderAddress],
       });
       const currentBalance = await client.readContract({
         address: tokenAddress,
         abi: erc20Abi,
-        functionName: 'balanceOf',
+        functionName: "balanceOf",
         args: [account],
       });
 
-      const approvalGas = currentAllowance < amountInUnits
-        ? await client.estimateContractGas({
-          account,
-          address: tokenAddress,
-          abi: erc20Abi,
-          functionName: 'approve',
-          args: [spenderAddress, amountInUnits],
-        })
-        : 0n;
+      const approvalGas =
+        currentAllowance < amountInUnits
+          ? await client.estimateContractGas({
+              account,
+              address: tokenAddress,
+              abi: erc20Abi,
+              functionName: "approve",
+              args: [spenderAddress, amountInUnits],
+            })
+          : 0n;
 
       if (approvalGas > 0n) {
-        warnings.push('USDC allowance is below the requested amount, so the estimate includes an approval transaction.');
+        warnings.push(
+          "USDC allowance is below the requested amount, so the estimate includes an approval transaction.",
+        );
       }
 
-      const requiredBalance = currentBalance >= amountInUnits ? currentBalance : amountInUnits;
-      const allowanceSlotIndex = currentAllowance >= amountInUnits
-        ? null
-        : await discoverAllowanceSlot(client, tokenAddress, account, spenderAddress, amountInUnits);
-      const balanceSlotIndex = currentBalance >= amountInUnits
-        ? null
-        : await discoverBalanceSlot(client, tokenAddress, account, requiredBalance);
+      const requiredBalance =
+        currentBalance >= amountInUnits ? currentBalance : amountInUnits;
+      const allowanceSlotIndex =
+        currentAllowance >= amountInUnits
+          ? null
+          : await discoverAllowanceSlot(
+              client,
+              tokenAddress,
+              account,
+              spenderAddress,
+              amountInUnits,
+            );
+      const balanceSlotIndex =
+        currentBalance >= amountInUnits
+          ? null
+          : await discoverBalanceSlot(
+              client,
+              tokenAddress,
+              account,
+              requiredBalance,
+            );
 
       if (currentAllowance < amountInUnits && allowanceSlotIndex === null) {
-        throw new Error('Could not discover the USDC allowance storage slot for real stake simulation.');
+        throw new Error(
+          "Could not discover the USDC allowance storage slot for real stake simulation.",
+        );
       }
       if (currentBalance < amountInUnits && balanceSlotIndex === null) {
-        throw new Error('Could not discover the USDC balance storage slot for real stake simulation.');
+        throw new Error(
+          "Could not discover the USDC balance storage slot for real stake simulation.",
+        );
       }
 
       const stateDiff = [
         allowanceSlotIndex !== null
-          ? { slot: nestedAllowanceSlot(account, spenderAddress, allowanceSlotIndex), value: encodeUint256(amountInUnits) }
+          ? {
+              slot: nestedAllowanceSlot(
+                account,
+                spenderAddress,
+                allowanceSlotIndex,
+              ),
+              value: encodeUint256(amountInUnits),
+            }
           : null,
         balanceSlotIndex !== null
-          ? { slot: mappingSlot(account, balanceSlotIndex), value: encodeUint256(requiredBalance) }
+          ? {
+              slot: mappingSlot(account, balanceSlotIndex),
+              value: encodeUint256(requiredBalance),
+            }
           : null,
       ].filter(Boolean) as { slot: `0x${string}`; value: `0x${string}` }[];
 
-      const stateOverride = stateDiff.length > 0
-        ? [{ address: tokenAddress, stateDiff }]
-        : undefined;
+      const stateOverride =
+        stateDiff.length > 0
+          ? [{ address: tokenAddress, stateDiff }]
+          : undefined;
 
       let routeGas: bigint;
       let routeSender: `0x${string}` | null = null;
 
-      if (protocol === 'CCTP') {
+      if (protocol === "CCTP") {
         try {
           routeGas = await client.estimateContractGas({
             account,
-            address: normalizeEvmAddress(networkConfig.contracts.cctp) as `0x${string}`,
+            address: normalizeEvmAddress(
+              networkConfig.contracts.cctp,
+            ) as `0x${string}`,
             abi: stakeCCTPABI,
-            functionName: 'depositForBurnWithCaller',
+            functionName: "depositForBurnWithCaller",
             args: [
               amountInUnits,
               networkConfig.destinationDomain ?? 0,
-              toBytes32Address(networkConfig.contracts.cctpDestinationCaller || networkConfig.contracts.destination || ''),
+              toBytes32Address(
+                networkConfig.contracts.cctpDestinationCaller ||
+                  networkConfig.contracts.destination ||
+                  "",
+              ),
               tokenAddress,
-              toBytes32Address(networkConfig.contracts.cctpDestinationCaller || networkConfig.contracts.destination || ''),
+              toBytes32Address(
+                networkConfig.contracts.cctpDestinationCaller ||
+                  networkConfig.contracts.destination ||
+                  "",
+              ),
             ],
             stateOverride,
           });
         } catch {
-          const simulated = await estimateRouteGasFromRecentCctpSender(client, amountInUnits, tokenAddress);
+          const simulated = await estimateRouteGasFromRecentCctpSender(
+            client,
+            amountInUnits,
+            tokenAddress,
+          );
           routeGas = simulated.gas;
           routeSender = simulated.sender;
-          warnings.push(`Stake leg was estimated using recent Arc sender ${simulated.sender} because your wallet state blocks direct CCTP simulation.`);
+          warnings.push(
+            `Stake leg was estimated using recent Arc sender ${simulated.sender} because your wallet state blocks direct CCTP simulation.`,
+          );
         }
       } else {
         routeGas = await client.estimateContractGas({
           account,
-          address: normalizeEvmAddress(networkConfig.contracts.ccip) as `0x${string}`,
+          address: normalizeEvmAddress(
+            networkConfig.contracts.ccip,
+          ) as `0x${string}`,
           abi: stakeABI,
-          functionName: 'handleStakingAction',
+          functionName: "handleStakingAction",
           args: [
-            '16015286601757825753',
-            normalizeEvmAddress(networkConfig.contracts.destination || ''),
+            "16015286601757825753",
+            normalizeEvmAddress(networkConfig.contracts.destination || ""),
             amountInUnits,
-            '999999',
+            "999999",
           ],
           stateOverride,
         });
@@ -309,35 +475,70 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       const gas = approvalGas + routeGas;
       const nativeFeeWei = gas * gasPrice;
       const bufferedWei = nativeFeeWei + nativeFeeWei / 5n;
-      const nativeSymbol = networkConfig.chainId === 5042002 ? 'USDC' : networkConfig.chainId === 98867 ? 'PLUME' : 'ETH';
+      const nativeSymbol =
+        networkConfig.chainId === 5042002
+          ? "USDC"
+          : networkConfig.chainId === 98867
+            ? "PLUME"
+            : "ETH";
       const lines = [
-        emit(`Fee estimate for staking ${amount} ${assetSymbol} on ${networkConfig.name} via ${protocol}:`, 'success'),
+        emit(
+          `Fee estimate for staking ${amount} ${assetSymbol} on ${networkConfig.name} via ${protocol}:`,
+          "success",
+        ),
         emit(`  approval gas: ${approvalGas.toString()}`),
         emit(`  route gas: ${routeGas.toString()}`),
         emit(`  total estimated gas units: ${gas.toString()}`),
         emit(`  current gas price: ${formatEther(gasPrice)} ${nativeSymbol}`),
-        emit(`  estimated source-chain gas: ${formatEther(nativeFeeWei)} ${nativeSymbol}`),
-        emit(`  suggested wallet buffer: ${formatEther(bufferedWei)} ${nativeSymbol}`),
+        emit(
+          `  estimated source-chain gas: ${formatEther(nativeFeeWei)} ${nativeSymbol}`,
+        ),
+        emit(
+          `  suggested wallet buffer: ${formatEther(bufferedWei)} ${nativeSymbol}`,
+        ),
       ];
 
       if (routeSender) {
-        lines.push(emit(`  simulation sender: ${routeSender}`, 'info'));
+        lines.push(emit(`  simulation sender: ${routeSender}`, "info"));
       }
 
-      warnings.forEach((warning) => lines.push(emit(`  ${warning}`, 'warning')));
+      warnings.forEach((warning) =>
+        lines.push(emit(`  ${warning}`, "warning")),
+      );
 
-      if (protocol === 'CCIP') {
-        lines.push(emit('  CCIP also requires LINK fee allowance. This app checks for a 10 LINK buffer before execution.', 'warning'));
+      if (protocol === "CCIP") {
+        lines.push(
+          emit(
+            "  CCIP also requires LINK fee allowance. This app checks for a 10 LINK buffer before execution.",
+            "warning",
+          ),
+        );
       } else {
-        lines.push(emit('  CCTP has no LINK fee requirement in this flow; you still pay source-chain gas.', 'info'));
+        lines.push(
+          emit(
+            "  CCTP has no LINK fee requirement in this flow; you still pay source-chain gas.",
+            "info",
+          ),
+        );
       }
 
-      lines.push(emit('No transaction prepared. Type a stake command separately when ready.', 'warning'));
+      lines.push(
+        emit(
+          "No transaction prepared. Type a stake command separately when ready.",
+          "warning",
+        ),
+      );
       return lines;
     } catch (error) {
       return [
-        emit(`Could not estimate fees: ${error instanceof Error ? error.message : 'Unknown estimation error'}`, 'error'),
-        emit('No transaction prepared. Fee estimation failed before execution.', 'warning'),
+        emit(
+          `Could not estimate fees: ${error instanceof Error ? error.message : "Unknown estimation error"}`,
+          "error",
+        ),
+        emit(
+          "No transaction prepared. Fee estimation failed before execution.",
+          "warning",
+        ),
       ];
     }
   };
@@ -345,86 +546,102 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
   const localCommandLines = (rawCommand: string): Log[] | null => {
     const now = new Date();
     const normalizedCommand = rawCommand.trim().toLowerCase();
-    const emit = (lines: string[], type: Log['type'] = 'info') =>
+    const emit = (lines: string[], type: Log["type"] = "info") =>
       lines.map((message): Log => ({ message, type, timestamp: now }));
 
     switch (normalizedCommand) {
-      case 'help':
+      case "help":
         return emit([
-          'Available commands:',
-          '  help       list all commands',
-          '  about      what Chrysalis does',
-          '  skills     protocol and agent stack',
-          '  projects   featured Chrysalis flows',
-          '  contact    project links and feedback',
-          '  ls         directory listing',
-          '  whoami     current wallet/session',
-          '  wallet     wallet connection status',
-          '  connect    connect wallet',
-          '  disconnect disconnect wallet',
-          '  network arc switch to Arc Testnet',
-          '  date       local date and time',
-          '  clear      clear terminal output',
-          '  routes     show supported bridge routes',
-          '  balance    show asset balance',
-          '  stake 10 USDC on Arc'
+          "Available commands:",
+          "  help       list all commands",
+          "  about      what Chrysalis does",
+          "  skills     protocol and agent stack",
+          "  projects   featured Chrysalis flows",
+          "  contact    project links and feedback",
+          "  ls         directory listing",
+          "  whoami     current wallet/session",
+          "  wallet     wallet connection status",
+          "  connect    connect wallet",
+          "  disconnect disconnect wallet",
+          "  network arc switch to Arc Testnet",
+          "  date       local date and time",
+          "  clear      clear terminal output",
+          "  routes     show supported bridge routes",
+          "  balance    show asset balance",
+          "  stake 10 USDC on Arc",
         ]);
-      case 'about':
+      case "about":
         return emit([
-          'Chrysalis is an agentic cross-chain liquid staking terminal.',
-          'Type a natural-language intent, let the agents plan the route, then confirm before any wallet execution.',
-          `Current context: ${networkConfig.name} / ${supportedProtocols.join(', ') || 'no routes configured'}.`
+          "Chrysalis is an agentic cross-chain liquid staking terminal.",
+          "Type a natural-language intent, let the agents plan the route, then confirm before any wallet execution.",
+          `Current context: ${networkConfig.name} / ${supportedProtocols.join(", ") || "no routes configured"}.`,
         ]);
-      case 'skills':
+      case "skills":
+        return emit(
+          [
+            "Agent stack:",
+            "  Intent parser      [█████████░] 92%",
+            "  Route planner      [████████░░] 84%",
+            "  Safety guard       [██████████] 100%",
+            "  Transaction watch  [███████░░░] 72%",
+            "Protocol stack:",
+            `  ${supportedProtocols.join(" / ") || "No protocols available on this network"}`,
+            `  Asset: ${assetSymbol}`,
+          ],
+          "success",
+        );
+      case "projects":
         return emit([
-          'Agent stack:',
-          '  Intent parser      [█████████░] 92%',
-          '  Route planner      [████████░░] 84%',
-          '  Safety guard       [██████████] 100%',
-          '  Transaction watch  [███████░░░] 72%',
-          'Protocol stack:',
-          `  ${supportedProtocols.join(' / ') || 'No protocols available on this network'}`,
-          `  Asset: ${assetSymbol}`
-        ], 'success');
-      case 'projects':
-        return emit([
-          'Featured flows:',
-          '  /arc-mission       connect wallet, inspect route, stake testnet USDC',
-          '  /route-engine      compare CCTP, CCIP, and Axelar capabilities',
-          '  /tx-watch          follow source tx, attestation, destination settlement',
-          '  /safety-gate       require explicit confirm before wallet signing'
+          "Featured flows:",
+          "  /arc-mission       connect wallet, inspect route, stake testnet USDC",
+          "  /route-engine      compare CCTP, CCIP, and Axelar capabilities",
+          "  /tx-watch          follow source tx, attestation, destination settlement",
+          "  /safety-gate       require explicit confirm before wallet signing",
         ]);
-      case 'contact':
+      case "contact":
         return emit([
-          'Contact / links:',
-          '  Feedback: https://faucet.raum.network',
-          '  Terminal: Chrysalis Arc agent CLI',
-          '  Tip: type "stake 10 USDC on Arc" to start a planned flow'
+          "Contact / links:",
+          "  Feedback: https://faucet.raum.network",
+          "  Terminal: Chrysalis Arc agent CLI",
+          '  Tip: type "stake 10 USDC on Arc" to start a planned flow',
         ]);
-      case 'ls':
+      case "ls":
         return emit([
-          'drwxr-xr-x  agents/',
-          'drwxr-xr-x  routes/',
-          'drwxr-xr-x  wallet/',
-          'drwxr-xr-x  transactions/',
-          '-rw-r--r--  README.arc',
-          '-rw-r--r--  mission.arc'
+          "drwxr-xr-x  agents/",
+          "drwxr-xr-x  routes/",
+          "drwxr-xr-x  wallet/",
+          "drwxr-xr-x  transactions/",
+          "-rw-r--r--  README.arc",
+          "-rw-r--r--  mission.arc",
         ]);
-      case 'whoami':
-      case 'wallet':
-      case 'wallet status':
-        return emit([
-          `wallet: ${isConnected && address ? address : 'not connected'}`,
-          `network: ${networkConfig.name}`,
-          `asset: ${usdcBalance.toFixed(4)} ${assetSymbol}`,
-          `routes: ${supportedProtocols.join(', ') || 'none'}`
-        ], isConnected ? 'success' : 'warning');
-      case 'date':
+      case "whoami":
+      case "wallet":
+      case "wallet status":
+        return emit(
+          [
+            `wallet: ${isConnected && address ? address : "not connected"}`,
+            `network: ${networkConfig.name}`,
+            `asset: ${usdcBalance.toFixed(4)} ${assetSymbol}`,
+            `routes: ${supportedProtocols.join(", ") || "none"}`,
+          ],
+          isConnected ? "success" : "warning",
+        );
+      case "date":
         return emit([new Date().toString()]);
-      case 'routes':
-        return emit([`Available routes on ${networkConfig.name}: ${supportedProtocols.join(', ') || 'none configured'}`], 'success');
-      case 'balance':
-        return emit([`Current ${assetSymbol} balance: ${usdcBalance.toFixed(4)} ${assetSymbol}`], 'success');
+      case "routes":
+        return emit(
+          [
+            `Available routes on ${networkConfig.name}: ${supportedProtocols.join(", ") || "none configured"}`,
+          ],
+          "success",
+        );
+      case "balance":
+        return emit(
+          [
+            `Current ${assetSymbol} balance: ${usdcBalance.toFixed(4)} ${assetSymbol}`,
+          ],
+          "success",
+        );
       default:
         return null;
     }
@@ -433,70 +650,80 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
   const isConnectCommand = (rawCommand: string) => {
     const input = rawCommand.trim().toLowerCase();
     return [
-      'connect',
-      'connect wallet',
-      'connect my wallet',
-      'wallet connect',
-      'login',
-      'sign in',
-      'signin'
+      "connect",
+      "connect wallet",
+      "connect my wallet",
+      "wallet connect",
+      "login",
+      "sign in",
+      "signin",
     ].includes(input);
   };
 
   const isDisconnectCommand = (rawCommand: string) => {
     const input = rawCommand.trim().toLowerCase();
     return [
-      'disconnect',
-      'disconnect wallet',
-      'disconnect my wallet',
-      'wallet disconnect',
-      'logout',
-      'log out',
-      'sign out',
-      'signout'
+      "disconnect",
+      "disconnect wallet",
+      "disconnect my wallet",
+      "wallet disconnect",
+      "logout",
+      "log out",
+      "sign out",
+      "signout",
     ].includes(input);
   };
 
   const isArcNetworkCommand = (rawCommand: string) => {
     const input = rawCommand.trim().toLowerCase();
-    return /(switch|change|set|use).*(network|chain).*(arc|arc testnet)/.test(input)
-      || /(network|chain).*(arc|arc testnet)/.test(input)
-      || ['arc', 'arc testnet', 'network arc', 'switch arc', 'switch to arc'].includes(input);
+    return (
+      /(switch|change|set|use).*(network|chain).*(arc|arc testnet)/.test(
+        input,
+      ) ||
+      /(network|chain).*(arc|arc testnet)/.test(input) ||
+      [
+        "arc",
+        "arc testnet",
+        "network arc",
+        "switch arc",
+        "switch to arc",
+      ].includes(input)
+    );
   };
 
   const handleArcNetworkCommand = async (newLogs: Log[]) => {
     setAllLogs([
       ...newLogs,
       {
-        message: 'Switching wallet to Arc Testnet...',
-        type: 'loading',
-        timestamp: new Date()
-      }
+        message: "Switching wallet to Arc Testnet...",
+        type: "loading",
+        timestamp: new Date(),
+      },
     ]);
 
     try {
-      await switchNetwork('arc-testnet');
+      await switchNetwork("arc-testnet");
       setAllLogs([
         ...newLogs,
         {
-          message: 'Network set to Arc Testnet.',
-          type: 'success',
-          timestamp: new Date()
+          message: "Network set to Arc Testnet.",
+          type: "success",
+          timestamp: new Date(),
         },
         {
-          message: 'Only Arc Testnet is enabled in this terminal.',
-          type: 'info',
-          timestamp: new Date()
-        }
+          message: "Only Arc Testnet is enabled in this terminal.",
+          type: "info",
+          timestamp: new Date(),
+        },
       ]);
     } catch (error) {
       setAllLogs([
         ...newLogs,
         {
-          message: `Network switch failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          type: 'error',
-          timestamp: new Date()
-        }
+          message: `Network switch failed: ${extractWalletError(error)}`,
+          type: "error",
+          timestamp: new Date(),
+        },
       ]);
     }
   };
@@ -506,10 +733,10 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       setAllLogs([
         ...newLogs,
         {
-          message: `Wallet already connected: ${address || 'active session'}`,
-          type: 'success',
-          timestamp: new Date()
-        }
+          message: `Wallet already connected: ${address || "active session"}`,
+          type: "success",
+          timestamp: new Date(),
+        },
       ]);
       return;
     }
@@ -517,10 +744,10 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
     setAllLogs([
       ...newLogs,
       {
-        message: 'Opening wallet connection from terminal...',
-        type: 'loading',
-        timestamp: new Date()
-      }
+        message: "Opening wallet connection from terminal...",
+        type: "loading",
+        timestamp: new Date(),
+      },
     ]);
 
     try {
@@ -528,24 +755,24 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       setAllLogs([
         ...newLogs,
         {
-          message: `Wallet connection requested${result?.address ? `: ${result.address}` : '.'}`,
-          type: 'success',
-          timestamp: new Date()
+          message: `Wallet connection requested${result?.address ? `: ${result.address}` : "."}`,
+          type: "success",
+          timestamp: new Date(),
         },
         {
-          message: 'Approve the wallet prompt if it is still open.',
-          type: 'info',
-          timestamp: new Date()
-        }
+          message: "Approve the wallet prompt if it is still open.",
+          type: "info",
+          timestamp: new Date(),
+        },
       ]);
     } catch (error) {
       setAllLogs([
         ...newLogs,
         {
-          message: `Wallet connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          type: 'error',
-          timestamp: new Date()
-        }
+          message: `Wallet connection failed: ${extractWalletError(error)}`,
+          type: "error",
+          timestamp: new Date(),
+        },
       ]);
     }
   };
@@ -555,10 +782,10 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       setAllLogs([
         ...newLogs,
         {
-          message: 'No wallet is connected.',
-          type: 'warning',
-          timestamp: new Date()
-        }
+          message: "No wallet is connected.",
+          type: "warning",
+          timestamp: new Date(),
+        },
       ]);
       return;
     }
@@ -566,33 +793,33 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
     setAllLogs([
       ...newLogs,
       {
-        message: 'Disconnecting wallet session...',
-        type: 'loading',
-        timestamp: new Date()
-      }
+        message: "Disconnecting wallet session...",
+        type: "loading",
+        timestamp: new Date(),
+      },
     ]);
 
     try {
       await disconnect();
       setPendingPlan(null);
-      setStakeState('idle');
+      setStakeState("idle");
       setSelectedProtocol(null);
       setAllLogs([
         ...newLogs,
         {
-          message: 'Wallet disconnected.',
-          type: 'success',
-          timestamp: new Date()
-        }
+          message: "Wallet disconnected.",
+          type: "success",
+          timestamp: new Date(),
+        },
       ]);
     } catch (error) {
       setAllLogs([
         ...newLogs,
         {
-          message: `Wallet disconnect failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          type: 'error',
-          timestamp: new Date()
-        }
+          message: `Wallet disconnect failed: ${extractWalletError(error)}`,
+          type: "error",
+          timestamp: new Date(),
+        },
       ]);
     }
   };
@@ -610,9 +837,9 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         ...existingLogs,
         {
           message: `Tell me the amount, for example: stake 10 ${assetSymbol} on Arc.`,
-          type: 'warning',
-          timestamp: new Date()
-        }
+          type: "warning",
+          timestamp: new Date(),
+        },
       ]);
       return;
     }
@@ -621,26 +848,28 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       setAllLogs([
         ...existingLogs,
         {
-          message: 'Connect your wallet first, then I can prepare the Arc route.',
-          type: 'warning',
-          timestamp: new Date()
-        }
+          message:
+            "Connect your wallet first, then I can prepare the Arc route.",
+          type: "warning",
+          timestamp: new Date(),
+        },
       ]);
       return;
     }
 
-    const protocol = plan.protocol && supportedProtocols.includes(plan.protocol)
-      ? plan.protocol
-      : supportedProtocols[0];
+    const protocol =
+      plan.protocol && supportedProtocols.includes(plan.protocol)
+        ? plan.protocol
+        : supportedProtocols[0];
 
     if (!protocol) {
       setAllLogs([
         ...existingLogs,
         {
           message: `No supported protocol is configured for ${networkConfig.name}.`,
-          type: 'error',
-          timestamp: new Date()
-        }
+          type: "error",
+          timestamp: new Date(),
+        },
       ]);
       return;
     }
@@ -650,21 +879,21 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         ...existingLogs,
         {
           message: `Insufficient ${assetSymbol}. Balance: ${usdcBalance.toFixed(4)} ${assetSymbol}.`,
-          type: 'error',
-          timestamp: new Date()
-        }
+          type: "error",
+          timestamp: new Date(),
+        },
       ]);
       return;
     }
 
-    if (protocol === 'CCIP' && linkBalance < 10) {
+    if (protocol === "CCIP" && linkBalance < 10) {
       setAllLogs([
         ...existingLogs,
         {
           message: `CCIP needs at least 10 LINK for fees. Current LINK: ${linkBalance.toFixed(2)}.`,
-          type: 'error',
-          timestamp: new Date()
-        }
+          type: "error",
+          timestamp: new Date(),
+        },
       ]);
       return;
     }
@@ -675,9 +904,9 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       ...existingLogs,
       {
         message: `Safety check passed. Prepared ${plan.amount} ${assetSymbol} via ${protocol}. Type confirm to execute or cancel to abort.`,
-        type: 'success',
-        timestamp: new Date()
-      }
+        type: "success",
+        timestamp: new Date(),
+      },
     ]);
   };
 
@@ -690,29 +919,29 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         ...existingLogs,
         {
           message: `Executing ${pendingPlan.amount} ${assetSymbol} via ${protocol}...`,
-          type: 'loading',
-          timestamp: new Date()
-        }
+          type: "loading",
+          timestamp: new Date(),
+        },
       ]);
 
       await stake(pendingPlan.amount);
-      setAllLogs(prevLogs => [
+      setAllLogs((prevLogs) => [
         ...prevLogs,
         {
           message: `Execution submitted for ${pendingPlan.amount} ${assetSymbol} via ${protocol}. Watching transaction status.`,
-          type: 'success',
-          timestamp: new Date()
-        }
+          type: "success",
+          timestamp: new Date(),
+        },
       ]);
       setPendingPlan(null);
     } catch (error) {
-      setAllLogs(prevLogs => [
+      setAllLogs((prevLogs) => [
         ...prevLogs,
         {
-          message: `Execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          type: 'error',
-          timestamp: new Date()
-        }
+          message: `Execution failed: ${extractWalletError(error)}`,
+          type: "error",
+          timestamp: new Date(),
+        },
       ]);
       setPendingPlan(null);
     }
@@ -728,13 +957,13 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       ...allLogs,
       {
         message: `> ${submittedCommand}`,
-        type: 'command',
-        timestamp: new Date()
-      }
+        type: "command",
+        timestamp: new Date(),
+      },
     ];
-    setCommand('');
+    setCommand("");
 
-    if (submittedCommand.toLowerCase() === 'clear') {
+    if (submittedCommand.toLowerCase() === "clear") {
       setAllLogs([]);
       return;
     }
@@ -760,34 +989,45 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       return;
     }
 
-    if (pendingPlan && ['confirm', 'yes', 'execute', 'run'].includes(submittedCommand.toLowerCase())) {
+    if (
+      pendingPlan &&
+      ["confirm", "yes", "execute", "run"].includes(
+        submittedCommand.toLowerCase(),
+      )
+    ) {
       await executePendingPlan(newLogs);
       return;
     }
 
-    if (pendingPlan && ['cancel', 'abort', 'stop'].includes(submittedCommand.toLowerCase())) {
+    if (
+      pendingPlan &&
+      ["cancel", "abort", "stop"].includes(submittedCommand.toLowerCase())
+    ) {
       setPendingPlan(null);
       setAllLogs([
         ...newLogs,
         {
-          message: 'Pending execution cancelled.',
-          type: 'warning',
-          timestamp: new Date()
-        }
+          message: "Pending execution cancelled.",
+          type: "warning",
+          timestamp: new Date(),
+        },
       ]);
       return;
     }
 
     // Handle different states of staking process
-    if (stakeState === 'protocol') {
+    if (stakeState === "protocol") {
       const protocol = submittedCommand.toUpperCase();
-      const normalizedProtocol = protocol === 'AXELAR' ? 'AXELAR ITS' : protocol;
-      const isProtocolInput = (value: string): value is 'CCIP' | 'CCTP' | 'AXELAR ITS' =>
-        value === 'CCIP' || value === 'CCTP' || value === 'AXELAR ITS';
+      const normalizedProtocol =
+        protocol === "AXELAR" ? "AXELAR ITS" : protocol;
+      const isProtocolInput = (
+        value: string,
+      ): value is "CCIP" | "CCTP" | "AXELAR ITS" =>
+        value === "CCIP" || value === "CCTP" || value === "AXELAR ITS";
       const protocolMap = new Map([
-        ['CCIP', 'CCIP'],
-        ['CCTP', 'CCTP'],
-        ['AXELAR ITS', 'Axelar ITS'],
+        ["CCIP", "CCIP"],
+        ["CCTP", "CCTP"],
+        ["AXELAR ITS", "Axelar ITS"],
       ] as const);
       const selected = isProtocolInput(normalizedProtocol)
         ? protocolMap.get(normalizedProtocol)
@@ -797,45 +1037,45 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         setAllLogs([
           ...newLogs,
           {
-            message: `Unsupported protocol. Allowed protocols: ${supportedProtocols.join(', ')}`,
-            type: 'error',
-            timestamp: new Date()
-          }
+            message: `Unsupported protocol. Allowed protocols: ${supportedProtocols.join(", ")}`,
+            type: "error",
+            timestamp: new Date(),
+          },
         ]);
-        setCommand('');
+        setCommand("");
         return;
       }
 
       setSelectedProtocol(selected);
       setBridgeProtocol(selected);
-      setStakeState('amount');
+      setStakeState("amount");
       setAllLogs([
         ...newLogs,
         {
           message: `Selected protocol: ${selected}. Please enter the amount of ${assetSymbol} to stake:`,
-          type: 'info',
-          timestamp: new Date()
-        }
+          type: "info",
+          timestamp: new Date(),
+        },
       ]);
-      setCommand('');
+      setCommand("");
       return;
     }
 
-    if (stakeState === 'amount') {
+    if (stakeState === "amount") {
       const inputValue = submittedCommand;
 
       // Check if input has more than 6 decimal places
-      const parts = inputValue.split('.');
+      const parts = inputValue.split(".");
       if (parts[1] && parts[1].length > 6) {
         setAllLogs([
           ...newLogs,
           {
-            message: 'Amount can only have up to 6 decimal places',
-            type: 'error',
-            timestamp: new Date()
-          }
+            message: "Amount can only have up to 6 decimal places",
+            type: "error",
+            timestamp: new Date(),
+          },
         ]);
-        setCommand('');
+        setCommand("");
         return;
       }
 
@@ -844,12 +1084,12 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         setAllLogs([
           ...newLogs,
           {
-            message: 'Invalid amount. Please enter a valid number:',
-            type: 'error',
-            timestamp: new Date()
-          }
+            message: "Invalid amount. Please enter a valid number:",
+            type: "error",
+            timestamp: new Date(),
+          },
         ]);
-        setCommand('');
+        setCommand("");
         return;
       }
 
@@ -858,24 +1098,24 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
           ...newLogs,
           {
             message: `Insufficient ${assetSymbol} balance. Your current ${assetSymbol} balance is ${usdcBalance.toFixed(2)} ${assetSymbol}`,
-            type: 'error',
-            timestamp: new Date()
-          }
+            type: "error",
+            timestamp: new Date(),
+          },
         ]);
-        setCommand('');
+        setCommand("");
         return;
       }
 
-      if (bridgeProtocol === 'CCIP' && linkBalance < 10) {
+      if (bridgeProtocol === "CCIP" && linkBalance < 10) {
         setAllLogs([
           ...newLogs,
           {
             message: `Insufficient LINK balance. Your current LINK balance is ${linkBalance.toFixed(2)} LINK`,
-            type: 'error',
-            timestamp: new Date()
-          }
+            type: "error",
+            timestamp: new Date(),
+          },
         ]);
-        setCommand('');
+        setCommand("");
         return;
       }
 
@@ -885,9 +1125,9 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
           ...newLogs,
           {
             message: `Staking ${amount} ${assetSymbol} using ${protoLabel} protocol...`,
-            type: 'info',
-            timestamp: new Date()
-          }
+            type: "info",
+            timestamp: new Date(),
+          },
         ]);
 
         await stake(amount);
@@ -895,172 +1135,215 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
           ...newLogs,
           {
             message: `Staking Completed. Staked ${amount} ${assetSymbol} using ${protoLabel} protocol...`,
-            type: 'success',
-            timestamp: new Date()
-          }
+            type: "success",
+            timestamp: new Date(),
+          },
         ]);
 
         // Subscribe to stake status updates
-        const unsubscribe = stakeManager.subscribeToStatus((status: StakeStatus) => {
-          if (status.status === 'SUCCESS' && selectedProtocol === 'CCTP' && status.destinationTxHash) {
-            setAllLogs(prevLogs => [
-              ...prevLogs,
-              {
-                message: `CCTP Transaction Success! Destination TX Hash: ${status.destinationTxHash}`,
-                type: 'success',
-                timestamp: new Date()
-              }
-            ]);
-            unsubscribe();
-          }
-        });
+        const unsubscribe = stakeManager.subscribeToStatus(
+          (status: StakeStatus) => {
+            if (
+              status.status === "SUCCESS" &&
+              selectedProtocol === "CCTP" &&
+              status.destinationTxHash
+            ) {
+              setAllLogs((prevLogs) => [
+                ...prevLogs,
+                {
+                  message: `CCTP Transaction Success! Destination TX Hash: ${status.destinationTxHash}`,
+                  type: "success",
+                  timestamp: new Date(),
+                },
+              ]);
+              unsubscribe();
+            }
+          },
+        );
 
-        setStakeState('idle');
+        setStakeState("idle");
         setSelectedProtocol(null);
       } catch (error) {
         setAllLogs([
           ...newLogs,
           {
-            message: `Staking failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            type: 'error',
-            timestamp: new Date()
-          }
+            message: `Staking failed: ${extractWalletError(error)}`,
+            type: "error",
+            timestamp: new Date(),
+          },
         ]);
-        setStakeState('idle');
+        setStakeState("idle");
         setSelectedProtocol(null);
       }
-      setCommand('');
+      setCommand("");
       return;
     }
 
     setAllLogs([
       ...newLogs,
       {
-        message: 'Agent is reading command intent...',
-        type: 'loading',
-        timestamp: new Date()
-      }
+        message: "Agent is reading command intent...",
+        type: "loading",
+        timestamp: new Date(),
+      },
     ]);
     setIsAgentThinking(true);
+    onListeningChange?.(true);
 
     try {
-      const { plan, source, error } = await planAgentCommand(submittedCommand, {
-        address,
-        isConnected,
-        networkName: networkConfig.name,
-        chainId: networkConfig.chainId,
-        explorer: networkConfig.explorer,
-        supportedProtocols,
-        assetSymbol,
-        assetBalance: usdcBalance,
-        linkBalance,
-        destinationDomain: networkConfig.destinationDomain,
-        sourceDomainId: networkConfig.sourceDomainId,
-        contracts: networkConfig.contracts,
-      });
-
-      const responseLogs: Log[] = [
-        ...newLogs,
+      const { plans, source, error } = await planAgentCommand(
+        submittedCommand,
         {
-          message: `${source === 'gemini' ? 'Gemini plan' : 'Local fallback'}: ${plan.reply}`,
-          type: source === 'gemini' ? 'success' : 'warning',
-          timestamp: new Date()
+          address,
+          isConnected,
+          networkName: networkConfig.name,
+          chainId: networkConfig.chainId,
+          explorer: networkConfig.explorer,
+          supportedProtocols,
+          assetSymbol,
+          assetBalance: usdcBalance,
+          linkBalance,
+          destinationDomain: networkConfig.destinationDomain,
+          sourceDomainId: networkConfig.sourceDomainId,
+          contracts: networkConfig.contracts,
         },
-        ...plan.steps.map((step): Log => ({
-          message: `- ${step}`,
-          type: 'info',
-          timestamp: new Date()
-        })),
-        ...plan.warnings.map((warning): Log => ({
-          message: `Warning: ${warning}`,
-          type: 'warning',
-          timestamp: new Date()
-        })),
-      ];
+      );
 
-      if (error && source === 'fallback') {
-        responseLogs.push({
+      let currentLogs: Log[] = [...newLogs];
+      let pendingStakePlan: AgentPlan | null = null;
+      let finalCueState: MascotCue["state"] = "answer-ready";
+
+      for (const plan of plans) {
+        currentLogs.push({
+          message: plan.reply,
+          type: "success",
+          timestamp: new Date(),
+        });
+        if (plan.steps.length > 0) {
+          currentLogs.push(
+            ...plan.steps.map(
+              (step): Log => ({
+                message: `- ${step}`,
+                type: "info",
+                timestamp: new Date(),
+              }),
+            ),
+          );
+        }
+        if (plan.warnings.length > 0) {
+          currentLogs.push(
+            ...plan.warnings.map(
+              (warning): Log => ({
+                message: `Warning: ${warning}`,
+                type: "warning",
+                timestamp: new Date(),
+              }),
+            ),
+          );
+        }
+
+        if (plan.action === "stake") {
+          // Only keep the first stake plan when there are multiple plans
+          if (!pendingStakePlan) {
+            pendingStakePlan = plan;
+          } else {
+            currentLogs.push({
+              message: `Multiple stake commands detected. Processing the first one (${pendingStakePlan.amount || '?'} ${assetSymbol}).`,
+              type: "warning",
+              timestamp: new Date(),
+            });
+          }
+        } else if (plan.action === "fees") {
+          const feeLogs = await estimateStakeFee(plan);
+          currentLogs = [...currentLogs, ...feeLogs];
+        } else if (plan.action === "balance") {
+          const balance =
+            assetSymbol === "USDC"
+              ? getFormattedBalance()
+              : usdcBalance.toFixed(4);
+          currentLogs.push({
+            message: `Current ${assetSymbol} balance: ${balance} ${assetSymbol}`,
+            type: "success",
+            timestamp: new Date(),
+          });
+        } else if (plan.action === "routes") {
+          currentLogs.push({
+            message: `Available route agents: ${supportedProtocols.join(", ")} on ${networkConfig.name}.`,
+            type: "success",
+            timestamp: new Date(),
+          });
+          finalCueState = "bridge-cross-chain";
+        } else if (plan.action === "faucet") {
+          currentLogs.push({
+            message: "Faucet: https://faucet.raum.network",
+            type: "info",
+            timestamp: new Date(),
+          });
+        } else if (plan.action === "help") {
+          currentLogs.push({
+            message: `Help: ${plan.reply}`,
+            type: "info",
+            timestamp: new Date(),
+          });
+        }
+      }
+
+      if (error && source === "fallback") {
+        currentLogs.push({
           message: error,
-          type: 'warning',
-          timestamp: new Date()
+          type: "warning",
+          timestamp: new Date(),
         });
       }
 
-      if (plan.action === 'stake') {
-        await runStakePlan(plan, responseLogs);
-      } else if (plan.action === 'fees') {
-        const feeLogs = await estimateStakeFee(submittedCommand);
-        setAllLogs([...responseLogs, ...feeLogs]);
-      } else if (plan.action === 'balance') {
-        const balance = assetSymbol === 'USDC' ? getFormattedBalance() : usdcBalance.toFixed(4);
-        setAllLogs([
-          ...responseLogs,
-          {
-            message: `Current ${assetSymbol} balance: ${balance} ${assetSymbol}`,
-            type: 'success',
-            timestamp: new Date()
-          }
-        ]);
-      } else if (plan.action === 'routes') {
-        setAllLogs([
-          ...responseLogs,
-          {
-            message: `Available route agents: ${supportedProtocols.join(', ')} on ${networkConfig.name}.`,
-            type: 'success',
-            timestamp: new Date()
-          }
-        ]);
-      } else if (plan.action === 'faucet') {
-        setAllLogs([
-          ...responseLogs,
-          {
-            message: 'Faucet: https://faucet.raum.network',
-            type: 'info',
-            timestamp: new Date()
-          }
-        ]);
+      setAllLogs(currentLogs);
+
+      if (pendingStakePlan) {
+        await runStakePlan(pendingStakePlan, currentLogs);
       } else {
-        setAllLogs(responseLogs);
+        onMascotCue?.({ state: finalCueState });
       }
     } catch (error) {
       setAllLogs([
         ...newLogs,
         {
-          message: `Agent failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          type: 'error',
-          timestamp: new Date()
-        }
+          message: `Agent failed: ${extractWalletError(error)}`,
+          type: "error",
+          timestamp: new Date(),
+        },
       ]);
+      onMascotCue?.({ state: "error" });
     } finally {
       setIsAgentThinking(false);
+      onListeningChange?.(false);
     }
 
     return;
   };
 
-  const getLogStyle = (type: Log['type']) => {
+  const getLogStyle = (type: Log["type"]) => {
     switch (type) {
-      case 'success':
-        return 'text-green-400';
-      case 'error':
-        return 'text-red-400';
-      case 'warning':
-        return 'text-yellow-400';
-      case 'info':
-        return 'text-blue-400';
-      case 'loading':
-        return 'text-amber-400 animate-pulse';
+      case "success":
+        return "text-green-400";
+      case "error":
+        return "text-red-400";
+      case "warning":
+        return "text-yellow-400";
+      case "info":
+        return "text-blue-400";
+      case "loading":
+        return "text-amber-400 animate-pulse";
       default:
-        return 'text-white';
+        return "text-white";
     }
   };
 
   return (
     <div
       className={`terminal-container flex h-full min-h-0 flex-col overflow-hidden rounded-[24px] border ${
-        theme === 'night'
-          ? 'border-white/10 bg-slate-950 shadow-[0_18px_44px_rgba(0,0,0,0.32)]'
-          : 'border-slate-800/10 bg-slate-900 shadow-[0_18px_44px_rgba(15,23,42,0.16)]'
+        theme === "night"
+          ? "border-white/10 bg-slate-950 shadow-[0_18px_44px_rgba(0,0,0,0.32)]"
+          : "border-slate-800/10 bg-slate-900 shadow-[0_18px_44px_rgba(15,23,42,0.16)]"
       } ${className}`}
     >
       <div className="terminal-header flex items-center justify-between bg-slate-900 px-3 py-2 text-xs font-mono text-slate-300">
@@ -1070,7 +1353,11 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         </span>
         <span className="inline-flex items-center gap-2">
           <ShieldCheck size={13} className="text-emerald-300" />
-          {isAgentThinking ? 'planning' : pendingPlan ? 'awaiting confirm' : 'online'}
+          {isAgentThinking
+            ? "planning"
+            : pendingPlan
+              ? "awaiting confirm"
+              : "online"}
         </span>
       </div>
 
@@ -1079,8 +1366,13 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
         className="terminal-content min-h-0 flex-1 basis-0 overflow-y-auto bg-slate-800 px-4 py-3 font-mono text-xs leading-relaxed"
       >
         {allLogs.map((log, index) => (
-          <div key={index} className={`my-1 break-words whitespace-pre-wrap ${getLogStyle(log.type)}`}>
-            <span className="text-slate-400">[{log.timestamp.toLocaleTimeString()}] </span>
+          <div
+            key={index}
+            className={`my-1 break-words whitespace-pre-wrap ${getLogStyle(log.type)}`}
+          >
+            <span className="text-slate-400">
+              [{log.timestamp.toLocaleTimeString()}]{" "}
+            </span>
             <span>{log.message}</span>
           </div>
         ))}
@@ -1091,20 +1383,27 @@ const Terminal = ({ logs = [], interactive = false, className = '' }: TerminalPr
       </div>
 
       {interactive && (
-        <form onSubmit={handleCommandSubmit} className="terminal-input flex flex-none border-t border-white/10 bg-slate-900">
-          <span className="flex flex-none items-center px-3 py-2 text-xs font-mono text-emerald-300">$</span>
+        <form
+          onSubmit={handleCommandSubmit}
+          className="terminal-input flex flex-none border-t border-white/10 bg-slate-900"
+        >
+          <span className="flex flex-none items-center px-3 py-2 text-xs font-mono text-emerald-300">
+            $
+          </span>
           <input
             type="text"
             value={command}
             onChange={(e) => setCommand(e.target.value)}
             className="min-w-0 flex-1 bg-slate-900 px-2 py-2 text-xs font-mono text-slate-100 focus:outline-none"
-            placeholder={pendingPlan
-              ? 'Type confirm to execute or cancel to abort...'
-              : stakeState === 'protocol'
-              ? `Enter protocol (${supportedProtocols.join('/')})...`
-              : stakeState === 'amount'
-                ? `Enter amount in ${assetSymbol}...`
-                : 'Ask the agent: stake 10 USDC on Arc...'}
+            placeholder={
+              pendingPlan
+                ? "Type confirm to execute or cancel to abort..."
+                : stakeState === "protocol"
+                  ? `Enter protocol (${supportedProtocols.join("/")})...`
+                  : stakeState === "amount"
+                    ? `Enter amount in ${assetSymbol}...`
+                    : "Ask the agent: stake 10 USDC on Arc..."
+            }
             disabled={isAgentThinking}
           />
           <button

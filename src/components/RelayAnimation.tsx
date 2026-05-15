@@ -34,6 +34,8 @@ export type BridgeSurfaceData = {
 
 type RelayAnimationProps = {
   data: BridgeSurfaceData;
+  mascot?: ReactNode;
+  showRouteList?: boolean;
 };
 
 type PanelProps = {
@@ -490,7 +492,11 @@ const defaultBridgeData: BridgeSurfaceData = {
   title: 'CHRYSALIS',
 };
 
-export default function RelayAnimation({ data = defaultBridgeData }: RelayAnimationProps) {
+export default function RelayAnimation({
+  data = defaultBridgeData,
+  mascot,
+  showRouteList = true,
+}: RelayAnimationProps) {
   const selected = useMemo(
     () => data.routes.find((route) => route.id === data.selectedRoute) ?? data.routes[0] ?? defaultBridgeData.routes[0],
     [data.routes, data.selectedRoute],
@@ -522,10 +528,20 @@ export default function RelayAnimation({ data = defaultBridgeData }: RelayAnimat
         </div>
       </div>
 
-      <RouteList routes={data.routes.slice(0, 4)} />
+      {mascot ? (
+        <div className="absolute left-4 top-[78px] z-20 h-[276px] w-[332px] overflow-hidden rounded-[28px] border border-cyan-200/12 bg-[linear-gradient(180deg,rgba(3,10,12,0.94),rgba(2,8,10,0.98))] shadow-[0_20px_48px_rgba(0,0,0,0.28)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(190,242,255,0.16),transparent_26%),radial-gradient(circle_at_100%_0%,rgba(129,140,248,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:26px_26px] opacity-40" />
+          <div className="absolute inset-[10px] rounded-[24px] border border-white/8 bg-[radial-gradient(circle_at_50%_4%,rgba(255,255,255,0.04),transparent_20%),linear-gradient(180deg,rgba(8,20,24,0.35),rgba(3,9,11,0.12))]" />
+          <div className="relative h-full w-full p-2">
+            {mascot}
+          </div>
+        </div>
+      ) : null}
+      {showRouteList ? <RouteList routes={data.routes.slice(0, 4)} /> : null}
       <DetailPanels data={data} selected={selected} />
 
-      <div className="absolute inset-x-[148px] inset-y-[50px] z-10">
+      <div className={`absolute inset-y-[50px] z-10 ${mascot ? 'left-[122px] right-[108px]' : 'inset-x-[148px]'}`}>
         <HyperStructure tokens={animatedTokens} />
       </div>
 

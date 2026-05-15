@@ -41,7 +41,7 @@ export interface AgentPlan {
 }
 
 export interface AgentCommandResponse {
-  plan: AgentPlan;
+  plans: AgentPlan[];
   source: 'gemini' | 'fallback';
   error?: string;
 }
@@ -74,12 +74,17 @@ export async function planAgentCommand(
     );
   }
 
-  if (!payload || typeof payload !== 'object' || !('plan' in payload)) {
+  if (!payload || typeof payload !== 'object' || (!('plan' in payload) && !('plans' in payload))) {
     const error = payload && typeof payload === 'object' && 'error' in payload
       ? String((payload as { error: unknown }).error)
       : 'Agent did not return a plan';
     throw new Error(error);
   }
 
-  return payload as AgentCommandResponse;
+  const result = payload as any;
+  if (result.plan && !result.plans) {
+    result.plans = [result.plan];
+  }
+
+  return result as AgentCommandResponse;
 }

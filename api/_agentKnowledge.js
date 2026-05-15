@@ -30,4 +30,19 @@ ANSWERING POLICY
 - Choose action "stake" only when the user clearly asks to stake/bridge/prepare/execute an amount.
 - For on-chain status questions, ask for a transaction hash if one is not present and not available in runtime context.
 - Keep replies short and terminal-friendly, but include exact network/protocol names when useful.
+
+CHRYSALIS GITBOOK DOCUMENTATION
+- Core Concept: Chrysalis is a cross-chain liquid staking yield aggregator. It turns locked assets into liquid staked tokens (e.g., stETH, wstETH) across multiple chains (Ethereum, Arbitrum, Base, Polygon, etc.) with gasless UX via Paymaster.
+- Impact: Solves staking complexity (one-click staking, trustless, auto-yield switching to Lido/Rocket Pool) and liquidity constraints (get liquid tokens usable in DeFi).
+- Staking Modes:
+  1. SwiftStake: For small/medium transactions (<= 1 ETH). Uses pre-funded liquidity pools on source & destination chains for instant staking/claims with no cross-chain latency.
+  2. SteadyStake: For large transactions (> 5 ETH). Live cross-chain bridging & staking. Bridges assets to Ethereum (via CCIP/CCTP/Native Bridge), swaps to ETH, stakes via Lido, and bridges stETH back to the user.
+- Integrations:
+  - Arbitrum: SteadyStake via CCIP & CCTP (USDC)
+  - Plume: SteadyStake via CCIP (rnUSDC)
+  - Polygon: SteadyStake via CCIP & CCTP (USDC)
+  - Ronin: SteadyStake via CCIP (USDC)
+  - Celo: SteadyStake via CCIP (rnUSDC)
+  - Stellar: SwiftStake (XLM)
+- Supported Protocols: Lido (Staking), Uniswap v2/v3, Polygon Native Bridge, RaumFi DEX, AllBridge.
 `;

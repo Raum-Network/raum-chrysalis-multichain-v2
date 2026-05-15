@@ -9,8 +9,7 @@ const json = (res, statusCode, payload) => {
 const ALLOWED_ACTIONS = ['stake', 'fees', 'balance', 'routes', 'network', 'status', 'faucet', 'help', 'explain', 'unknown'];
 const ALLOWED_PROTOCOLS = ['CCIP', 'CCTP', 'Axelar ITS'];
 
-const fallbackPlan = (command, context = {}) => {
-  const input = String(command || '').toLowerCase();
+const classifySingleIntent = (input, context) => {
   const supportedProtocols = Array.isArray(context.supportedProtocols) ? context.supportedProtocols : [];
   const amountMatch = input.match(/(\d+(?:\.\d+)?)/);
   const amount = amountMatch ? Number(amountMatch[1]) : null;
@@ -103,22 +102,105 @@ const fallbackPlan = (command, context = {}) => {
     };
   }
 
-  return {
-    action: input.includes('help') ? 'help' : 'unknown',
-    confidence: input.includes('help') ? 0.9 : 0.35,
-    amount: null,
-    asset: context.assetSymbol || 'USDC',
-    protocol: null,
-    targetNetwork: context.networkName || null,
-    requiresConfirmation: false,
-    reply: 'Try: stake 10 USDC on Arc, show balance, show routes, or explain current network.',
-    steps: [],
-    warnings: [],
-  };
+  if (input.includes('help') || input.includes('what can you')) {
+    return {
+      action: 'help',
+      confidence: 0.9,
+      amount: null,
+      asset: context.assetSymbol || 'USDC',
+      protocol: null,
+      targetNetwork: context.networkName || null,
+      requiresConfirmation: false,
+      reply: 'Try: stake 10 USDC on Arc, show balance, show routes, or explain current network.',
+      steps: [],
+      warnings: [],
+    };
+  }
+
+  return null;
 };
 
-const normalizePlan = (plan, command, context) => {
-  const fallback = fallbackPlan(command, context);
+const splitCompoundCommand = (command) => {
+  const input = String(command || '').trim();
+  if (!input) return [];
+
+  const delimiters = [
+    /\s+and\s+/gi,
+    /\s+then\s+/gi,
+    /\s*;\s*/g,
+    /\s*\+\s*/g,
+    /\s*&\s*/g,
+    /(?<!\d)\s*,\s*(?!\d)/g,    // comma only when NOT between digits (avoid splitting 10,000)
+  ];
+
+  let parts = [input];
+  for (const delimiter of delimiters) {
+    const newParts = [];
+    for (const part of parts) {
+      const split = part.split(delimiter).map(s => s.trim()).filter(Boolean);
+      newParts.push(...split);
+    }
+    parts = newParts;
+  }
+
+  // Strip leading connector remnants (e.g. "then" left at the start of a split)
+  parts = parts.map(p => p.replace(/^(then|and|also)\s+/i, '').trim()).filter(Boolean);
+
+  const actionVerbs = /^(stake|bridge|show|check|what|how|tell|get|fetch|estimate|simulate|switch|connect|disconnect|help|explain|list|balance|route|network|status|faucet)/i;
+  const merged = [];
+  let buffer = '';
+  for (const part of parts) {
+    if (buffer && !actionVerbs.test(part)) {
+      buffer += ' ' + part;
+    } else {
+      if (buffer) merged.push(buffer);
+      buffer = part;
+    }
+  }
+  if (buffer) merged.push(buffer);
+
+  return merged.filter(p => p.length > 1);
+};
+
+const fallbackPlan = (command, context = {}) => {
+  const subCommands = splitCompoundCommand(command);
+  const plans = subCommands
+    .map(sub => classifySingleIntent(sub, context))
+    .filter(Boolean);
+
+  if (plans.length === 0) {
+    return [{
+      action: 'unknown',
+      confidence: 0.35,
+      amount: null,
+      asset: context.assetSymbol || 'USDC',
+      protocol: null,
+      targetNetwork: context.networkName || null,
+      requiresConfirmation: false,
+      reply: 'Try: stake 10 USDC on Arc, show balance, show routes, or explain current network.',
+      steps: [],
+      warnings: [],
+    }];
+  }
+
+  // Deduplicate consecutive identical actions (e.g. "show balance and show balance")
+  const deduped = [plans[0]];
+  for (let i = 1; i < plans.length; i++) {
+    const prev = deduped[deduped.length - 1];
+    if (plans[i].action !== prev.action || plans[i].amount !== prev.amount) {
+      deduped.push(plans[i]);
+    }
+  }
+
+  return deduped;
+};
+
+const getFallbackPlans = (command, context) => {
+  const fallbacks = fallbackPlan(command, context);
+  return Array.isArray(fallbacks) ? fallbacks : [fallbacks];
+};
+
+const normalizeSinglePlan = (plan, context, fallback) => {
   if (!plan || typeof plan !== 'object') return fallback;
 
   const action = ALLOWED_ACTIONS.includes(plan.action) ? plan.action : fallback.action;
@@ -137,6 +219,25 @@ const normalizePlan = (plan, command, context) => {
     steps: Array.isArray(plan.steps) ? plan.steps.map(String).slice(0, 6) : fallback.steps,
     warnings: Array.isArray(plan.warnings) ? plan.warnings.map(String).slice(0, 4) : fallback.warnings,
   };
+};
+
+const normalizePlans = (parsed, command, context) => {
+  const fallbacks = getFallbackPlans(command, context);
+
+  if (parsed && Array.isArray(parsed.plans) && parsed.plans.length > 0) {
+    const fallbackPool = [...fallbacks];
+    return parsed.plans.map((p) => {
+      const fb = fallbackPool.shift() || fallbacks[fallbacks.length - 1];
+      return normalizeSinglePlan(p, context, fb);
+    });
+  }
+
+  const single = parsed?.plan || parsed;
+  if (single && typeof single === 'object') {
+    return [normalizeSinglePlan(single, context, fallbacks[0])];
+  }
+
+  return fallbacks;
 };
 
 const extractJsonObject = (text) => {
@@ -180,17 +281,20 @@ const callGemini = async ({ command, context }) => {
     '',
     'Schema:',
     JSON.stringify({
-      action: ALLOWED_ACTIONS,
-      confidence: 'number from 0 to 1',
-      amount: 'number or null',
-      asset: 'string',
-      protocol: [...ALLOWED_PROTOCOLS, null],
-      targetNetwork: 'string or null',
-      requiresConfirmation: 'boolean',
-      reply: 'short terminal-friendly response',
-      steps: ['short step strings'],
-      warnings: ['short warning strings'],
+      plans: [{
+        action: ALLOWED_ACTIONS,
+        confidence: 'number from 0 to 1',
+        amount: 'number or null',
+        asset: 'string',
+        protocol: [...ALLOWED_PROTOCOLS, null],
+        targetNetwork: 'string or null',
+        requiresConfirmation: 'boolean',
+        reply: 'short terminal-friendly response',
+        steps: ['short step strings'],
+        warnings: ['short warning strings'],
+      }]
     }),
+    'If the user asks for multiple commands, return multiple plans in the array.',
     '',
     'Available actions:',
     ALLOWED_ACTIONS.join(', '),
@@ -198,13 +302,16 @@ const callGemini = async ({ command, context }) => {
     'Available protocols:',
     ALLOWED_PROTOCOLS.join(', '),
     '',
-    'Intent examples:',
+    'Intent examples (single and multi):',
     JSON.stringify([
       { user: 'stake 10 usdc', action: 'stake', requiresConfirmation: true },
       { user: 'what fees will i pay to stake 10 usdc', action: 'fees', requiresConfirmation: false },
       { user: 'estimate gas for staking 10 usdc on Arc', action: 'fees', requiresConfirmation: false },
       { user: 'how does CCTP work', action: 'explain', requiresConfirmation: false },
       { user: 'show my balance', action: 'balance', requiresConfirmation: false },
+      { user: 'stake 10 usdc and show my balance', action: 'stake,balance', requiresConfirmation: true },
+      { user: 'stake 5 usdc on Arc then check fees', action: 'stake,fees', requiresConfirmation: true },
+      { user: 'show routes and my balance', action: 'routes,balance', requiresConfirmation: false },
     ]),
     '',
     'User command and runtime context:',
@@ -227,29 +334,38 @@ const callGemini = async ({ command, context }) => {
         responseSchema: {
           type: 'OBJECT',
           properties: {
-            action: { type: 'STRING', enum: ALLOWED_ACTIONS },
-            confidence: { type: 'NUMBER' },
-            amount: { type: 'NUMBER', nullable: true },
-            asset: { type: 'STRING' },
-            protocol: { type: 'STRING', enum: ALLOWED_PROTOCOLS, nullable: true },
-            targetNetwork: { type: 'STRING', nullable: true },
-            requiresConfirmation: { type: 'BOOLEAN' },
-            reply: { type: 'STRING' },
-            steps: { type: 'ARRAY', items: { type: 'STRING' } },
-            warnings: { type: 'ARRAY', items: { type: 'STRING' } },
-        },
-          required: [
-            'action',
-            'confidence',
-            'amount',
-            'asset',
-            'protocol',
-            'targetNetwork',
-            'requiresConfirmation',
-            'reply',
-            'steps',
-            'warnings',
-          ],
+            plans: {
+              type: 'ARRAY',
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  action: { type: 'STRING', enum: ALLOWED_ACTIONS },
+                  confidence: { type: 'NUMBER' },
+                  amount: { type: 'NUMBER', nullable: true },
+                  asset: { type: 'STRING' },
+                  protocol: { type: 'STRING', enum: ALLOWED_PROTOCOLS, nullable: true },
+                  targetNetwork: { type: 'STRING', nullable: true },
+                  requiresConfirmation: { type: 'BOOLEAN' },
+                  reply: { type: 'STRING' },
+                  steps: { type: 'ARRAY', items: { type: 'STRING' } },
+                  warnings: { type: 'ARRAY', items: { type: 'STRING' } },
+                },
+                required: [
+                  'action',
+                  'confidence',
+                  'amount',
+                  'asset',
+                  'protocol',
+                  'targetNetwork',
+                  'requiresConfirmation',
+                  'reply',
+                  'steps',
+                  'warnings',
+                ],
+              }
+            }
+          },
+          required: ['plans'],
         },
       },
     }),
@@ -272,8 +388,8 @@ const callGemini = async ({ command, context }) => {
 };
 
 export const createAgentPlan = async ({ command, context }) => {
-  const plan = await callGemini({ command, context });
-  return normalizePlan(plan, command, context);
+  const parsed = await callGemini({ command, context });
+  return normalizePlans(parsed, command, context);
 };
 
 export const handleAgentCommand = async (req, res) => {
@@ -290,14 +406,14 @@ export const handleAgentCommand = async (req, res) => {
   }
 
   try {
-    const plan = await createAgentPlan({ command, context });
-    return json(res, 200, { plan, source: 'gemini' });
+    const plans = await createAgentPlan({ command, context });
+    return json(res, 200, { plans, source: 'gemini' });
   } catch (error) {
     const statusCode = error.statusCode || 500;
-    const fallback = normalizePlan(null, command, context);
+    const fallbackPlans = normalizePlans(null, command, context);
     return json(res, statusCode, {
       error: error instanceof Error ? error.message : 'Agent planning failed',
-      plan: fallback,
+      plans: fallbackPlans,
       source: 'fallback',
     });
   }

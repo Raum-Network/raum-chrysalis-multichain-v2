@@ -152,6 +152,37 @@ const Stake = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const extractWalletError = (error: any): string => {
+    if (!error) return 'Transaction failed.';
+
+    const patterns: [RegExp, string][] = [
+      [/user\s*rejected/i, 'User rejected the transaction in wallet.'],
+      [/ACTION_REJECTED/i, 'User rejected the transaction in wallet.'],
+      [/User\s*denied/i, 'User denied the transaction in wallet.'],
+      [/MetaMask Tx Signature.*User\s*denied/i, 'User denied the MetaMask transaction signature.'],
+      [/insufficient\s*funds/i, 'Insufficient funds for gas or value.'],
+      [/gas\s*required\s*exceeds\s*allowance/i, 'Gas required exceeds allowance — insufficient native token.'],
+      [/execution\s*reverted/i, 'Transaction reverted by the contract.'],
+      [/nonce.*too\s*low/i, 'Nonce too low. Submit again with a higher nonce.'],
+      [/replacement.*underpriced/i, 'Replacement fee too low. Increase gas.'],
+      [/chain\s*mismatch/i, 'Network mismatch. Switch to the correct chain in your wallet.'],
+    ];
+
+    const rawMsg =
+      error?.shortMessage ||
+      error?.details ||
+      error?.info?.error?.message ||
+      (typeof error?.message === 'string' ? error.message : '') ||
+      '';
+
+    for (const [re, replacement] of patterns) {
+      if (re.test(rawMsg)) return replacement;
+    }
+
+    if (rawMsg) return rawMsg;
+    return 'Transaction failed. Please try again.';
+  };
+
   const handleStakeSubmit = async () => {
     if (stakeAmount <= 0) return;
     setError(null);
@@ -163,9 +194,9 @@ const Stake = () => {
         label: `Staking ${assetSymbol} ${address} on ${networkConfig.name} using ${bridgeProtocol}`,
       });
       await stake(stakeAmount, lidoAPY ? lidoAPY.toFixed(2) : undefined);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Staking failed:', error);
-      setError('Transaction failed. Please try again.');
+      setError(extractWalletError(error));
     }
   };
 
