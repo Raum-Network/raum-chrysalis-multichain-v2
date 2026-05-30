@@ -266,7 +266,9 @@ const callGemini = async ({ command, context }) => {
     throw error;
   }
 
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  // Default to Gemini 3.1 Flash Lite for lower-latency planning.
+  // Override with GEMINI_MODEL in .env if you need a different model.
+  const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
   const prompt = [
     'You are Chrysalis Agent, an Arc blockchain command planner.',
     'Return only valid JSON. Do not wrap it in markdown.',
