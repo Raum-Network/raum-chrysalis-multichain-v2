@@ -39,6 +39,7 @@ declare global {
 let globalNetworkOverride: Networks | null = null;
 let globalCrossmarkAddress: string | null = null;
 const ONLY_ENABLED_NETWORK: Networks = 'arc-testnet';
+const ONLY_ENABLED_CHAIN_ID = SUPPORTED_NETWORKS[ONLY_ENABLED_NETWORK].chainId;
 
 const arcTestnet = defineChain({
   id: 5042002,
@@ -72,7 +73,7 @@ export const config = createConfig(
 
 export function useWallet() {
   const { address: wagmiAddress, isConnected: wagmiIsConnected } = useAccount();
-  const { connect } = useConnect();
+  const { connectAsync } = useConnect();
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
@@ -148,11 +149,11 @@ export function useWallet() {
         const provider = window.ethereum;
         if (provider) {
           const currentChainId = await provider.request({ method: 'eth_chainId' });
-          const isArcTestnet = parseInt(currentChainId, 16) === SUPPORTED_NETWORKS[ONLY_ENABLED_NETWORK].chainId;
+          const isArcTestnet = parseInt(currentChainId, 16) === ONLY_ENABLED_CHAIN_ID;
 
           if (!isArcTestnet) {
             try {
-              await switchChain({ chainId: SUPPORTED_NETWORKS[ONLY_ENABLED_NETWORK].chainId });
+              await switchChain({ chainId: ONLY_ENABLED_CHAIN_ID });
             } catch (error) {
               console.error('Failed to switch to Arc Testnet:', error);
             }
@@ -189,7 +190,7 @@ export function useWallet() {
     if (networkOverride === 'ripple-testnet') {
       return xrpBalance.toFixed(4);
     }
-    return ethers.formatEther(nativeBalance.data?.value || 0);
+    return ethers.formatEther(nativeBalance.data?.value ?? 0n);
   }
 
   const nativeCurrencySymbol = networkOverride === 'ripple-testnet' ? 'XRP' : 'ETH';
@@ -217,8 +218,8 @@ export function useWallet() {
   });
 
   const getFormattedBalance = () => {
-    if (!usdcbalance || !decimals) return '0';
-    return ethers.formatUnits(BigInt(usdcbalance?.toString() || '0'), BigInt(decimals?.toString() || '0'));
+    if (!usdcbalance || decimals === undefined || decimals === null) return '0';
+    return ethers.formatUnits(BigInt(usdcbalance.toString()), Number(decimals));
   };
 
   const handleConnect = async () => {
@@ -260,35 +261,33 @@ export function useWallet() {
     }
 
     try {
-      // Get the current chain ID from the wallet before connecting
-      const provider = window.ethereum;
-      if (provider) {
-        const currentChainId = await provider.request({ method: 'eth_chainId' });
-        const isArcTestnet = parseInt(currentChainId, 16) === SUPPORTED_NETWORKS[ONLY_ENABLED_NETWORK].chainId;
+      const preferredConnector =
+        config.connectors.find((connector) => connector.id === 'injected') ||
+        config.connectors[0];
+      const result = await connectAsync({ connector: preferredConnector });
+      const connectedAddress = result.accounts?.[0] ?? null;
+      let connectedChainId = result.chainId ?? null;
 
-        console.log('Current chain ID:', parseInt(currentChainId, 16), 'Is Arc Testnet:', isArcTestnet);
-
-        if (!isArcTestnet) {
-          try {
-            await switchChain({ chainId: SUPPORTED_NETWORKS[ONLY_ENABLED_NETWORK].chainId });
-          } catch (error) {
-            console.error('Failed to switch to Arc Testnet:', error);
-          }
+      if (connectedChainId !== ONLY_ENABLED_CHAIN_ID) {
+        try {
+          await switchChain({ chainId: ONLY_ENABLED_CHAIN_ID });
+          connectedChainId = ONLY_ENABLED_CHAIN_ID;
+        } catch (error) {
+          console.error('Failed to switch to Arc Testnet after connect:', error);
         }
       }
 
-      await connect({ connector: config.connectors[0] });
       const formattedBalance = balance();
-      const feesFormattedBalance = (feesBalance!) / BigInt(10 ** 18);
+      const feesFormattedBalance = Number(feesBalance?.toString() ?? '0') / 1_000_000_000_000_000_000;
 
       window.dispatchEvent(new CustomEvent('walletBalanceUpdated', {
         detail: { balance: formattedBalance, feesBalance: feesFormattedBalance }
       }));
 
       return {
-        address,
+        address: connectedAddress,
         isConnected: true,
-        chainId: chainId || null,
+        chainId: connectedChainId,
         balance: formattedBalance,
         feesBalance: feesFormattedBalance
       };

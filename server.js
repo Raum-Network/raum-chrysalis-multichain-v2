@@ -20,6 +20,9 @@ import { decodeHexUri } from "./stakingMetadata.js";
 import config from "./config.js";
 import cors from "cors";
 import { handleAgentCommand } from "./api/_agentCommandCore.js";
+import transactionsHandler from "./api/transactions.js";
+import transactionsHealthHandler from "./api/transactions/health.js";
+import transactionsWriteHandler from "./api/transactions/write.js";
 
 const app = express();
 app.use(express.json());
@@ -38,6 +41,9 @@ app.use(cors());
 
 // ── POST /api/agent/command ─────────────────────────────────────────────────
 app.post("/api/agent/command", handleAgentCommand);
+app.all("/api/transactions", transactionsHandler);
+app.all("/api/transactions/health", transactionsHealthHandler);
+app.all("/api/transactions/write", transactionsWriteHandler);
 
 // --- Global sequence reservation queue ---
 let sequenceLock = null;

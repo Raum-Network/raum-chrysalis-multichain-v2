@@ -20,6 +20,9 @@ import { AgentPlan, planAgentCommand } from "../services/agentCommand";
 import stakeABI from "../lib/abi/ChrysalisSender.json";
 import stakeCCTPABI from "../lib/abi/ChrysalisSenderCCTP.json";
 import { normalizeEvmAddress } from "../lib/networkSupport";
+import { ethers } from "ethers";
+import { CCTPTransaction, fetchCCTPTransactions } from "../services/cctpTransactions";
+import { getPersistedTransactions, PersistedTransaction } from "../services/transactionRepository";
 import type { MascotCue } from "../lib/mascot";
 
 const extractWalletError = (error: unknown): string => {
@@ -63,6 +66,27 @@ interface TerminalProps {
   onListeningChange?: (listening: boolean) => void;
   onMascotCue?: (cue: MascotCue) => void;
 }
+
+const MIN_AGENT_THINKING_MS = 300;
+
+const appendLogIfDistinct = (
+  logs: Log[],
+  message: string,
+  type: Log["type"],
+) => {
+  const normalizedMessage = message.trim().toLowerCase();
+  const lastMessage = logs[logs.length - 1]?.message?.trim().toLowerCase();
+
+  if (!normalizedMessage || normalizedMessage === lastMessage) {
+    return;
+  }
+
+  logs.push({
+    message,
+    type,
+    timestamp: new Date(),
+  });
+};
 
 const Terminal = ({
   logs = [],
@@ -252,7 +276,7 @@ const Terminal = ({
     planOrCommand: AgentPlan | string,
   ): Promise<Log[]> => {
     const now = new Date();
-    const emit = (message: string, type: Log["type"] = "info"): Log => ({
+    const emit = (message: string, type: Log["type"] = "success"): Log => ({
       message,
       type,
       timestamp: now,
@@ -367,7 +391,7 @@ const Terminal = ({
               account,
               spenderAddress,
               amountInUnits,
-            );
+            ).catch(() => null);
       const balanceSlotIndex =
         currentBalance >= amountInUnits
           ? null
@@ -376,16 +400,16 @@ const Terminal = ({
               tokenAddress,
               account,
               requiredBalance,
-            );
+            ).catch(() => null);
 
       if (currentAllowance < amountInUnits && allowanceSlotIndex === null) {
-        throw new Error(
-          "Could not discover the USDC allowance storage slot for real stake simulation.",
+        warnings.push(
+          "Unable to simulate ERC20 allowance state precisely; fee estimate may be approximate.",
         );
       }
       if (currentBalance < amountInUnits && balanceSlotIndex === null) {
-        throw new Error(
-          "Could not discover the USDC balance storage slot for real stake simulation.",
+        warnings.push(
+          "Unable to simulate USDC balance state precisely; fee estimate may be approximate.",
         );
       }
 
@@ -455,21 +479,45 @@ const Terminal = ({
           );
         }
       } else {
-        routeGas = await client.estimateContractGas({
-          account,
-          address: normalizeEvmAddress(
-            networkConfig.contracts.ccip,
-          ) as `0x${string}`,
-          abi: stakeABI,
-          functionName: "handleStakingAction",
-          args: [
-            "16015286601757825753",
-            normalizeEvmAddress(networkConfig.contracts.destination || ""),
-            amountInUnits,
-            "999999",
-          ],
-          stateOverride,
-        });
+        try {
+          routeGas = await client.estimateContractGas({
+            account,
+            address: normalizeEvmAddress(
+              networkConfig.contracts.ccip,
+            ) as `0x${string}`,
+            abi: stakeABI,
+            functionName: "handleStakingAction",
+            args: [
+              "16015286601757825753",
+              normalizeEvmAddress(networkConfig.contracts.destination || ""),
+              amountInUnits,
+              "999999",
+            ],
+            stateOverride,
+          });
+        } catch (routeError) {
+          if (stateOverride) {
+            warnings.push(
+              "CCIP fee estimate fell back to approximate state because on-chain simulation failed.",
+            );
+            routeGas = await client.estimateContractGas({
+              account,
+              address: normalizeEvmAddress(
+                networkConfig.contracts.ccip,
+              ) as `0x${string}`,
+              abi: stakeABI,
+              functionName: "handleStakingAction",
+              args: [
+                "16015286601757825753",
+                normalizeEvmAddress(networkConfig.contracts.destination || ""),
+                amountInUnits,
+                "999999",
+              ],
+            });
+          } else {
+            throw routeError;
+          }
+        }
       }
 
       const gas = approvalGas + routeGas;
@@ -483,23 +531,12 @@ const Terminal = ({
             : "ETH";
       const lines = [
         emit(
-          `Fee estimate for staking ${amount} ${assetSymbol} on ${networkConfig.name} via ${protocol}:`,
-          "success",
-        ),
-        emit(`  approval gas: ${approvalGas.toString()}`),
-        emit(`  route gas: ${routeGas.toString()}`),
-        emit(`  total estimated gas units: ${gas.toString()}`),
-        emit(`  current gas price: ${formatEther(gasPrice)} ${nativeSymbol}`),
-        emit(
-          `  estimated source-chain gas: ${formatEther(nativeFeeWei)} ${nativeSymbol}`,
-        ),
-        emit(
-          `  suggested wallet buffer: ${formatEther(bufferedWei)} ${nativeSymbol}`,
+          `Fee estimate for staking ${amount} ${assetSymbol} on ${networkConfig.name} via ${protocol}: ${formatEther(bufferedWei)} ${nativeSymbol}`,
         ),
       ];
 
       if (routeSender) {
-        lines.push(emit(`  simulation sender: ${routeSender}`, "info"));
+        lines.push(emit(`simulation sender: ${routeSender}`));
       }
 
       warnings.forEach((warning) =>
@@ -509,15 +546,13 @@ const Terminal = ({
       if (protocol === "CCIP") {
         lines.push(
           emit(
-            "  CCIP also requires LINK fee allowance. This app checks for a 10 LINK buffer before execution.",
-            "warning",
+            "CCIP also requires LINK fee allowance. This app checks for a 10 LINK buffer before execution.",
           ),
         );
       } else {
         lines.push(
           emit(
-            "  CCTP has no LINK fee requirement in this flow; you still pay source-chain gas.",
-            "info",
+            "CCTP has no LINK fee requirement in this flow; you still pay source-chain gas.",
           ),
         );
       }
@@ -543,11 +578,96 @@ const Terminal = ({
     }
   };
 
-  const localCommandLines = (rawCommand: string): Log[] | null => {
+  const localCommandLines = async (rawCommand: string): Promise<Log[] | null> => {
     const now = new Date();
-    const normalizedCommand = rawCommand.trim().toLowerCase();
+    const normalizedCommand = rawCommand.trim().toLowerCase().replace(/\s+/g, " ");
+    const transactionCommand = normalizedCommand
+      .replace(/\btranasctions\b/g, "transactions")
+      .replace(/\btransacitons\b/g, "transactions")
+      .replace(/\btransations\b/g, "transactions");
+    const wantsTransactionList =
+      ["transactions", "show transactions", "txs", "history"].includes(
+        transactionCommand,
+      ) ||
+      (/\b(transaction|transactions|tx|txs|history)\b/.test(transactionCommand) &&
+        /\b(show|see|view|list|display|check|recent|my)\b/.test(
+          transactionCommand,
+        ));
     const emit = (lines: string[], type: Log["type"] = "info") =>
       lines.map((message): Log => ({ message, type, timestamp: now }));
+
+    const loadTransactions = async (): Promise<Log[]> => {
+      if (!address) {
+        return emit([
+          "Connect a wallet first to show transactions.",
+        ], "warning");
+      }
+
+      const lines: Log[] = [
+        {
+          message: `Transactions for ${address}:`,
+          type: "success",
+          timestamp: now,
+        },
+      ];
+
+      let persisted: PersistedTransaction[] = [];
+      let cctp: CCTPTransaction[] = [];
+
+      try {
+        persisted = await getPersistedTransactions(address);
+      } catch (error) {
+        lines.push({
+          message: "Failed to load persisted transactions.",
+          type: "warning",
+          timestamp: now,
+        });
+      }
+
+      try {
+        cctp = await fetchCCTPTransactions(address);
+      } catch (error) {
+        lines.push({
+          message: "Failed to load CCTP transactions.",
+          type: "warning",
+          timestamp: now,
+        });
+      }
+
+      const txLines: Log[] = [];
+      persisted.slice(0, 8).forEach((tx, index) => {
+        const status = tx.status === "SUCCESS" ? "SUCCESS" : tx.status === "FAILURE" ? "FAILURE" : "IN_PROGRESS";
+        const dest = tx.destinationTxHash ? ` → ${tx.destinationTxHash}` : "";
+        txLines.push({
+          message: `${index + 1}. [${status}] ${tx.protocol} ${tx.amount} ${tx.assetSymbol}${dest}`,
+          type: "success",
+          timestamp: now,
+        });
+      });
+
+      cctp.slice(0, 8).forEach((tx, index) => {
+        const status = tx.status || "IN_PROGRESS";
+        const dest = tx.destTransactionHash ? ` → ${tx.destTransactionHash}` : "";
+        txLines.push({
+          message: `${persisted.length + index + 1}. [${status}] CCTP ${ethers.formatUnits(tx.amount || "0", 6)} USDC${dest}`,
+          type: "success",
+          timestamp: now,
+        });
+      });
+
+      if (txLines.length === 0) {
+        return emit([
+          "No transactions found for this wallet.",
+          "Use the Stake page to submit a stake or bridge transaction first.",
+        ], "info");
+      }
+
+      return [...lines, ...txLines];
+    };
+
+    if (wantsTransactionList) {
+      return await loadTransactions();
+    }
 
     switch (normalizedCommand) {
       case "help":
@@ -569,6 +689,7 @@ const Terminal = ({
           "  routes     show supported bridge routes",
           "  balance    show asset balance",
           "  stake 10 USDC on Arc",
+          "  transactions    list recent transactions in terminal",
         ]);
       case "about":
         return emit([
@@ -741,33 +862,34 @@ const Terminal = ({
       return;
     }
 
-    setAllLogs([
+    const pendingLogs = [
       ...newLogs,
       {
         message: "Opening wallet connection from terminal...",
         type: "loading",
         timestamp: new Date(),
       },
-    ]);
+      {
+        message: "Approve the wallet prompt when it appears.",
+        type: "info",
+        timestamp: new Date(),
+      },
+    ];
+    setAllLogs(pendingLogs);
 
     try {
       const result = await connect();
       setAllLogs([
-        ...newLogs,
+        ...pendingLogs,
         {
-          message: `Wallet connection requested${result?.address ? `: ${result.address}` : "."}`,
+          message: `Wallet connected${result?.address ? `: ${result.address}` : "."}`,
           type: "success",
-          timestamp: new Date(),
-        },
-        {
-          message: "Approve the wallet prompt if it is still open.",
-          type: "info",
           timestamp: new Date(),
         },
       ]);
     } catch (error) {
       setAllLogs([
-        ...newLogs,
+        ...pendingLogs,
         {
           message: `Wallet connection failed: ${extractWalletError(error)}`,
           type: "error",
@@ -983,12 +1105,6 @@ const Terminal = ({
       return;
     }
 
-    const localLogs = localCommandLines(submittedCommand);
-    if (localLogs) {
-      setAllLogs([...newLogs, ...localLogs]);
-      return;
-    }
-
     if (
       pendingPlan &&
       ["confirm", "yes", "execute", "run"].includes(
@@ -996,6 +1112,12 @@ const Terminal = ({
       )
     ) {
       await executePendingPlan(newLogs);
+      return;
+    }
+
+    const localLogs = await localCommandLines(submittedCommand);
+    if (localLogs) {
+      setAllLogs([...newLogs, ...localLogs]);
       return;
     }
 
@@ -1179,14 +1301,16 @@ const Terminal = ({
       return;
     }
 
-    setAllLogs([
+    const thinkingLogs = [
       ...newLogs,
       {
         message: "Agent is reading command intent...",
         type: "loading",
         timestamp: new Date(),
       },
-    ]);
+    ];
+    const thinkingStartedAt = Date.now();
+    setAllLogs(thinkingLogs);
     setIsAgentThinking(true);
     onListeningChange?.(true);
 
@@ -1214,22 +1338,7 @@ const Terminal = ({
       let finalCueState: MascotCue["state"] = "answer-ready";
 
       for (const plan of plans) {
-        currentLogs.push({
-          message: plan.reply,
-          type: "success",
-          timestamp: new Date(),
-        });
-        if (plan.steps.length > 0) {
-          currentLogs.push(
-            ...plan.steps.map(
-              (step): Log => ({
-                message: `- ${step}`,
-                type: "info",
-                timestamp: new Date(),
-              }),
-            ),
-          );
-        }
+        appendLogIfDistinct(currentLogs, plan.reply, "success");
         if (plan.warnings.length > 0) {
           currentLogs.push(
             ...plan.warnings.map(
@@ -1261,30 +1370,24 @@ const Terminal = ({
             assetSymbol === "USDC"
               ? getFormattedBalance()
               : usdcBalance.toFixed(4);
-          currentLogs.push({
-            message: `Current ${assetSymbol} balance: ${balance} ${assetSymbol}`,
-            type: "success",
-            timestamp: new Date(),
-          });
+          appendLogIfDistinct(
+            currentLogs,
+            `Current ${assetSymbol} balance: ${balance} ${assetSymbol}`,
+            "success",
+          );
         } else if (plan.action === "routes") {
-          currentLogs.push({
-            message: `Available route agents: ${supportedProtocols.join(", ")} on ${networkConfig.name}.`,
-            type: "success",
-            timestamp: new Date(),
-          });
+          appendLogIfDistinct(
+            currentLogs,
+            `Available route agents: ${supportedProtocols.join(", ")} on ${networkConfig.name}.`,
+            "success",
+          );
           finalCueState = "bridge-cross-chain";
         } else if (plan.action === "faucet") {
-          currentLogs.push({
-            message: "Faucet: https://faucet.raum.network",
-            type: "info",
-            timestamp: new Date(),
-          });
-        } else if (plan.action === "help") {
-          currentLogs.push({
-            message: `Help: ${plan.reply}`,
-            type: "info",
-            timestamp: new Date(),
-          });
+          appendLogIfDistinct(
+            currentLogs,
+            "Faucet: https://faucet.raum.network",
+            "info",
+          );
         }
       }
 
@@ -1296,6 +1399,13 @@ const Terminal = ({
         });
       }
 
+      const thinkingElapsed = Date.now() - thinkingStartedAt;
+      if (thinkingElapsed < MIN_AGENT_THINKING_MS) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, MIN_AGENT_THINKING_MS - thinkingElapsed),
+        );
+      }
+
       setAllLogs(currentLogs);
 
       if (pendingStakePlan) {
@@ -1304,6 +1414,13 @@ const Terminal = ({
         onMascotCue?.({ state: finalCueState });
       }
     } catch (error) {
+      const thinkingElapsed = Date.now() - thinkingStartedAt;
+      if (thinkingElapsed < MIN_AGENT_THINKING_MS) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, MIN_AGENT_THINKING_MS - thinkingElapsed),
+        );
+      }
+
       setAllLogs([
         ...newLogs,
         {

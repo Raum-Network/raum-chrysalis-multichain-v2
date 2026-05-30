@@ -68,11 +68,12 @@ export const fetchCCTPTransactions = async (userAddress: string): Promise<CCTPTr
   try {
     const allTransactions: CCTPTransaction[] = [];
     const sepoliaProvider = new ethers.JsonRpcProvider('https://sepolia.infura.io/v3/cea2942c462d447983f9f20783cd2f64');
+    const destinationBlocksLookback = Math.floor((7 * 24 * 60 * 60) / 12);
+    const sourceBlocksLookback = destinationBlocksLookback * 6;
 
     // Get the current block number for destination chain
     const currentBlock = await sepoliaProvider.getBlockNumber();
-    const blocksInAWeek = Math.floor((7 * 24 * 60 * 60) / 12);
-    const fromBlock = currentBlock - blocksInAWeek;
+    const fromBlock = Math.max(0, currentBlock - destinationBlocksLookback);
 
     // Fetch all destination transactions once
     const destFilter = {
@@ -98,7 +99,13 @@ export const fetchCCTPTransactions = async (userAddress: string): Promise<CCTPTr
       );
 
       try {
-        const allEvents = await contract.queryFilter(contract.filters.DepositForBurn(userAddress), await provider.getBlockNumber() - ((45 * 24 * 60 * 60 * 3) ), 'latest');
+        const latestBlock = await provider.getBlockNumber();
+        const sourceFromBlock = Math.max(0, latestBlock - sourceBlocksLookback);
+        const allEvents = await contract.queryFilter(
+          contract.filters.DepositForBurn(userAddress),
+          sourceFromBlock,
+          'latest'
+        );
 
         // Filter by sender address manually
         const userEvents = allEvents.filter(e =>
