@@ -132,8 +132,10 @@ export default async function handler(req, res) {
       });
     } catch (error) {
       console.error('Failed to fetch transactions from Upstash:', error);
-      return json(res, 500, {
-        error: 'Failed to fetch transactions',
+      return json(res, 200, {
+        transactions: [],
+        storage: 'unavailable',
+        warning: 'Remote transaction storage unavailable',
         detail: error instanceof Error ? error.message : 'Unknown fetch error',
       });
     }
@@ -177,8 +179,11 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Failed to persist transaction to Upstash:', error);
-    return json(res, 500, {
-      error: 'Failed to persist transaction',
+    return json(res, 200, {
+      ok: true,
+      transaction,
+      storage: 'unavailable',
+      warning: 'Remote transaction storage unavailable; local cache retained',
       detail: error instanceof Error ? error.message : 'Unknown persist error',
     });
   }

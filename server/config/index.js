@@ -11,5 +11,6 @@ export default {
     SOLANA_MINTER_ADDRESS: process.env.SOLANA_MINTER_ADDRESS || "",
     SOLANA_MINTER_SECRET_KEY: process.env.SOLANA_MINTER_SECRET_KEY || "",
     SOLANA_CLUSTER: process.env.SOLANA_CLUSTER || "devnet",
+    PRIVATE_KEY: process.env.PRIVATE_KEY || "",
     PORT: parseInt(process.env.PORT || "3000", 10)
 };

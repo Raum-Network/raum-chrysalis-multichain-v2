@@ -17,6 +17,7 @@ import express from "express";
 import * as xrpl from "xrpl";
 import { mintStakingNFT, acceptSellOffer } from "./services/xrplNftService.js";
 import { getSolanaStakingNFTs, mintSolanaStakingNFT } from "./services/solanaReceiptNftService.js";
+import { executeSepoliaCctp } from "./services/sepoliaExecutor.js";
 import { decodeHexUri } from "./services/stakingMetadata.js";
 import transactionsHandler from "../api/transactions.js";
 import transactionHealthHandler from "../api/transactions/health.js";
@@ -276,6 +277,17 @@ router.post("/mint-solana-staking-nft", async (req, res) => {
         });
     } catch (err) {
         console.error("[API] Solana mint error:", err.message);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ── POST /execute-sepolia-contract ───────────────────────────────────────────
+router.post("/execute-sepolia-contract", async (req, res) => {
+    try {
+        const result = await executeSepoliaCctp(req.body || {});
+        return res.status(201).json({ success: true, ...result });
+    } catch (err) {
+        console.error("[API] Sepolia execution error:", err.message);
         return res.status(500).json({ success: false, error: err.message });
     }
 });

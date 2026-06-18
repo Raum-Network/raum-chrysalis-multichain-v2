@@ -6,11 +6,9 @@ import { simulateContract } from "@wagmi/core"
 import stakedUserBalance from './sepoliaContract';
 import { config } from './walletConnect';
 import Web3 from 'web3';
-import ReceiverAbiCCTP from './abi/ChrysalisReceiverCCTP.json';
 import { getCCIPStatus, getCCTPAttestation } from '../services/api';
 import { normalizeEvmAddress } from './networkSupport';
 import { SUPPORTED_NETWORKS } from '../config/contract';
-import { solanaAddressToBytes32 } from './solanaCctp';
 
 const abiCoder = new ethers.AbiCoder();
 
@@ -631,128 +629,28 @@ class StakeManager {
     onStatusUpdate: (status: StakeStatus) => void
   ) {
     try {
-      if (!import.meta.env.VITE_PRIVATE_KEY) {
-        throw new Error("Private key is undefined");
+      const response = await fetch('/api/execute-sepolia-contract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageBytes,
+          attestation,
+          amount,
+          recipient: address,
+          receiverAddress: this.networkConfig.contracts.cctpDestinationCaller,
+          sourceDomainId: this.networkConfig.sourceDomainId ?? 0,
+          isSolanaSource: this.networkConfig.chainFamily === 'solana',
+          solanaOrigin: this.currentStatus?.origin || '',
+        }),
+      });
+      const result = await response.json() as { success?: boolean; transactionHash?: string; error?: string };
+      if (!response.ok || !result.success || !result.transactionHash) {
+        throw new Error(result.error || 'Sepolia execution failed');
       }
 
-      const account = this.sepoliaWeb3.eth.accounts.privateKeyToAccount(
-        import.meta.env.VITE_PRIVATE_KEY
-      );
-      if (!this.sepoliaWeb3.eth.accounts.wallet.get(account.address)) {
-        this.sepoliaWeb3.eth.accounts.wallet.add(account);
-      }
-
-      const contract = new this.sepoliaWeb3.eth.Contract(
-        ReceiverAbiCCTP,
-        normalizeEvmAddress(this.networkConfig.contracts.cctpDestinationCaller)
-      );
-
-      let hookData: string | null = null;
-      const receiverAddress = normalizeEvmAddress(this.networkConfig.contracts.cctpDestinationCaller);
-      const normalizedRecipient = normalizeEvmAddress(address);
-      const sourceDomainId = this.networkConfig.sourceDomainId ?? 0;
-      const isSolanaSource = this.networkConfig.chainFamily === 'solana';
-
-      if (isSolanaSource) {
-        const solanaRecipient = solanaAddressToBytes32(this.currentStatus?.origin || '');
-        try {
-          const callDataSolana = this.sepoliaWeb3.eth.abi.encodeFunctionCall(
-            {
-              name: 'getHookData',
-              type: 'function',
-              inputs: [
-                { type: 'uint256', name: 'amount' },
-                { type: 'address', name: 'recipientAlias' },
-                { type: 'bytes32', name: 'solanaRecipient' }
-              ]
-            },
-            [String(amount), normalizedRecipient, solanaRecipient]
-          );
-          const responseSolana = await this.sepoliaWeb3.eth.call({ to: receiverAddress, data: callDataSolana });
-          if (responseSolana && responseSolana !== '0x') {
-            hookData = this.sepoliaWeb3.eth.abi.decodeParameter('bytes', responseSolana) as string;
-          }
-        } catch (hookDataSolanaError) {
-          console.warn('Solana getHookData call failed, using local ABI encoding fallback:', hookDataSolanaError);
-        }
-
-        if (!hookData) {
-          hookData = abiCoder.encode(
-            ['uint256', 'address', 'bytes32'],
-            [BigInt(amount), normalizedRecipient, solanaRecipient]
-          );
-        }
-      }
-
-      // New Arc/Op/Polygon receiver deployments use getHookData(uint256,address,uint32).
-      if (!hookData && !isSolanaSource) {
-        try {
-          const callDataV3 = this.sepoliaWeb3.eth.abi.encodeFunctionCall(
-            {
-              name: 'getHookData',
-              type: 'function',
-              inputs: [
-                { type: 'uint256', name: 'amount' },
-                { type: 'address', name: 'recipient' },
-                { type: 'uint32', name: 'sourceDomain' }
-              ]
-            },
-            [String(amount), normalizedRecipient, String(sourceDomainId)]
-          );
-          const responseV3 = await this.sepoliaWeb3.eth.call({ to: receiverAddress, data: callDataV3 });
-          if (responseV3 && responseV3 !== '0x') {
-            hookData = this.sepoliaWeb3.eth.abi.decodeParameter('bytes', responseV3) as string;
-          }
-        } catch (hookDataV3Error) {
-          console.warn('3-arg getHookData call failed, trying legacy 2-arg signature:', hookDataV3Error);
-        }
-      }
-
-      // Legacy receiver uses getHookData(uint256,address).
-      if (!hookData && !isSolanaSource) {
-        try {
-          hookData = await contract.methods.getHookData(
-            amount,
-            normalizedRecipient
-          ).call();
-        } catch (hookDataV2Error) {
-          console.warn('2-arg getHookData call failed, using local ABI encoding fallback:', hookDataV2Error);
-        }
-      }
-
-      if (!hookData) {
-        hookData = sourceDomainId > 0
-          ? abiCoder.encode(
-            ['uint256', 'address', 'uint32'],
-            [BigInt(amount), normalizedRecipient, sourceDomainId]
-          )
-          : abiCoder.encode(
-            ['uint256', 'address'],
-            [BigInt(amount), normalizedRecipient]
-          );
-      }
-
-      const tx = contract.methods.receiveUSDC(hookData, messageBytes, attestation);
-      const gas = await tx.estimateGas({ from: account.address });
-      const gasPrice = await this.sepoliaWeb3.eth.getGasPrice();
-
-      const txData = {
-        from: account.address,
-        to: receiverAddress,
-        data: tx.encodeABI(),
-        gas,
-        gasPrice,
-      };
-
-      const signedTx = await account.signTransaction(txData);
-      const receipt = await this.sepoliaWeb3.eth.sendSignedTransaction(
-        signedTx.rawTransaction!
-      );
-
-      // Update status with destination transaction
       this.currentStatus = {
         ...this.currentStatus!,
-        destinationTxHash: receipt.transactionHash,
+        destinationTxHash: result.transactionHash,
         status: 'SUCCESS',
         sourceChain: 'sepolia'
       };
