@@ -17,6 +17,18 @@ export const isProtocolSupported = (networkConfig: NetworkConfig, protocol: Brid
   return networkConfig.supportedProtocols.includes(protocol);
 };
 
+const ETHEREUM_SEPOLIA_EXPLORER = 'https://sepolia.etherscan.io';
+
+const normalizeNetworkName = (value: string) =>
+  value.trim().toLowerCase().replace(/[_\s]+/g, '-');
+
+const isEthereumSepoliaName = (networkName: string) => {
+  const normalized = normalizeNetworkName(networkName);
+  return normalized === 'sepolia' ||
+    normalized === 'ethereum-sepolia' ||
+    normalized === 'ethereum-testnet-sepolia';
+};
+
 export const getTxExplorerUrl = (
   txHash: string,
   networkName: string,
@@ -27,12 +39,25 @@ export const getTxExplorerUrl = (
     return `https://testnet.axelarscan.io/gmp/${txHash}`;
   }
 
+  if (isEthereumSepoliaName(networkName)) {
+    return `${ETHEREUM_SEPOLIA_EXPLORER}/tx/${txHash}`;
+  }
+
+  const normalizedNetworkName = normalizeNetworkName(networkName);
   const network = Object.values(SUPPORTED_NETWORKS).find(
-    (candidate) => candidate.name.toLowerCase() === networkName.toLowerCase()
+    (candidate) =>
+      normalizeNetworkName(candidate.name) === normalizedNetworkName ||
+      normalizeNetworkName(candidate.ccipNames.sourceName) === normalizedNetworkName ||
+      normalizeNetworkName(candidate.ccipNames.destName) === normalizedNetworkName
   );
 
   if (!network) {
-    return `https://sepolia.arbiscan.io/tx/${txHash}`;
+    return `${ETHEREUM_SEPOLIA_EXPLORER}/tx/${txHash}`;
+  }
+
+  if (network.chainFamily === 'solana') {
+    const cluster = network.solana?.cluster || 'devnet';
+    return `${network.explorer.replace(/\/+$/, '')}/tx/${txHash}?cluster=${cluster}`;
   }
 
   return `${network.explorer.replace(/\/+$/, '')}/tx/${txHash}`;

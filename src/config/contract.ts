@@ -1,5 +1,6 @@
 export type NetworkConfig = {
   name: string;
+  chainFamily?: 'evm' | 'xrpl' | 'solana';
   chainId: number;
   rpcUrl: string;
   wssUrl?: string;
@@ -18,6 +19,28 @@ export type NetworkConfig = {
     decimal?: number;
     cctpDestinationCaller?: string;
   };
+  solana?: {
+    cluster: 'devnet' | 'testnet' | 'mainnet-beta';
+    usdcMint: string;
+    cctpV2: {
+      messageTransmitter: string;
+      tokenMessengerMinter: string;
+    };
+    cctpV1?: {
+      messageTransmitter: string;
+      tokenMessengerMinter: string;
+    };
+    ccip: {
+      router: string;
+      chainSelector: string;
+      rmn: string;
+      feeQuoter: string;
+      burnMintPoolProgram: string;
+      lockReleasePoolProgram: string;
+      linkToken: string;
+      wsolToken: string;
+    };
+  };
   icon?: string;
   ccipNames: {
     sourceName: string;
@@ -33,6 +56,7 @@ export type Networks =
   | 'lisk-sepolia'
   | 'plume-testnet'
   | 'arc-testnet'
+  | 'solana-devnet'
   | 'ripple-testnet';
 
 export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
@@ -200,6 +224,7 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
   // },
   'ripple-testnet': {
     name: 'Ripple Testnet',
+    chainFamily: 'xrpl',
     chainId: 0,
     supportedProtocols: ['Axelar ITS'],
     assetSymbol: 'XRP',
@@ -219,6 +244,53 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     ccipNames: {
       sourceName: '',
       destName: ''
+    }
+  },
+  'solana-devnet': {
+    name: 'Solana Devnet',
+    chainFamily: 'solana',
+    chainId: 901,
+    supportedProtocols: ['CCTP'],
+    assetSymbol: 'USDC',
+    destinationDomain: 0,
+    sourceDomainId: 5,
+    rpcUrl: 'https://api.devnet.solana.com',
+    publicRpc: 'https://api.devnet.solana.com',
+    explorer: 'https://explorer.solana.com',
+    contracts: {
+      ccip: '3MZSFAUSTpkuQtoAWW1nB51jnXk2BzbBJoiuNa6tr67P',
+      cctp: '3MZSFAUSTpkuQtoAWW1nB51jnXk2BzbBJoiuNa6tr67P',
+      cctpDestinationCaller: '0xFCa4F35688cB2271122b0597260037127Feff708',
+      usdc: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      fees: 'LinkhB3afbBKb2EQQu7s7umdZceV3wcvAUJhQAfQ23L',
+      destination: '0xFCa4F35688cB2271122b0597260037127Feff708',
+      decimal: 6
+    },
+    solana: {
+      cluster: 'devnet',
+      usdcMint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      cctpV2: {
+        messageTransmitter: 'CCTPV2Sm4AdWt5296sk4P66VBZ7bEhcARwFaaS9YPbeC',
+        tokenMessengerMinter: 'CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe'
+      },
+      cctpV1: {
+        messageTransmitter: 'CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd',
+        tokenMessengerMinter: 'CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3'
+      },
+      ccip: {
+        router: 'Ccip842gzYHhvdDkSyi2YVCoAWPbYJoApMFzSxQroE9C',
+        chainSelector: '16423721717087811551',
+        rmn: 'RmnXLft1mSEwDgMKu2okYuHkiazxntFFcZFrrcXxYg7',
+        feeQuoter: 'FeeQPGkKDeRV1MgoYfMH6L8o3KeuYjwUZrgn4LRKfjHi',
+        burnMintPoolProgram: '41FGToCmdaWa1dgZLKFAjvmx6e6AjVTX7SVRibvsMGVB',
+        lockReleasePoolProgram: '8eqh8wppT9c5rw4ERqNCffvU6cNFJWff9WmkcYtmGiqC',
+        linkToken: 'LinkhB3afbBKb2EQQu7s7umdZceV3wcvAUJhQAfQ23L',
+        wsolToken: 'So11111111111111111111111111111111111111112'
+      }
+    },
+    ccipNames: {
+      sourceName: 'solana-devnet',
+      destName: 'ethereum-testnet-sepolia'
     }
   },
 };

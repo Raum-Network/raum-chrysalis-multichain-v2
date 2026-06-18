@@ -29,16 +29,27 @@ type Eip1193Provider = {
   request: (args: { method: string; params?: unknown[] | object }) => Promise<string>;
 };
 
+type SolanaProvider = {
+  isPhantom?: boolean;
+  publicKey?: { toString: () => string };
+  connect: () => Promise<{ publicKey: { toString: () => string } }>;
+  disconnect?: () => Promise<void>;
+  signTransaction?: <T>(transaction: T) => Promise<T>;
+  signAndSendTransaction?: <T>(transaction: T) => Promise<{ signature: string }>;
+};
+
 declare global {
   interface Window {
     crossmark?: CrossmarkSdk;
     xrpl?: { crossmark?: CrossmarkSdk };
     ethereum?: Eip1193Provider;
+    solana?: SolanaProvider;
   }
 }
 
 let globalNetworkOverride: Networks | null = null;
 let globalCrossmarkAddress: string | null = null;
+let globalSolanaAddress: string | null = null;
 
 // Custom Plume Testnet chain definition
 const plumeTestnet = defineChain({
@@ -99,7 +110,9 @@ export function useWallet() {
 
   const [networkOverride, setNetworkOverride] = useState<Networks | null>(globalNetworkOverride);
   const [crossmarkAddress, setCrossmarkAddress] = useState<string | null>(globalCrossmarkAddress);
+  const [solanaAddress, setSolanaAddress] = useState<string | null>(globalSolanaAddress);
   const [xrpBalance, setXrpBalance] = useState<number>(0);
+  const [solanaBalance, setSolanaBalance] = useState<number>(0);
 
   useEffect(() => {
     const handleOverride = (event: Event) => {
@@ -108,11 +121,16 @@ export function useWallet() {
     const handleAddress = (event: Event) => {
       setCrossmarkAddress((event as CustomEvent<string | null>).detail);
     };
+    const handleSolanaAddress = (event: Event) => {
+      setSolanaAddress((event as CustomEvent<string | null>).detail);
+    };
     window.addEventListener('networkOverride', handleOverride);
     window.addEventListener('crossmarkAddress', handleAddress);
+    window.addEventListener('solanaAddress', handleSolanaAddress);
     return () => {
       window.removeEventListener('networkOverride', handleOverride);
       window.removeEventListener('crossmarkAddress', handleAddress);
+      window.removeEventListener('solanaAddress', handleSolanaAddress);
     };
   }, []);
 
@@ -151,20 +169,63 @@ export function useWallet() {
     return () => { active = false; clearInterval(interval); };
   }, [networkOverride, crossmarkAddress]);
 
+  useEffect(() => {
+    if (networkOverride !== 'solana-devnet' || !solanaAddress) {
+      setSolanaBalance(0);
+      return;
+    }
+
+    let active = true;
+    const fetchSolanaBalance = async () => {
+      try {
+        const response = await fetch(SUPPORTED_NETWORKS['solana-devnet'].publicRpc, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'getBalance',
+            params: [solanaAddress]
+          })
+        });
+        const data = await response.json();
+        if (active) {
+          setSolanaBalance(Number(data?.result?.value || 0) / 1_000_000_000);
+        }
+      } catch (e) {
+        console.error('Error fetching SOL balance:', e);
+      }
+    };
+
+    fetchSolanaBalance();
+    const interval = setInterval(fetchSolanaBalance, 15000);
+    return () => { active = false; clearInterval(interval); };
+  }, [networkOverride, solanaAddress]);
+
   const setOverride = (net: Networks | null, addr: string | null = null) => {
     globalNetworkOverride = net;
-    globalCrossmarkAddress = addr;
+    globalCrossmarkAddress = net === 'ripple-testnet' ? addr : null;
+    globalSolanaAddress = net === 'solana-devnet' ? addr : null;
     window.dispatchEvent(new CustomEvent('networkOverride', { detail: net }));
-    window.dispatchEvent(new CustomEvent('crossmarkAddress', { detail: addr }));
+    window.dispatchEvent(new CustomEvent('crossmarkAddress', { detail: globalCrossmarkAddress }));
+    window.dispatchEvent(new CustomEvent('solanaAddress', { detail: globalSolanaAddress }));
   };
 
-  const address = networkOverride === 'ripple-testnet' ? crossmarkAddress : wagmiAddress;
-  const isConnected = networkOverride === 'ripple-testnet' ? !!crossmarkAddress : wagmiIsConnected;
+  const address = networkOverride === 'ripple-testnet'
+    ? crossmarkAddress
+    : networkOverride === 'solana-devnet'
+      ? solanaAddress
+      : wagmiAddress;
+  const isConnected = networkOverride === 'ripple-testnet'
+    ? !!crossmarkAddress
+    : networkOverride === 'solana-devnet'
+      ? !!solanaAddress
+      : wagmiIsConnected;
 
   // Add effect to monitor network changes
   useEffect(() => {
     const checkAndSwitchNetwork = async () => {
-      if (isConnected) {
+      if (isConnected && !networkOverride) {
         const provider = window.ethereum;
         if (provider) {
           const currentChainId = await provider.request({ method: 'eth_chainId' });
@@ -205,16 +266,25 @@ export function useWallet() {
   const FEES_CONTRACT_ADDRESS = networkConfig.contracts.fees;
 
   // Always call useBalance unconditionally (React hook rule)
-  const nativeBalance = useBalance({ address: (networkOverride === 'ripple-testnet' ? undefined : address) as `0x${string}` | undefined });
+  const nativeBalance = useBalance({ address: (networkOverride ? undefined : address) as `0x${string}` | undefined });
 
   const balance = () => {
     if (networkOverride === 'ripple-testnet') {
       return xrpBalance.toFixed(4);
     }
+    if (networkOverride === 'solana-devnet') {
+      return solanaBalance.toFixed(4);
+    }
     return ethers.formatEther(nativeBalance.data?.value || 0);
   }
 
-  const nativeCurrencySymbol = networkOverride === 'ripple-testnet' ? 'XRP' : 'ETH';
+  const nativeCurrencySymbol = networkOverride === 'ripple-testnet'
+    ? 'XRP'
+    : networkOverride === 'solana-devnet'
+      ? 'SOL'
+      : 'ETH';
+
+  const canUseEvmReads = Boolean(address?.startsWith('0x')) && !networkOverride;
 
   // Get USDC balance with proper configuration
   const { data: usdcbalance } = useReadContract({
@@ -222,6 +292,9 @@ export function useWallet() {
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
+    query: {
+      enabled: canUseEvmReads,
+    }
   });
 
   const { data: feesBalance } = useReadContract({
@@ -229,6 +302,9 @@ export function useWallet() {
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
+    query: {
+      enabled: canUseEvmReads,
+    }
   });
 
   // Get USDC decimals
@@ -236,6 +312,9 @@ export function useWallet() {
     address: USDC_CONTRACT_ADDRESS as `0x${string}`,
     abi: erc20Abi,
     functionName: 'decimals',
+    query: {
+      enabled: canUseEvmReads,
+    }
   });
 
   const getFormattedBalance = () => {
@@ -279,6 +358,35 @@ export function useWallet() {
         throw error;
       }
       return;
+    }
+
+    if (networkOverride === 'solana-devnet') {
+      try {
+        const provider = window.solana;
+        if (!provider) {
+          alert('Solana wallet not found. Please install Phantom or another injected Solana wallet.');
+          return;
+        }
+
+        const result = await provider.connect();
+        const addr = result.publicKey.toString();
+        setOverride('solana-devnet', addr);
+
+        window.dispatchEvent(new CustomEvent('walletBalanceUpdated', {
+          detail: { balance: solanaBalance.toFixed(4), feesBalance: 0 }
+        }));
+
+        return {
+          address: addr,
+          isConnected: true,
+          chainId: SUPPORTED_NETWORKS['solana-devnet'].chainId,
+          balance: solanaBalance.toFixed(4),
+          feesBalance: 0
+        };
+      } catch (error) {
+        console.error('Solana wallet connection failed:', error);
+        throw error;
+      }
     }
 
     try {
@@ -327,6 +435,9 @@ export function useWallet() {
     try {
       if (networkOverride === 'ripple-testnet') {
         setOverride('ripple-testnet', null);
+      } else if (networkOverride === 'solana-devnet') {
+        await window.solana?.disconnect?.();
+        setOverride('solana-devnet', null);
       }
       await disconnect();
       return {
@@ -349,6 +460,12 @@ export function useWallet() {
       return;
     }
 
+    if (network === 'solana-devnet') {
+      setOverride('solana-devnet', null);
+      console.log('Switched to Solana Devnet (pending connection)');
+      return;
+    }
+
     const targetChainId = SUPPORTED_NETWORKS[network].chainId;
     try {
       setOverride(null);
@@ -363,7 +480,7 @@ export function useWallet() {
   return {
     address,
     isConnected,
-    chainId: networkOverride === 'ripple-testnet' ? 0 : chainId,
+    chainId: networkOverride ? SUPPORTED_NETWORKS[networkOverride].chainId : chainId,
     network: getCurrentNetworkConfig().key,
     networkConfig: getCurrentNetworkConfig().config,
     balance: balance(),

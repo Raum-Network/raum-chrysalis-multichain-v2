@@ -54,6 +54,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 const Stake = () => {
   const { isConnected, networkConfig, address } = useWallet();
+  const usesSolanaExecution = networkConfig.chainFamily === 'solana';
   const {
     stake,
     bridgeProtocol,
@@ -64,12 +65,20 @@ const Stake = () => {
     usdcBalance,
     linkBalance,
     stakingNFTs,
+    solanaStakingNFTs,
     stakingOffers,
     supportedProtocols,
-    assetSymbol
+    assetSymbol,
+    solanaWsolBalance,
+    solanaCcipFeeToken,
+    setSolanaCcipFeeToken,
+    solanaCcipFeeEst,
+    setSolanaCcipFeeEst,
+    estimateCcipFee: estimateFee,
   } = useStaking();
   const [stakeAmount, setStakeAmount] = useState(0);
   const [hasAllowance, setHasAllowance] = useState(false);
+  const [isFeeEstimating, setIsFeeEstimating] = useState(false);
   const [stakeView, setStakeView] = useState<'form' | 'confirming' | 'success'>('form');
   const [error, setError] = useState<string | null>(null);
   const [currentStake, setCurrentStake] = useState<StakeStatus | null>(null);
@@ -78,8 +87,51 @@ const Stake = () => {
   const [lidoAPY, setLidoAPY] = useState<number | null>(null);
   const [expandedNFT, setExpandedNFT] = useState<string | null>(null);
   const isRippleNetwork = supportedProtocols.includes('Axelar ITS');
+  const isSolanaNetwork = networkConfig.chainFamily === 'solana';
+  const isSolanaCcip = isSolanaNetwork && bridgeProtocol === 'CCIP';
+  // For Solana CCIP: disable if no fee token balance
+  const solanaCcipNoFee = isSolanaCcip && (solanaCcipFeeToken === 'LINK' ? linkBalance <= 0 : (solanaWsolBalance || 0) <= 0);
+  const receiptNFTs = isSolanaNetwork
+    ? solanaStakingNFTs.map((item) => ({ id: item.id, receipt: item.receipt, explorerUrl: item.explorerUrl }))
+    : stakingNFTs.map((item) => ({ ...item, explorerUrl: undefined as string | undefined }));
   const getExplorerUrl = (txHash: string, protocol: BridgeProtocol | string = bridgeProtocol) =>
     getTxExplorerUrl(txHash, networkConfig.name, protocol);
+
+  // Estimate CCIP fee on Solana when amount or fee token changes
+  useEffect(() => {
+    if (!isSolanaCcip || stakeAmount <= 0 || !address) {
+      setSolanaCcipFeeEst?.(null);
+      return;
+    }
+    let cancelled = false;
+    setIsFeeEstimating(true);
+    (async () => {
+      try {
+        const { Connection } = await import('@solana/web3.js');
+        const { PublicKey } = await import('@solana/web3.js');
+        const { solanaAddressToEvmAlias } = await import('../lib/solanaCctp');
+        const { Buffer } = await import('buffer');
+        const { ethers: eth2 } = await import('ethers');
+        const evmAlias    = solanaAddressToEvmAlias(address);
+        const solBytes32  = `0x${Buffer.from(new PublicKey(address).toBytes()).toString('hex')}`;
+        const abiCoder    = eth2.AbiCoder.defaultAbiCoder();
+        const calldata    = eth2.getBytes(abiCoder.encode(['address', 'bytes32'], [evmAlias, solBytes32]));
+        const conn        = new Connection(networkConfig.publicRpc, 'confirmed');
+        const userPk      = new PublicKey(address);
+        const decimals    = networkConfig.contracts.decimal || 6;
+        const amountBig   = BigInt(Math.round(stakeAmount * 10 ** decimals));
+        const destAddr    = networkConfig.contracts.destination || networkConfig.contracts.cctpDestinationCaller || '';
+        const est = await estimateFee(conn, userPk, solanaCcipFeeToken, amountBig, calldata, destAddr, 200_000n);
+        if (!cancelled) setSolanaCcipFeeEst?.(est);
+      } catch {
+        // silently ignore
+      } finally {
+        if (!cancelled) setIsFeeEstimating(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSolanaCcip, stakeAmount, solanaCcipFeeToken, address]);
 
   // Check allowance whenever stakeAmount changes
   useEffect(() => {
@@ -165,7 +217,7 @@ const Stake = () => {
       await stake(stakeAmount, lidoAPY ? lidoAPY.toFixed(2) : undefined);
     } catch (error) {
       console.error('Staking failed:', error);
-      setError('Transaction failed. Please try again.');
+      setError(error instanceof Error ? error.message : 'Transaction failed. Please try again.');
     }
   };
 
@@ -338,6 +390,53 @@ const Stake = () => {
             {parseFloat(usdcBalance.toString()).toFixed(4)} {assetSymbol}
           </div>
         </div>
+
+        {/* Solana CCIP fee token selector */}
+        {isSolanaCcip && (
+          <div className="mb-3 border-t premium-divider pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="eyebrow text-xs">CCIP Fee Token</span>
+              <div className="flex gap-2">
+                {(['LINK', 'wSOL'] as const).map(tok => (
+                  <button
+                    key={tok}
+                    onClick={() => setSolanaCcipFeeToken?.(tok)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                      solanaCcipFeeToken === tok
+                        ? 'premium-pill border-[rgba(var(--accent),0.4)]'
+                        : 'premium-card opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    {tok}
+                    <span className="ml-1 opacity-60">
+                      {tok === 'LINK'
+                        ? `(${linkBalance.toFixed(3)})`
+                        : `(${(solanaWsolBalance || 0).toFixed(3)})`
+                      }
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {solanaCcipFeeEst && (
+              <div className="flex items-center gap-1.5 text-xs muted-copy">
+                <span>Estimated fee:</span>
+                <span className={`font-semibold ${
+                  isFeeEstimating ? 'opacity-50' : 'text-[rgb(var(--accent-strong))]'
+                }`}>
+                  {isFeeEstimating ? '...' : solanaCcipFeeEst.display}
+                </span>
+              </div>
+            )}
+            {solanaCcipNoFee && (
+              <p className="text-xs text-red-400 mt-1">
+                ⚠ No {solanaCcipFeeToken} balance. Get some from{' '}
+                <a href="https://faucets.chain.link" target="_blank" rel="noopener noreferrer" className="underline">Chainlink Faucet</a>.
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="border-t premium-divider pt-3">
           <AmountInput
             value={stakeAmount}
@@ -355,8 +454,9 @@ const Stake = () => {
         onClick={handleStakeSubmit}
         disabled={
           stakeAmount <= 0 ||
-          stakeAmount > usdcBalance ||
-          (bridgeProtocol === "CCIP" && linkBalance < 10) ||
+          (!usesSolanaExecution && stakeAmount > usdcBalance) ||
+          (!usesSolanaExecution && bridgeProtocol === "CCIP" && linkBalance < 10) ||
+          solanaCcipNoFee ||
           isStaking ||
           isApproving ||
           currentStake?.status === 'IN_PROGRESS'
@@ -366,10 +466,11 @@ const Stake = () => {
       >
         {isApproving ? 'Approving...'
           : isStaking || currentStake?.status === 'IN_PROGRESS' ? 'Staking in Progress...'
-            : stakeAmount > usdcBalance ? `Insufficient ${assetSymbol}`
-              : bridgeProtocol === "CCIP" && linkBalance < 10 ? 'Insufficient LINK Balance'
-                : !hasAllowance ? `Approve and Stake in ${bridgeProtocol}`
-                  : `Stake with ${bridgeProtocol}`}
+            : solanaCcipNoFee ? `No ${solanaCcipFeeToken} for CCIP fees`
+              : !usesSolanaExecution && stakeAmount > usdcBalance ? `Insufficient ${assetSymbol}`
+                : !usesSolanaExecution && bridgeProtocol === "CCIP" && linkBalance < 10 ? 'Insufficient LINK Balance'
+                  : !hasAllowance ? `Approve and Stake in ${bridgeProtocol}`
+                    : `Stake with ${bridgeProtocol}`}
       </Button>
 
       <AnimatePresence>
@@ -531,11 +632,11 @@ const Stake = () => {
             </Window>
           )}
 
-          {isRippleNetwork ? (
-            <Window title="Your Minted Staking Receipts (XRPL NFTs)">
-              {stakingNFTs.length > 0 ? (
+          {isRippleNetwork || isSolanaNetwork ? (
+            <Window title={`Your Minted Staking Receipts (${isSolanaNetwork ? 'Solana NFTs' : 'XRPL NFTs'})`}>
+              {receiptNFTs.length > 0 ? (
                 <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[500px] p-2 pr-3">
-                  {stakingNFTs.map((item: { id: string, receipt: UiReceipt }) => (
+                  {receiptNFTs.map((item: { id: string, receipt: UiReceipt, explorerUrl?: string }) => (
                     <div
                       key={item.id}
                       className="premium-card rounded-[24px] p-4 flex flex-col relative overflow-hidden cursor-pointer hover:border-[rgba(var(--accent),0.28)] transition-colors"
@@ -596,11 +697,25 @@ const Stake = () => {
                               <span className="muted-copy">Staked At</span>
                               <span>{item.receipt.stakedAt ? new Date(item.receipt.stakedAt * 1000).toLocaleString() : '--'}</span>
                             </div>
+                            {item.explorerUrl && (
+                              <div className="flex justify-between">
+                                <span className="muted-copy">NFT</span>
+                                <a
+                                  href={item.explorerUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 underline break-all text-right ml-4"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  View on explorer
+                                </a>
+                              </div>
+                            )}
                             {item.receipt.txHash && (
                               <div className="flex justify-between">
                                 <span className="text-gray-400">Tx Hash</span>
                                 <a
-                                  href={`https://testnet.axelarscan.io/gmp//${item.receipt.txHash}`}
+                                  href={isSolanaNetwork ? `https://explorer.solana.com/tx/${item.receipt.txHash}?cluster=devnet` : `https://testnet.axelarscan.io/gmp/${item.receipt.txHash}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-blue-400 hover:text-blue-300 underline break-all text-right ml-4"
@@ -627,7 +742,11 @@ const Stake = () => {
               ) : (
                 <div className="p-8 text-center flex flex-col items-center justify-center h-full premium-card rounded-[24px] min-h-[160px] m-2">
                   <h3 className="font-medium mb-1">No Minted Receipts</h3>
-                  <p className="muted-copy text-sm">Stake XRP using Axelar ITS to mint a receipt NFT on the XRPL.</p>
+                  <p className="muted-copy text-sm">
+                    {isSolanaNetwork
+                      ? 'Stake USDC from Solana to mint a receipt NFT on Solana.'
+                      : 'Stake XRP using Axelar ITS to mint a receipt NFT on the XRPL.'}
+                  </p>
                 </div>
               )}
             </Window>

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, BarChart3, DollarSign, History, ArrowUpRight, Droplets, Clock3, SunMedium, MoonStar, Sparkles, Menu } from 'lucide-react';
+import { Home, BarChart3, DollarSign, History, ArrowUpRight, Droplets, Clock3, SunMedium, MoonStar, Menu } from 'lucide-react';
 import ConnectButton from './ConnectButton';
 import { useTheme } from '../context/ThemeContext';
 import { useEffect, useState } from 'react';

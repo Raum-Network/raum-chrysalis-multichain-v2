@@ -1,5 +1,5 @@
 /**
- * mintNFT.js
+ * server/services/xrplNftService.js
  *
  * Core XRPL NFT minting logic:
  *  1. Connects to XRPL node
@@ -12,7 +12,7 @@
  */
 
 import * as xrpl from "xrpl";
-import config from "./config.js";
+import config from "../config/index.js";
 import { buildStakingReceipt, encodeReceiptToHex } from "./stakingMetadata.js";
 
 /**

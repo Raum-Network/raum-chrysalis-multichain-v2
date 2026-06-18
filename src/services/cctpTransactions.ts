@@ -84,6 +84,8 @@ export const fetchCCTPTransactions = async (userAddress: string): Promise<CCTPTr
 
     // Fetch transactions from all supported networks
     for (const [, network] of Object.entries(SUPPORTED_NETWORKS)) {
+      if ((network.chainFamily || 'evm') !== 'evm') continue;
+
       // Skip networks without CCTP contract or with zero address (base/lisk sepolia)
       if (!network.contracts.cctp || network.contracts.cctp === '0x0000000000000000000000000000000000000000') continue;
 

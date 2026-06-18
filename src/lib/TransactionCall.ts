@@ -1,4 +1,4 @@
-export async function getCCIPTransactions(address: string): Promise<any> {
+export async function getCCIPTransactions(address: string): Promise<unknown> {
     try {
         const response = await fetch(
             `/ccip-api/transactions?first=100&offset=0&sender=${address.toLowerCase()}`,

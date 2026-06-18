@@ -1,18 +1,46 @@
 /**
  * xrplMinter.ts
  *
- * Client-side XRPL NFT minting logic — replaces server.js + mintNFT.js.
+ * Client-side XRPL NFT minting logic. Server equivalent lives under server/.
  * Connects to XRPL, mints an NFTokenMint tx from the minter account,
  * creates a 0-XRP sell offer directed at the staker, and returns the result.
  */
 import * as xrpl from 'xrpl';
 
-// ── Config (mirrors config.js) ───────────────────────────────────────────────
+// ── Config (mirrors server/config/index.js) ──────────────────────────────────
 const XRPL_NODE = import.meta.env.VITE_XRPL_NODE || "wss://s.altnet.rippletest.net:51233";
 const MINTER_SEED = import.meta.env.VITE_MINTER_SEED || "";
 const MINTER_ADDRESS = import.meta.env.VITE_MINTER_ADDRESS || "";
 const NFT_TAXON = parseInt(import.meta.env.VITE_NFT_TAXON || "0", 10);
 const NFT_TRANSFER_FEE = parseInt(import.meta.env.VITE_NFT_TRANSFER_FEE || "0", 10);
+
+type XrplNftFields = {
+    NFTokens?: Array<{ NFToken?: { NFTokenID?: string } }>;
+};
+
+type XrplAffectedNode = {
+    CreatedNode?: {
+        LedgerEntryType?: string;
+        LedgerIndex?: string;
+        NewFields?: XrplNftFields;
+        FinalFields?: XrplNftFields;
+    };
+    ModifiedNode?: {
+        NewFields?: XrplNftFields;
+        FinalFields?: XrplNftFields;
+    };
+};
+
+type XrplMeta = {
+    AffectedNodes?: XrplAffectedNode[];
+    TransactionResult?: string;
+};
+
+type XrplAccountData = {
+    MintedNFTokens?: number;
+    FirstNFTokenSequence?: number;
+    Sequence: number;
+};
 
 // ── Staking receipt builder (mirrors stakingMetadata.js) ─────────────────────
 function buildStakingReceipt(params: {
@@ -58,7 +86,7 @@ function encodeReceiptToHex(receipt: Record<string, unknown>) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function extractNFTokenID(meta: any): string | null {
+function extractNFTokenID(meta: XrplMeta): string | null {
     for (const node of meta.AffectedNodes || []) {
         const created = node.CreatedNode || node.ModifiedNode;
         if (!created) continue;
@@ -79,7 +107,7 @@ function extractNFTokenID(meta: any): string | null {
     return null;
 }
 
-function extractOfferID(meta: any): string | null {
+function extractOfferID(meta: XrplMeta): string | null {
     for (const node of meta.AffectedNodes || []) {
         if (node.CreatedNode?.LedgerEntryType === "NFTokenOffer") {
             return node.CreatedNode.LedgerIndex || null;
@@ -122,7 +150,7 @@ export async function reserveNftId(): Promise<{ reservedSequence: number; nfToke
             command: "account_info",
             account: MINTER_ADDRESS,
         });
-        const accData = accInfo.result.account_data as any;
+        const accData = accInfo.result.account_data as XrplAccountData;
         let nextSeq: number;
         if (accData.MintedNFTokens) {
             nextSeq = accData.FirstNFTokenSequence + accData.MintedNFTokens;
@@ -172,21 +200,21 @@ export async function mintStakingNFT(params: {
         }
 
         // 2. NFTokenMint
-        const mintTx: any = {
+        const mintTx = {
             TransactionType: "NFTokenMint",
             Account: minterWallet.address,
             URI: encoded.hex,
             Flags: 8, // tfTransferable
             NFTokenTaxon: NFT_TAXON,
             TransferFee: NFT_TRANSFER_FEE,
-        };
+        } as Parameters<typeof client.autofill>[0];
 
         const mintPrepared = await client.autofill(mintTx);
         const mintSigned = minterWallet.sign(mintPrepared);
         console.log("[xrplMinter] Submitting NFTokenMint...");
 
         const mintResult = await client.submitAndWait(mintSigned.tx_blob);
-        const mintMeta = mintResult.result.meta as any;
+        const mintMeta = mintResult.result.meta as XrplMeta;
 
         if (mintMeta.TransactionResult !== "tesSUCCESS") {
             throw new Error(`NFTokenMint failed: ${mintMeta.TransactionResult}`);
@@ -199,21 +227,21 @@ export async function mintStakingNFT(params: {
         console.log(`[xrplMinter] Minted! NFTokenID: ${nfTokenID}`);
 
         // 3. Create sell offer (free) directed at the staker
-        const offerTx: any = {
+        const offerTx = {
             TransactionType: "NFTokenCreateOffer",
             Account: minterWallet.address,
             NFTokenID: nfTokenID,
             Amount: "0",
             Destination: params.stakerAddress,
             Flags: 1, // tfSellNFToken
-        };
+        } as Parameters<typeof client.autofill>[0];
 
         const offerPrepared = await client.autofill(offerTx);
         const offerSigned = minterWallet.sign(offerPrepared);
         console.log("[xrplMinter] Creating sell offer for staker...");
 
         const offerResult = await client.submitAndWait(offerSigned.tx_blob);
-        const offerMeta = offerResult.result.meta as any;
+        const offerMeta = offerResult.result.meta as XrplMeta;
 
         if (offerMeta.TransactionResult !== "tesSUCCESS") {
             throw new Error(`NFTokenCreateOffer failed: ${offerMeta.TransactionResult}`);

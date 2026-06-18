@@ -27,7 +27,7 @@ The current product supports multiple testnet-first routes and uses Ethereum Sep
 
 ## Supported Networks and Protocols
 
-The supported networks are defined in [`src/config/contract.ts`](/Users/madhurverma/Documents/raum-chrysalis-multichain/src/config/contract.ts).
+The supported networks are defined in [`src/config/contract.ts`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/src/config/contract.ts).
 
 ### Source networks
 
@@ -109,7 +109,7 @@ The rewards page is currently a product-facing placeholder/demo surface. It pres
 
 ### Wallet connectivity
 
-Wallet logic lives primarily in [`src/lib/walletConnect.ts`](/Users/madhurverma/Documents/raum-chrysalis-multichain/src/lib/walletConnect.ts).
+Wallet logic lives primarily in [`src/lib/walletConnect.ts`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/src/lib/walletConnect.ts).
 
 It supports:
 
@@ -120,7 +120,7 @@ It supports:
 
 ### Network configuration
 
-[`src/config/contract.ts`](/Users/madhurverma/Documents/raum-chrysalis-multichain/src/config/contract.ts) is the main source of truth for:
+[`src/config/contract.ts`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/src/config/contract.ts) is the main source of truth for:
 
 - Supported chains
 - Chain IDs
@@ -132,7 +132,7 @@ It supports:
 
 ### Staking orchestration
 
-The main staking hook is [`src/hooks/useStaking.ts`](/Users/madhurverma/Documents/raum-chrysalis-multichain/src/hooks/useStaking.ts).
+The main staking hook is [`src/hooks/useStaking.ts`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/src/hooks/useStaking.ts).
 
 It is responsible for:
 
@@ -153,8 +153,8 @@ Transaction persistence uses a layered approach:
 
 Relevant files:
 
-- [`src/services/transactionRepository.ts`](/Users/madhurverma/Documents/raum-chrysalis-multichain/src/services/transactionRepository.ts)
-- [`api/transactions.js`](/Users/madhurverma/Documents/raum-chrysalis-multichain/api/transactions.js)
+- [`src/services/transactionRepository.ts`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/src/services/transactionRepository.ts)
+- [`api/transactions.js`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/api/transactions.js)
 
 This makes the transaction view resilient even when remote storage is unavailable.
 
@@ -173,9 +173,10 @@ Ripple/Axelar flows can mint staking receipt NFTs on XRPL. The NFT metadata enco
 
 Relevant files:
 
-- [`server.js`](/Users/madhurverma/Documents/raum-chrysalis-multichain/server.js)
-- [`mintNFT.js`](/Users/madhurverma/Documents/raum-chrysalis-multichain/mintNFT.js)
-- [`stakingMetadata.js`](/Users/madhurverma/Documents/raum-chrysalis-multichain/stakingMetadata.js)
+- [`server/index.js`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/server/index.js)
+- [`server/services/xrplNftService.js`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/server/services/xrplNftService.js)
+- [`server/services/solanaReceiptNftService.js`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/server/services/solanaReceiptNftService.js)
+- [`server/services/stakingMetadata.js`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/server/services/stakingMetadata.js)
 
 ## Cross-Chain Flow at a Glance
 
@@ -200,7 +201,7 @@ The app relies on several external services and protocol APIs:
 - XRPL node access for Ripple flows and NFT minting
 - Upstash Redis for persisted transaction history
 
-Vercel rewrites in [`vercel.json`](/Users/madhurverma/Documents/raum-chrysalis-multichain/vercel.json) proxy some of these services under local app paths such as:
+Vercel rewrites in [`vercel.json`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/vercel.json) proxy some of these services under local app paths such as:
 
 - `/ccip-api/*`
 - `/circle-api/*`
@@ -211,6 +212,10 @@ Vercel rewrites in [`vercel.json`](/Users/madhurverma/Documents/raum-chrysalis-m
 ```text
 .
 ├── api/                         # Vercel serverless functions
+├── server/                      # Express API for XRPL and Solana receipt NFTs
+│   ├── config/                  # Backend env config
+│   ├── data/                    # Local runtime receipt cache
+│   └── services/                # NFT minting and metadata services
 ├── src/
 │   ├── components/             # Shared UI building blocks
 │   ├── config/                 # Network and contract configuration
@@ -221,9 +226,6 @@ Vercel rewrites in [`vercel.json`](/Users/madhurverma/Documents/raum-chrysalis-m
 │   ├── services/               # API clients and persistence utilities
 │   ├── store/                  # Zustand stores
 │   └── utils/                  # Storage and helper utilities
-├── server.js                   # XRPL NFT minting API
-├── mintNFT.js                  # XRPL mint + offer logic
-├── stakingMetadata.js          # XRPL NFT receipt encoding/decoding
 └── vercel.json                 # Rewrites for protocol APIs and SPA routing
 ```
 
@@ -263,12 +265,16 @@ npm run build
 npm run preview
 ```
 
-### Start the XRPL minting backend
-
-There is no npm script for the XRPL API yet, so start it directly:
+### Start the NFT minting backend
 
 ```bash
-node server.js
+npm run dev:server
+```
+
+To run the Vite app and backend together:
+
+```bash
+npm run dev:all
 ```
 
 By default it runs on port `3000`.
@@ -279,13 +285,18 @@ This project uses a mix of frontend-safe configuration embedded in source files 
 
 ### XRPL minting backend
 
-The XRPL NFT API reads the following variables in [`config.js`](/Users/madhurverma/Documents/raum-chrysalis-multichain/config.js):
+The NFT minting API reads the following variables in [`server/config/index.js`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/server/config/index.js):
 
 - `XRPL_NODE`
 - `MINTER_SEED`
 - `MINTER_ADDRESS`
 - `NFT_TAXON`
 - `NFT_TRANSFER_FEE`
+- `SOLANA_RPC_URL`
+- `SOLANA_CLUSTER`
+- `SOLANA_MINTER_ADDRESS`
+- `SOLANA_MINTER_SECRET_KEY`
+- `PORT`
 
 Example:
 
@@ -295,6 +306,11 @@ MINTER_SEED=your_minter_seed
 MINTER_ADDRESS=your_minter_address
 NFT_TAXON=0
 NFT_TRANSFER_FEE=0
+SOLANA_RPC_URL=https://api.devnet.solana.com
+SOLANA_CLUSTER=devnet
+SOLANA_MINTER_ADDRESS=your_solana_minter_address
+SOLANA_MINTER_SECRET_KEY='[1,2,...,64]'
+PORT=3000
 ```
 
 ### Transaction persistence backend
@@ -320,16 +336,16 @@ If these are not set:
 
 ### Vercel function: persisted transactions
 
-[`api/transactions.js`](/Users/madhurverma/Documents/raum-chrysalis-multichain/api/transactions.js)
+[`api/transactions.js`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/api/transactions.js)
 
 - `GET /api/transactions?address=<wallet>`
   - Returns persisted transactions for a wallet
 - `POST /api/transactions`
   - Upserts a transaction record
 
-### XRPL minting API
+### NFT minting API
 
-[`server.js`](/Users/madhurverma/Documents/raum-chrysalis-multichain/server.js)
+[`server/index.js`](/Users/madhurverma/Desktop/Raum/raum-chrysalis-multichain-v2/server/index.js)
 
 - `GET /health`
   - Basic health check
@@ -339,6 +355,10 @@ If these are not set:
   - Releases a reserved sequence if minting does not proceed
 - `POST /mint-staking-nft`
   - Mints a staking receipt NFT and creates a directed sell offer for the staker
+- `POST /mint-solana-staking-nft`
+  - Mints a Solana staking receipt NFT into the user's associated token account
+- `GET /solana-staking-nfts/:owner`
+  - Lists cached Solana receipt NFTs for an owner and verifies current token ownership
 - `POST /accept-offer`
   - Accepts an NFT sell offer in custodial mode
 - `GET /nft/:nfTokenID`

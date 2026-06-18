@@ -146,18 +146,20 @@ export default async function handler(req, res) {
     return json(res, 400, { error: validationError });
   }
 
-  if (!storage) {
-    return json(res, 503, {
-      error: 'Transaction storage is not configured. Set KV_REST_API_URL and KV_REST_API_TOKEN.',
-    });
-  }
-
   const transaction = {
     ...payload,
     walletAddress: normalizeAddress(payload.walletAddress),
     createdAt: Number(payload.createdAt || Date.now()),
     updatedAt: Number(payload.updatedAt || Date.now()),
   };
+
+  if (!storage) {
+    return json(res, 200, {
+      ok: true,
+      transaction,
+      storage: 'disabled',
+    });
+  }
 
   try {
     const indexKey = getIndexKey(transaction.walletAddress);

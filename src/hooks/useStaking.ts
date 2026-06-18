@@ -7,9 +7,25 @@ import stakedUserBalance from '../lib/sepoliaContract';
 import { decodeAccountID } from "xrpl";
 import { ethers } from 'ethers';
 import { reserveNftId, mintStakingNFT } from '../lib/xrplMinter';
+import {
+  SolanaStakingNFT,
+  fetchSolanaStakingNFTs,
+  mintSolanaStakingNFT,
+} from '../lib/solanaReceiptMinter';
 import { BridgeProtocol } from '../config/contract';
 import { isProtocolSupported, isZeroAddress, normalizeEvmAddress, ZERO_ADDRESS } from '../lib/networkSupport';
 import { createPersistedTransactionId, upsertPersistedTransaction } from '../services/transactionRepository';
+import { burnSolanaUsdcForSepoliaCCTP, solanaAddressToEvmAlias } from '../lib/solanaCctp';
+import {
+  sendSolanaCcip,
+  estimateCcipFee,
+  getSolanaTokenBalance,
+  LINK_MINT,
+  WSOL_MINT,
+  type FeeToken,
+  type CcipFeeEstimate,
+} from '../lib/solanaCcip';
+import { PublicKey } from '@solana/web3.js';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -36,6 +52,15 @@ type XrplOfferObject = {
   NFTokenID: string;
   index: string;
 };
+
+const USDC_MINTED_EVENT_TOPIC = ethers.id('USDCMinted(address,uint256,bytes)');
+const SOLANA_USDC_MINTED_EVENT_TOPIC = ethers.id('USDCMinted(address,bytes32,uint256,uint256,bytes)');
+const SOLANA_STAKE_RECEIPT_READY_TOPIC = ethers.id('SolanaStakeReceiptReady(bytes32,address,bytes32,uint256,uint256,bytes32,bytes)');
+const receiverInterface = new ethers.Interface([
+  'event USDCMinted(address indexed recipient, uint256 amount, bytes hookData)',
+  'event USDCMinted(address indexed recipientAlias, bytes32 indexed solanaRecipient, uint256 usdcAmount, uint256 mintedStETH, bytes hookData)',
+  'event SolanaStakeReceiptReady(bytes32 indexed route, address indexed recipientAlias, bytes32 indexed solanaRecipient, uint256 sourceAmount, uint256 mintedStETH, bytes32 messageId, bytes hookData)'
+]);
 
 function toHex(str: string): string {
   return Array.from(new TextEncoder().encode(str))
@@ -73,19 +98,27 @@ export function useStaking() {
   const [isApproving, setIsApproving] = useState(false);
   const [stakeAmount, setStakeAmount] = useState<number>(0);
   const [xrpBalance, setXrpBalance] = useState<number>(0);
+  const [solanaUsdcBalance, setSolanaUsdcBalance] = useState<number>(0);
+  const [solanaLinkBalance, setSolanaLinkBalance] = useState<number>(0);
+  const [solanaWsolBalance, setSolanaWsolBalance] = useState<number>(0);
+  const [solanaCcipFeeToken, setSolanaCcipFeeToken] = useState<FeeToken>('LINK');
+  const [solanaCcipFeeEst, setSolanaCcipFeeEst] = useState<CcipFeeEstimate | null>(null);
   const [stakingNFTs, setStakingNFTs] = useState<{ id: string, receipt: StakingReceipt }[]>([]);
   const [stakingOffers, setStakingOffers] = useState<{ id: string, receipt: StakingReceipt, offerIndex: string }[]>([]);
+  const [solanaStakingNFTs, setSolanaStakingNFTs] = useState<SolanaStakingNFT[]>([]);
   const persistedTransactionWritesRef = useRef(new Map<string, string>());
+  const mintedSolanaReceiptRef = useRef(new Set<string>());
 
   const { writeContractAsync } = useWriteContract();
 
   const evmAddress = address && address.startsWith('0x') ? (address as `0x${string}`) : undefined;
+  const isEvmNetwork = (networkConfig.chainFamily || 'evm') === 'evm';
   const decimals = networkConfig.contracts.decimal || 6;
 
-  const USDC_ADDRESS = normalizeEvmAddress(networkConfig.contracts.usdc);
-  const LINK_ADDRESS = normalizeEvmAddress(networkConfig.contracts.fees);
-  const STAKE_CONTRACT_ADDRESS = normalizeEvmAddress(networkConfig.contracts.ccip);
-  const STAKE_CCTP_CONTRACT_ADDRESS = normalizeEvmAddress(networkConfig.contracts.cctp);
+  const USDC_ADDRESS = isEvmNetwork ? normalizeEvmAddress(networkConfig.contracts.usdc) : ZERO_ADDRESS;
+  const LINK_ADDRESS = isEvmNetwork ? normalizeEvmAddress(networkConfig.contracts.fees) : ZERO_ADDRESS;
+  const STAKE_CONTRACT_ADDRESS = isEvmNetwork ? normalizeEvmAddress(networkConfig.contracts.ccip) : ZERO_ADDRESS;
+  const STAKE_CCTP_CONTRACT_ADDRESS = isEvmNetwork ? normalizeEvmAddress(networkConfig.contracts.cctp) : ZERO_ADDRESS;
 
   const persistStakeStatus = (status: StakeStatus, protocol: BridgeProtocol, rawAmount: string) => {
     if (!address || !status.sourceTxHash) return;
@@ -170,7 +203,7 @@ export function useStaking() {
     functionName: "balanceOf",
     args: evmAddress ? [evmAddress] : undefined,
     query: {
-      enabled: Boolean(evmAddress) && networkConfig.assetSymbol === 'USDC' && !isZeroAddress(USDC_ADDRESS),
+      enabled: Boolean(evmAddress) && isEvmNetwork && networkConfig.assetSymbol === 'USDC' && !isZeroAddress(USDC_ADDRESS),
     }
   });
 
@@ -183,6 +216,7 @@ export function useStaking() {
     query: {
       enabled:
         Boolean(evmAddress) &&
+        isEvmNetwork &&
         bridgeProtocol !== 'Axelar ITS' &&
         networkConfig.assetSymbol === 'USDC' &&
         !isZeroAddress(USDC_ADDRESS),
@@ -198,6 +232,7 @@ export function useStaking() {
     query: {
       enabled:
         Boolean(evmAddress) &&
+        isEvmNetwork &&
         bridgeProtocol === 'CCIP' &&
         isProtocolSupported(networkConfig, 'CCIP') &&
         !isZeroAddress(LINK_ADDRESS),
@@ -212,6 +247,7 @@ export function useStaking() {
     query: {
       enabled:
         Boolean(evmAddress) &&
+        isEvmNetwork &&
         bridgeProtocol === 'CCIP' &&
         isProtocolSupported(networkConfig, 'CCIP') &&
         !isZeroAddress(LINK_ADDRESS),
@@ -357,6 +393,184 @@ export function useStaking() {
     };
   }, [address, networkConfig]);
 
+  // Fetch Solana LINK and wSOL SPL token balances (for CCIP fee token selection)
+  useEffect(() => {
+    let active = true;
+
+    const fetchSolanaFeeBalances = async () => {
+      if (!address || networkConfig.chainFamily !== 'solana') {
+        if (active) { setSolanaLinkBalance(0); setSolanaWsolBalance(0); }
+        return;
+      }
+      const rpc = networkConfig.publicRpc;
+      const [link, wsol] = await Promise.all([
+        getSolanaTokenBalance(rpc, address, LINK_MINT.toString()),
+        getSolanaTokenBalance(rpc, address, WSOL_MINT.toString()),
+      ]);
+      if (active) {
+        setSolanaLinkBalance(link);
+        setSolanaWsolBalance(wsol);
+        // Auto-select fee token: prefer LINK if user has any, else wSOL
+        setSolanaCcipFeeToken(link > 0 ? 'LINK' : 'wSOL');
+      }
+    };
+
+    fetchSolanaFeeBalances();
+    const id = setInterval(fetchSolanaFeeBalances, 15000);
+    return () => { active = false; clearInterval(id); };
+  }, [address, networkConfig]);
+
+  // Fetch Solana USDC SPL token balance (EVM useReadContract is disabled for Solana)
+  useEffect(() => {
+    let active = true;
+
+    const fetchSolanaUsdcBalance = async () => {
+      if (!address || networkConfig.chainFamily !== 'solana') {
+        if (active) setSolanaUsdcBalance(0);
+        return;
+      }
+
+      const usdcMint = networkConfig.solana?.usdcMint || networkConfig.contracts.usdc;
+      if (!usdcMint) return;
+
+      try {
+        const response = await fetch(networkConfig.publicRpc, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'getTokenAccountsByOwner',
+            params: [
+              address,
+              { mint: usdcMint },
+              { encoding: 'jsonParsed' }
+            ]
+          })
+        });
+        const data = await response.json();
+        const accounts = data?.result?.value || [];
+        if (accounts.length === 0) {
+          if (active) setSolanaUsdcBalance(0);
+          return;
+        }
+        // Sum across all USDC token accounts (usually just one)
+        const totalLamports: number = accounts.reduce((sum: number, acc: { account: { data: { parsed: { info: { tokenAmount: { uiAmount: number } } } } } }) => {
+          return sum + (acc.account.data.parsed.info.tokenAmount.uiAmount || 0);
+        }, 0);
+        if (active) setSolanaUsdcBalance(totalLamports);
+      } catch (e) {
+        console.error('Error fetching Solana USDC balance:', e);
+        if (active) setSolanaUsdcBalance(0);
+      }
+    };
+
+    fetchSolanaUsdcBalance();
+    const intervalId = setInterval(fetchSolanaUsdcBalance, 15000);
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [address, networkConfig]);
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchSolanaReceipts = async () => {
+      if (!address || networkConfig.chainFamily !== 'solana') {
+        if (active) setSolanaStakingNFTs([]);
+        return;
+      }
+
+      try {
+        const receipts = await fetchSolanaStakingNFTs(address);
+        if (active) setSolanaStakingNFTs(receipts);
+      } catch (error) {
+        console.error("Error fetching Solana staking NFTs:", error);
+        if (active) setSolanaStakingNFTs([]);
+      }
+    };
+
+    fetchSolanaReceipts();
+    const intervalId = setInterval(fetchSolanaReceipts, 15000);
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [address, networkConfig]);
+
+  const mintSolanaReceiptNFT = async ({
+    amount,
+    apy,
+    confirmationTxHash,
+    mintedStETH,
+  }: {
+    amount: string;
+    apy?: string;
+    confirmationTxHash?: string;
+    mintedStETH: string;
+  }) => {
+    if (!address || networkConfig.chainFamily !== 'solana') return;
+    const dedupeKey = `${address}:${confirmationTxHash || ''}:${amount}:${mintedStETH}`;
+    if (mintedSolanaReceiptRef.current.has(dedupeKey)) return;
+    mintedSolanaReceiptRef.current.add(dedupeKey);
+
+    const receipt = await mintSolanaStakingNFT({
+      stakerAddress: address,
+      stakedAmount: amount,
+      stakedToken: 'USDC',
+      stakingPool: 'Raum LST Solana CCTP',
+      stakingPeriodDays: 0,
+      apy: apy || '4.8',
+      confirmationTxHash: confirmationTxHash || '',
+      mintedStETH,
+    });
+
+    setSolanaStakingNFTs((current) => [receipt, ...current.filter((item) => item.id !== receipt.id)]);
+  };
+
+  const getMintedStETHFromSepoliaReceipt = async (destinationTxHash: string): Promise<string | null> => {
+    const provider = stakedUserBalance.getProvider();
+    const receipt = await provider.getTransactionReceipt(destinationTxHash);
+    const mintedLog = receipt?.logs.find((log) =>
+      log.topics[0]?.toLowerCase() === SOLANA_STAKE_RECEIPT_READY_TOPIC.toLowerCase() ||
+      log.topics[0]?.toLowerCase() === SOLANA_USDC_MINTED_EVENT_TOPIC.toLowerCase() ||
+      log.topics[0]?.toLowerCase() === USDC_MINTED_EVENT_TOPIC.toLowerCase()
+    );
+    if (!mintedLog) return null;
+
+    const parsed = receiverInterface.parseLog({
+      topics: [...mintedLog.topics],
+      data: mintedLog.data,
+    });
+    const amount = parsed?.args?.mintedStETH ?? parsed?.args?.amount;
+    return amount !== undefined ? ethers.formatUnits(amount, 18) : null;
+  };
+
+  useEffect(() => {
+    if (!address || networkConfig.chainFamily !== 'solana') return;
+
+    const unsubscribe = stakeManager.subscribeToStatus(async (status) => {
+      if (status.status !== 'SUCCESS' || !status.destinationTxHash) return;
+
+      try {
+        const mintedStETH = await getMintedStETHFromSepoliaReceipt(status.destinationTxHash);
+        if (!mintedStETH) return;
+
+        await mintSolanaReceiptNFT({
+          amount: status.amount ? ethers.formatUnits(BigInt(status.amount), status.sourceDecimals ?? decimals) : stakeAmount.toString(),
+          apy: undefined,
+          confirmationTxHash: status.destinationTxHash,
+          mintedStETH,
+        });
+      } catch (error) {
+        console.error('Failed to mint Solana staking receipt NFT:', error);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [address, networkConfig, decimals, stakeAmount]);
+
   const approveToken = async (amount: number) => {
     if (!address) throw new Error('Wallet not connected');
     if (bridgeProtocol === 'Axelar ITS') return;
@@ -394,6 +608,7 @@ export function useStaking() {
   const checkAllowance = async (amount: number): Promise<boolean> => {
     if (!address) return false;
     if (bridgeProtocol === 'Axelar ITS') return true;
+    if (networkConfig.chainFamily === 'solana') return true;
     if (!evmAddress) return false;
     if (!isProtocolSupported(networkConfig, bridgeProtocol)) return false;
 
@@ -566,6 +781,111 @@ export function useStaking() {
         return;
       }
 
+      if (networkConfig.chainFamily === 'solana') {
+        if (!window.solana) throw new Error('Solana wallet not found');
+        const stakeAmountInWei = toUnits(amount, decimals);
+
+        // ── CCIP path ────────────────────────────────────────────────────────
+        if (bridgeProtocol === 'CCIP') {
+          const feeToken = solanaCcipFeeToken;
+          const hasFee = feeToken === 'LINK' ? solanaLinkBalance > 0 : solanaWsolBalance > 0;
+          if (!hasFee) {
+            throw new Error(
+              feeToken === 'LINK'
+                ? 'No LINK balance for CCIP fees. Please acquire LINK or switch to wSOL.'
+                : 'No wSOL balance for CCIP fees. Please wrap some SOL or switch to LINK.'
+            );
+          }
+
+          // ABI-encode (address recipientAlias, bytes32 solanaRecipient) for the receiver contract
+          const evmAlias        = solanaAddressToEvmAlias(address);
+          const solanaBytes32   = `0x${Buffer.from(new PublicKey(address).toBytes()).toString('hex')}`;
+          const abiCoder        = ethers.AbiCoder.defaultAbiCoder();
+          const evmCalldata     = ethers.getBytes(
+            abiCoder.encode(['address', 'bytes32'], [evmAlias, solanaBytes32])
+          );
+
+          const ccipStatusHandler = handleStakeStatusUpdate('CCIP', stakeAmountInWei.toString());
+
+          const txHash = await sendSolanaCcip({
+            provider: window.solana,
+            networkConfig,
+            amount: stakeAmountInWei,
+            evmCalldata,
+            feeToken,
+            gasLimit: 200_000n,
+          });
+
+          stakeManager.setExternalStatus({
+            status: 'IN_PROGRESS',
+            sourceTxHash: txHash,
+            ccipMessageId: null,
+            destinationTxHash: null,
+            bridgingMessageId: null,
+            timestamp: Date.now(),
+            timeElapsed: '0s',
+            expectedTime: '20m 00s',
+            isCommitted: false,
+            isBlessed: false,
+            sourceNetworkName: networkConfig.name,
+            destNetworkName: 'Sepolia',
+            origin: address,
+            receiver: evmAlias,
+            protocol: 'CCIP',
+            amount: Number(stakeAmountInWei),
+            sourceDecimals: decimals,
+            destDecimals: 18,
+          }, ccipStatusHandler);
+
+          return;
+        }
+
+        // ── CCTP path (existing) ─────────────────────────────────────────────
+        const destinationCaller = normalizeEvmAddress(networkConfig.contracts.cctpDestinationCaller);
+        if (isZeroAddress(destinationCaller)) {
+          throw new Error(`CCTP destination caller is not configured for ${networkConfig.name}`);
+        }
+
+        const evmAlias = solanaAddressToEvmAlias(address);
+        const solanaStatusHandler = handleStakeStatusUpdate('CCTP', stakeAmountInWei.toString());
+        const txHash = await burnSolanaUsdcForSepoliaCCTP({
+          provider: window.solana,
+          networkConfig,
+          amount: stakeAmountInWei,
+        });
+
+        stakeManager.setExternalStatus({
+          status: 'IN_PROGRESS',
+          sourceTxHash: txHash,
+          ccipMessageId: null,
+          destinationTxHash: null,
+          bridgingMessageId: null,
+          timestamp: Date.now(),
+          timeElapsed: '0s',
+          expectedTime: '1m 00s',
+          isCommitted: false,
+          isBlessed: false,
+          sourceNetworkName: networkConfig.name,
+          destNetworkName: 'Sepolia',
+          origin: address,
+          receiver: evmAlias,
+          protocol: 'CCTP',
+          amount: Number(stakeAmountInWei),
+          sourceDecimals: decimals,
+          destDecimals: 18,
+          attestationStatus: 'pending',
+        }, solanaStatusHandler);
+
+        await stakeManager.completeSolanaCCTP(
+          txHash,
+          Number(stakeAmountInWei),
+          evmAlias,
+          address,
+          solanaStatusHandler
+        );
+        return;
+      }
+
       if (!evmAddress) throw new Error('Please connect an EVM wallet for this protocol');
       if (!isProtocolSupported(networkConfig, bridgeProtocol)) {
         throw new Error(`${bridgeProtocol} is not supported on ${networkConfig.name}`);
@@ -616,6 +936,7 @@ export function useStaking() {
 
   const getStakedBalance = async () => {
     if (!address) return "0";
+    if (networkConfig.chainFamily === 'solana') return "0";
     try {
       const balance = await stakedUserBalance.getBalance(address);
       const cctpBalance = await stakedUserBalance.getBalanceCCTP(address);
@@ -638,10 +959,22 @@ export function useStaking() {
     assetSymbol: networkConfig.assetSymbol,
     usdcBalance: networkConfig.assetSymbol === 'XRP'
       ? Math.floor(xrpBalance * 10000) / 10000
-      : (usdcBalance ? Number(usdcBalance) / (decimals === 6 ? 10 ** 6 : 10 ** 18) : 0),
-    linkBalance: linkBalance ? Number(linkBalance) / 10 ** 18 : 0,
+      : networkConfig.chainFamily === 'solana'
+        ? solanaUsdcBalance
+        : (usdcBalance ? Number(usdcBalance) / (decimals === 6 ? 10 ** 6 : 10 ** 18) : 0),
+    linkBalance: networkConfig.chainFamily === 'solana'
+      ? solanaLinkBalance
+      : (linkBalance ? Number(linkBalance) / 10 ** 18 : 0),
+    solanaWsolBalance,
+    solanaCcipFeeToken,
+    setSolanaCcipFeeToken,
+    solanaCcipFeeEst,
+    setSolanaCcipFeeEst,
+    estimateCcipFee,
     hasAllowance: bridgeProtocol === 'Axelar ITS'
       ? true
+      : networkConfig.chainFamily === 'solana'
+        ? true
       : (bridgeProtocol === 'CCIP'
         ? (usdcAllowance && linkAllowance
           ? (usdcAllowance >= toUnits(stakeAmount, decimals) && linkAllowance >= BigInt(10 * 10 ** 18))
@@ -655,6 +988,8 @@ export function useStaking() {
     setStakeAmount,
     xrpBalance,
     stakingNFTs,
-    stakingOffers
+    stakingOffers,
+    solanaStakingNFTs,
+    mintSolanaReceiptNFT
   };
 }

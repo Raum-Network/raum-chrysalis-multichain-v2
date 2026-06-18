@@ -1,8 +1,19 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    nodePolyfills({
+      // Polyfill Buffer and process — required by @solana/spl-token & @solana/web3.js
+      include: ['buffer', 'process'],
+      globals: {
+        Buffer: true,
+        process: true,
+      },
+    }),
+  ],
   optimizeDeps: {
     exclude: ['lucide-react'],
   },

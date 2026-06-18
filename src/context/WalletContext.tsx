@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
-import { Networks, SUPPORTED_NETWORKS } from '../config/contract';
+import { Networks } from '../config/contract';
 
 interface WalletContextType {
   isConnected: boolean;

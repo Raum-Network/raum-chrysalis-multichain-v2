@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useStaking } from '../hooks/useStaking';
 import { useWallet } from '../lib/walletConnect';
 import Button from './Button';
@@ -23,11 +23,11 @@ export function StakeForm({ onSuccess }: StakeFormProps) {
   const [checkingApproval, setCheckingApproval] = useState(true);
   const [usdcApproved, setUsdcApproved] = useState(false);
   const [linkApproved, setLinkApproved] = useState(false);
-  const [isApproving, setIsApproving] = useState(false);
+  const [, setIsApproving] = useState(false);
   const [txHash, setTxHash] = useState<string>();
   const [insufficientBalanceMessage, setInsufficientBalanceMessage] = useState<string | null>(null);
 
-  const transactionStatus = TransactionReceipt(txHash);
+  TransactionReceipt(txHash);
   const { writeContractAsync } = useWriteContract();
 
   const { data: usdcAllowance, refetch: refetchUsdcAllowance } = useReadContract({
@@ -44,37 +44,7 @@ export function StakeForm({ onSuccess }: StakeFormProps) {
     args: [address! as `0x${string}`, "0x01851B172B1B0A5709DEEC827A88732Dba00C467"],
   });
 
-  useEffect(() => {
-    if (address) {
-      checkAllowances();
-    }
-  }, [address, amount, usdcApproved, linkApproved]);
-
-  useEffect(() => {
-    const checkBalances = () => {
-      const usdcBalance = Number(balance);
-
-      if (bridgeProtocol === 'CCIP') {
-        if (Number(feesBalance) / 10 ** 18 < 1) {
-          setInsufficientBalanceMessage("Insufficient LINK Balance");
-        } else if (usdcBalance < Number(amount)) {
-          setInsufficientBalanceMessage("Insufficient USDC Balance");
-        } else {
-          setInsufficientBalanceMessage(null);
-        }
-      } else {
-        if (usdcBalance < Number(amount)) {
-          setInsufficientBalanceMessage("Insufficient USDC Balance");
-        } else {
-          setInsufficientBalanceMessage(null);
-        }
-      }
-    };
-
-    checkBalances();
-  }, [amount, usdcAllowance, feesBalance, balance, bridgeProtocol]);
-
-  const checkAllowances = async () => {
+  const checkAllowances = useCallback(async () => {
     setCheckingApproval(true);
     try {
       if (bridgeProtocol === 'CCIP') {
@@ -94,7 +64,31 @@ export function StakeForm({ onSuccess }: StakeFormProps) {
       console.error("Error checking allowances:", error);
     }
     setCheckingApproval(false);
-  };
+  }, [amount, bridgeProtocol, linkAllowance, refetchLinkAllowance, refetchUsdcAllowance, usdcAllowance]);
+
+  useEffect(() => {
+    if (address) {
+      checkAllowances();
+    }
+  }, [address, usdcApproved, linkApproved, checkAllowances]);
+
+  useEffect(() => {
+    const usdcBalance = Number(balance);
+
+    if (bridgeProtocol === 'CCIP') {
+      if (Number(feesBalance) / 10 ** 18 < 1) {
+        setInsufficientBalanceMessage("Insufficient LINK Balance");
+      } else if (usdcBalance < Number(amount)) {
+        setInsufficientBalanceMessage("Insufficient USDC Balance");
+      } else {
+        setInsufficientBalanceMessage(null);
+      }
+    } else if (usdcBalance < Number(amount)) {
+      setInsufficientBalanceMessage("Insufficient USDC Balance");
+    } else {
+      setInsufficientBalanceMessage(null);
+    }
+  }, [amount, feesBalance, balance, bridgeProtocol]);
 
   const approveToken = async (tokenAddress: string, setApproved: (value: boolean) => void) => {
     try {
@@ -117,7 +111,7 @@ export function StakeForm({ onSuccess }: StakeFormProps) {
         });
       }
       setTxHash(hash);
-    } catch (error) {
+    } catch {
       setApproved(false);
       setIsApproving(false);
       setTxHash(undefined);
@@ -140,16 +134,9 @@ export function StakeForm({ onSuccess }: StakeFormProps) {
     try {
       await stake(Number(amount));
       if (onSuccess) onSuccess();
-    } catch (error) {
+    } catch {
       setError('Failed to stake. Please try again.');
       setIsStaking(false);
-    }
-  };
-
-  const handleMaxClick = () => {
-    if (balance) {
-      setAmount(balance.toString());
-      setError(null);
     }
   };
 

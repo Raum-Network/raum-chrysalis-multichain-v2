@@ -1,5 +1,5 @@
 /**
- * server.js
+ * server/index.js
  * 
  * Express REST API for the XRPL Staking NFT Minter.
  * 
@@ -15,25 +15,36 @@ dotenv.config();
 
 import express from "express";
 import * as xrpl from "xrpl";
-import { mintStakingNFT, acceptSellOffer } from "./mintNFT.js";
-import { decodeHexUri } from "./stakingMetadata.js";
-import config from "./config.js";
+import { mintStakingNFT, acceptSellOffer } from "./services/xrplNftService.js";
+import { getSolanaStakingNFTs, mintSolanaStakingNFT } from "./services/solanaReceiptNftService.js";
+import { decodeHexUri } from "./services/stakingMetadata.js";
+import transactionsHandler from "../api/transactions.js";
+import transactionHealthHandler from "../api/transactions/health.js";
+import transactionWriteHandler from "../api/transactions/write.js";
+import config from "./config/index.js";
 import cors from "cors";
 
 const app = express();
 app.use(express.json());
+app.use(cors());
+
+const router = express.Router();
 
 // ── Health check ─────────────────────────────────────────────────────────────
-app.get("/health", (_req, res) => {
+router.get("/health", (_req, res) => {
     res.json({ status: "ok", node: config.XRPL_NODE, time: new Date().toISOString() });
 });
 
-app.get("/cors-enable", (_req, res, next) => {
+router.get("/cors-enable", (_req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
 });
-app.use(cors());
+
+// ── Transaction persistence API used by the Vite dev proxy ───────────────────
+router.all("/transactions", transactionsHandler);
+router.all("/transactions/health", transactionHealthHandler);
+router.all("/transactions/write", transactionWriteHandler);
 
 // --- Global sequence reservation queue ---
 let sequenceLock = null;
@@ -62,7 +73,7 @@ function buildNFTokenID(flags, transferFee, issuerAddress, taxon, sequence) {
  * Resolves the next available sequence number on the Minter Wallet, reserves it,
  * and calculates the precise NFTokenID that will be generated.
  */
-app.get("/reserve-nft-id", async (req, res) => {
+router.get("/reserve-nft-id", async (req, res) => {
     const client = new xrpl.Client(config.XRPL_NODE);
 
     try {
@@ -112,7 +123,7 @@ app.get("/reserve-nft-id", async (req, res) => {
 });
 
 // ── POST /release-nft-id ──────────────────────────────────────────────────────
-app.post("/release-nft-id", (req, res) => {
+router.post("/release-nft-id", (req, res) => {
     const { sequence } = req.body;
     if (sequence !== undefined && sequenceLock === sequence) {
         sequenceLock--;
@@ -147,7 +158,7 @@ app.post("/release-nft-id", (req, res) => {
  *   "explorerUrl": "..."       // XRPL testnet explorer link to the NFT
  * }
  */
-app.post("/mint-staking-nft", async (req, res) => {
+router.post("/mint-staking-nft", async (req, res) => {
     const {
         stakerAddress,
         stakedAmount,
@@ -226,6 +237,60 @@ app.post("/mint-staking-nft", async (req, res) => {
     }
 });
 
+// ── POST /mint-solana-staking-nft ────────────────────────────────────────────
+router.post("/mint-solana-staking-nft", async (req, res) => {
+    const {
+        stakerAddress,
+        stakedAmount,
+        stakedToken,
+        stakingPool,
+        stakingPeriodDays,
+        apy,
+        confirmationTxHash,
+        mintedStETH
+    } = req.body;
+
+    if (!stakerAddress || !stakedAmount || !stakingPool) {
+        return res.status(400).json({
+            success: false,
+            error: "Missing required fields: stakerAddress, stakedAmount, stakingPool",
+        });
+    }
+
+    try {
+        const result = await mintSolanaStakingNFT({
+            stakerAddress,
+            stakedAmount,
+            stakedToken: stakedToken || "USDC",
+            stakingPool,
+            stakingPeriodDays: Number(stakingPeriodDays) || 0,
+            apy: apy ? String(apy) : "0",
+            confirmationTxHash: confirmationTxHash || "",
+            mintedStETH: mintedStETH || "0"
+        });
+
+        return res.status(201).json({
+            success: true,
+            ...result,
+            instructions: "The Solana staking receipt NFT has been minted directly into the user's associated token account.",
+        });
+    } catch (err) {
+        console.error("[API] Solana mint error:", err.message);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ── GET /solana-staking-nfts/:owner ──────────────────────────────────────────
+router.get("/solana-staking-nfts/:owner", async (req, res) => {
+    try {
+        const receipts = await getSolanaStakingNFTs(req.params.owner);
+        return res.json({ success: true, receipts });
+    } catch (err) {
+        console.error("[API] Solana NFT list error:", err.message);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // ── POST /accept-offer ────────────────────────────────────────────────────────
 /**
  * Custodial mode: accept a sell offer on behalf of the staker.
@@ -237,7 +302,7 @@ app.post("/mint-staking-nft", async (req, res) => {
  *   "offerID": "ABCD1234..."
  * }
  */
-app.post("/accept-offer", async (req, res) => {
+router.post("/accept-offer", async (req, res) => {
     const { stakerSeed, offerID } = req.body;
 
     if (!stakerSeed || !offerID) {
@@ -260,7 +325,7 @@ app.post("/accept-offer", async (req, res) => {
 /**
  * Fetch an NFT from the ledger by NFTokenID and decode its staking metadata.
  */
-app.get("/nft/:nfTokenID", async (req, res) => {
+router.get("/nft/:nfTokenID", async (req, res) => {
     const { nfTokenID } = req.params;
     const client = new xrpl.Client(config.XRPL_NODE);
 
@@ -319,6 +384,9 @@ app.get("/nft/:nfTokenID", async (req, res) => {
     }
 });
 
+app.use(router);
+app.use("/api", router);
+
 // ── Start server ──────────────────────────────────────────────────────────────
 app.listen(config.PORT, () => {
     console.log(`\n🚀 XRPL Staking NFT Minter API running on http://localhost:${config.PORT}`);
@@ -327,6 +395,7 @@ app.listen(config.PORT, () => {
     console.log(`     POST /mint-staking-nft`);
     console.log(`     POST /accept-offer`);
     console.log(`     GET  /nft/:nfTokenID`);
+    console.log(`     GET  /api/health`);
     console.log(`     GET  /health\n`);
 });
 

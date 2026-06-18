@@ -1,7 +1,7 @@
 import { useWaitForTransactionReceipt } from 'wagmi';
 import { useWallet } from '../lib/walletConnect';
 
-export default function useTransactionStatus(hash: any) {
+export default function useTransactionStatus(hash: `0x${string}` | undefined) {
   const { data, isLoading, isError } = useWaitForTransactionReceipt({ hash });
   const { networkConfig } = useWallet();
 

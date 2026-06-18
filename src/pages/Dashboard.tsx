@@ -12,11 +12,15 @@ import ReactGA from 'react-ga4';
 import { useStaking } from '../hooks/useStaking';
 
 const Dashboard = () => {
-  const { usdcBalance, stakingNFTs, supportedProtocols, assetSymbol } = useStaking();
+  const { usdcBalance, stakingNFTs, solanaStakingNFTs, supportedProtocols, assetSymbol } = useStaking();
   const { isConnected, address, chainId, networkConfig } = useWallet();
   const [stakedBalance, setStakedBalance] = useState<string>('0');
   const [lidoAPY, setLidoAPY] = useState<number | null>(null);
   const isRippleNetwork = supportedProtocols.includes('Axelar ITS');
+  const isSolanaNetwork = networkConfig.chainFamily === 'solana';
+  const receiptNFTs = isSolanaNetwork
+    ? solanaStakingNFTs.map((item) => ({ id: item.id, receipt: item.receipt }))
+    : stakingNFTs;
 
   useEffect(() => {
     if (address) {
@@ -215,10 +219,10 @@ const Dashboard = () => {
           </Window>
         </section>
 
-        {isRippleNetwork && stakingNFTs.length > 0 && (
+        {(isRippleNetwork || isSolanaNetwork) && receiptNFTs.length > 0 && (
           <Window title="Minted Staking Receipts">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {stakingNFTs.map((item) => (
+              {receiptNFTs.map((item) => (
                 <div key={item.id} className="premium-card relative overflow-hidden rounded-[26px] p-5">
                   <div className="absolute right-0 top-0 rounded-bl-2xl bg-[rgba(var(--accent),0.12)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[rgb(var(--accent-strong))]">
                     {item.id.substring(0, 8)}...

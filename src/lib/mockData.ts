@@ -1,4 +1,4 @@
-import { Transaction } from '../types/transaction';
+import { Transaction, TransactionStatus, TransactionType } from '../types/transaction';
 
 // Generate random transaction ID
 const generateTxId = () => {
@@ -100,16 +100,16 @@ const generateStatus = () => {
 
 // Generate mock transactions
 export const mockTransactions: Transaction[] = Array.from({ length: 25 }, (_, i) => {
-  const types = ['deposit', 'withdrawal', 'transfer', 'fee'];
+  const types: TransactionType[] = ['deposit', 'withdrawal', 'transfer', 'fee'];
   const type = types[Math.floor(Math.random() * (i > 20 ? 3 : 4))]; // Fewer fee transactions
   const txId = generateTxId();
   const address = generateAddress();
-  const status = generateStatus();
+  const status = generateStatus() as TransactionStatus;
   
   return {
     id: txId,
-    type: type as any,
-    status: status as any,
+    type,
+    status,
     amount: generateAmount(type),
     fee: type === 'fee' ? 0 : parseFloat((Math.random() * 0.005).toFixed(6)),
     currency: 'ETH',

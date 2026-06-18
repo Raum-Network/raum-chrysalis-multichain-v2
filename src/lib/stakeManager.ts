@@ -10,6 +10,7 @@ import ReceiverAbiCCTP from './abi/ChrysalisReceiverCCTP.json';
 import { getCCIPStatus, getCCTPAttestation } from '../services/api';
 import { normalizeEvmAddress } from './networkSupport';
 import { SUPPORTED_NETWORKS } from '../config/contract';
+import { solanaAddressToBytes32 } from './solanaCctp';
 
 const abiCoder = new ethers.AbiCoder();
 
@@ -112,7 +113,7 @@ class StakeManager {
           },
         },
       },
-      transport: http()
+      transport: http(this.networkConfig.rpcUrl)
     });
   }
 
@@ -305,6 +306,154 @@ class StakeManager {
       this.stopTimer();
       console.error('CCTP Staking failed:', error);
       throw error;
+    }
+  }
+
+  public async completeSolanaCCTP(
+    sourceTxHash: string,
+    amount: number,
+    recipientEvmAlias: string,
+    solanaAddress: string,
+    onStatusUpdate: (status: StakeStatus) => void
+  ): Promise<void> {
+    const initialTimestamp = Date.now();
+
+    this.currentStatus = {
+      sourceTxHash,
+      ccipMessageId: null,
+      destinationTxHash: null,
+      protocol: 'CCTP',
+      status: 'IN_PROGRESS',
+      bridgingMessageId: null,
+      timestamp: initialTimestamp,
+      timeElapsed: '',
+      expectedTime: '1m 00s',
+      isCommitted: false,
+      isBlessed: false,
+      attestationStatus: 'pending',
+      sourceChain: this.networkConfig.ccipNames.sourceName || this.networkConfig.name,
+      origin: solanaAddress,
+      receiver: recipientEvmAlias,
+      amount,
+      sourceNetworkName: this.networkConfig.name,
+      destNetworkName: 'Sepolia',
+      sourceDecimals: this.networkConfig.contracts.decimal || 6,
+      destDecimals: 18,
+    };
+
+    this.updateStatus(this.currentStatus, onStatusUpdate);
+    this.startTimer(initialTimestamp, onStatusUpdate);
+
+    console.log('Waiting 3 seconds before starting Solana CCTP attestation polling...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    let attestationResponse = { status: 'pending_confirmations', attestation: '', message: '' };
+    let retryCount = 0;
+
+    while (true) {
+      try {
+        attestationResponse = await getCCTPAttestation({
+          messageHash: '',
+          sourceDomainId: this.networkConfig.sourceDomainId,
+          transactionHash: sourceTxHash,
+          useMessagesV2: true,
+        });
+
+        retryCount = 0;
+
+        const attestationStatus = attestationResponse.status || 'pending_confirmations';
+
+        this.currentStatus = {
+          ...this.currentStatus,
+          attestationStatus,
+          messageBytes: attestationResponse.message || this.currentStatus.messageBytes,
+          attestation: attestationResponse.attestation || this.currentStatus.attestation,
+          timeElapsed: this.formatTimeElapsed(initialTimestamp),
+        };
+        this.updateStatus(this.currentStatus, onStatusUpdate);
+
+        if (attestationStatus === 'complete') {
+          if (!attestationResponse.message || !attestationResponse.attestation) {
+            console.log('Attestation complete but message/attestation data pending, retrying...');
+            await new Promise((r) => setTimeout(r, 2000));
+            continue;
+          }
+
+          // Execute destination contract
+          try {
+            await this.callSepoliaContract(
+              attestationResponse.message,
+              attestationResponse.attestation,
+              amount,
+              recipientEvmAlias,
+              onStatusUpdate
+            );
+          } catch (executionError) {
+            const destinationError = new Error(
+              `Destination execution failed: ${(executionError as Error)?.message || 'unknown error'}`
+            ) as DestinationExecutionError;
+            destinationError.destinationExecutionFailed = true;
+            throw destinationError;
+          }
+          return;
+        }
+
+        await new Promise((r) => setTimeout(r, 2000));
+      } catch (error: unknown) {
+        console.error('Error fetching Solana CCTP attestation:', error);
+
+        const isDestinationExecutionFailure = (
+          typeof error === 'object' &&
+          error !== null &&
+          'destinationExecutionFailed' in error &&
+          Boolean((error as DestinationExecutionError).destinationExecutionFailed)
+        );
+        if (isDestinationExecutionFailure) {
+          this.currentStatus = {
+            ...this.currentStatus,
+            status: 'FAILURE',
+          } as StakeStatus;
+          this.updateStatus(this.currentStatus, onStatusUpdate);
+          this.stopTimer();
+          throw error;
+        }
+
+        const responseStatus = (
+          typeof error === 'object' &&
+            error !== null &&
+            'status' in error &&
+            typeof (error as { status?: number }).status === 'number'
+            ? (error as { status?: number }).status
+            : typeof error === 'object' &&
+              error !== null &&
+              'response' in error &&
+              typeof (error as { response?: { status?: number } }).response?.status === 'number'
+              ? (error as { response?: { status?: number } }).response?.status
+              : undefined
+        );
+
+        if (responseStatus === 404) {
+          console.log('Solana CCTP attestation not found (404), retrying in 2 seconds...');
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
+
+        if (retryCount < 120) {
+          retryCount++;
+          console.log(`Retrying Solana CCTP attestation request (${retryCount}/120)...`);
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        } else {
+          this.currentStatus = {
+            ...this.currentStatus,
+            status: 'FAILURE',
+            attestationStatus: 'error',
+          } as StakeStatus;
+          this.updateStatus(this.currentStatus, onStatusUpdate);
+          this.stopTimer();
+          throw new Error(`Failed to get Solana CCTP attestation after 120 retries`);
+        }
+      }
     }
   }
 
@@ -502,31 +651,65 @@ class StakeManager {
       const receiverAddress = normalizeEvmAddress(this.networkConfig.contracts.cctpDestinationCaller);
       const normalizedRecipient = normalizeEvmAddress(address);
       const sourceDomainId = this.networkConfig.sourceDomainId ?? 0;
+      const isSolanaSource = this.networkConfig.chainFamily === 'solana';
+
+      if (isSolanaSource) {
+        const solanaRecipient = solanaAddressToBytes32(this.currentStatus?.origin || '');
+        try {
+          const callDataSolana = this.sepoliaWeb3.eth.abi.encodeFunctionCall(
+            {
+              name: 'getHookData',
+              type: 'function',
+              inputs: [
+                { type: 'uint256', name: 'amount' },
+                { type: 'address', name: 'recipientAlias' },
+                { type: 'bytes32', name: 'solanaRecipient' }
+              ]
+            },
+            [String(amount), normalizedRecipient, solanaRecipient]
+          );
+          const responseSolana = await this.sepoliaWeb3.eth.call({ to: receiverAddress, data: callDataSolana });
+          if (responseSolana && responseSolana !== '0x') {
+            hookData = this.sepoliaWeb3.eth.abi.decodeParameter('bytes', responseSolana) as string;
+          }
+        } catch (hookDataSolanaError) {
+          console.warn('Solana getHookData call failed, using local ABI encoding fallback:', hookDataSolanaError);
+        }
+
+        if (!hookData) {
+          hookData = abiCoder.encode(
+            ['uint256', 'address', 'bytes32'],
+            [BigInt(amount), normalizedRecipient, solanaRecipient]
+          );
+        }
+      }
 
       // New Arc/Op/Polygon receiver deployments use getHookData(uint256,address,uint32).
-      try {
-        const callDataV3 = this.sepoliaWeb3.eth.abi.encodeFunctionCall(
-          {
-            name: 'getHookData',
-            type: 'function',
-            inputs: [
-              { type: 'uint256', name: 'amount' },
-              { type: 'address', name: 'recipient' },
-              { type: 'uint32', name: 'sourceDomain' }
-            ]
-          },
-          [String(amount), normalizedRecipient, String(sourceDomainId)]
-        );
-        const responseV3 = await this.sepoliaWeb3.eth.call({ to: receiverAddress, data: callDataV3 });
-        if (responseV3 && responseV3 !== '0x') {
-          hookData = this.sepoliaWeb3.eth.abi.decodeParameter('bytes', responseV3) as string;
+      if (!hookData && !isSolanaSource) {
+        try {
+          const callDataV3 = this.sepoliaWeb3.eth.abi.encodeFunctionCall(
+            {
+              name: 'getHookData',
+              type: 'function',
+              inputs: [
+                { type: 'uint256', name: 'amount' },
+                { type: 'address', name: 'recipient' },
+                { type: 'uint32', name: 'sourceDomain' }
+              ]
+            },
+            [String(amount), normalizedRecipient, String(sourceDomainId)]
+          );
+          const responseV3 = await this.sepoliaWeb3.eth.call({ to: receiverAddress, data: callDataV3 });
+          if (responseV3 && responseV3 !== '0x') {
+            hookData = this.sepoliaWeb3.eth.abi.decodeParameter('bytes', responseV3) as string;
+          }
+        } catch (hookDataV3Error) {
+          console.warn('3-arg getHookData call failed, trying legacy 2-arg signature:', hookDataV3Error);
         }
-      } catch (hookDataV3Error) {
-        console.warn('3-arg getHookData call failed, trying legacy 2-arg signature:', hookDataV3Error);
       }
 
       // Legacy receiver uses getHookData(uint256,address).
-      if (!hookData) {
+      if (!hookData && !isSolanaSource) {
         try {
           hookData = await contract.methods.getHookData(
             amount,
@@ -549,11 +732,9 @@ class StakeManager {
           );
       }
 
-      console.log(hookData, messageBytes, attestation, "data");
       const tx = contract.methods.receiveUSDC(hookData, messageBytes, attestation);
       const gas = await tx.estimateGas({ from: account.address });
       const gasPrice = await this.sepoliaWeb3.eth.getGasPrice();
-      console.log(gas, gasPrice, "gas");
 
       const txData = {
         from: account.address,

@@ -121,7 +121,7 @@ const ConnectButton = ({ hideNetworkSwitcher = false }: { hideNetworkSwitcher?: 
                 action: 'Click',
                 label: connectedAddress ? `Connected Wallet ${connectedAddress}` : 'Connect Wallet Button'
               });
-              if (network === 'ripple-testnet') {
+              if (network === 'ripple-testnet' || network === 'solana-devnet') {
                 await connect();
               } else {
                 show?.();

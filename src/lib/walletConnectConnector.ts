@@ -21,6 +21,15 @@ interface WalletConnectConnectorArguments {
   pollingInterval?: number;
 }
 
+type WalletConnectProviderLike = {
+  enable: () => Promise<string[]>;
+  on: (event: string, handler: (...args: never[]) => void) => void;
+  removeListener: (event: string, handler: (...args: never[]) => void) => void;
+  send: (method: string) => Promise<unknown>;
+  stop: () => void;
+  close: () => Promise<void>;
+};
+
 export class WalletConnectConnector extends AbstractConnector {
   private readonly rpc: { [chainId: number]: string };
   private readonly preferredNetworkId?: number;
@@ -28,7 +37,7 @@ export class WalletConnectConnector extends AbstractConnector {
   private readonly qrcode?: boolean;
   private readonly pollingInterval?: number;
 
-  public walletConnectProvider?: any;
+  public walletConnectProvider?: WalletConnectProviderLike;
 
   constructor({
     rpc,
@@ -91,7 +100,7 @@ export class WalletConnectConnector extends AbstractConnector {
         qrcode: this.qrcode,
         pollingInterval: this.pollingInterval,
         chainId: this.preferredNetworkId,
-      });
+      }) as WalletConnectProviderLike;
     }
 
     const account = await this.walletConnectProvider
@@ -113,17 +122,17 @@ export class WalletConnectConnector extends AbstractConnector {
     return { provider: this.walletConnectProvider, account };
   }
 
-  public async getProvider(): Promise<any> {
+  public async getProvider(): Promise<WalletConnectProviderLike | undefined> {
     return this.walletConnectProvider;
   }
 
   public async getChainId(): Promise<number | string> {
-    return this.walletConnectProvider.send('eth_chainId');
+    return this.walletConnectProvider?.send('eth_chainId') as Promise<number | string>;
   }
 
   public async getAccount(): Promise<null | string> {
     return this.walletConnectProvider
-      .send('eth_accounts')
+      ?.send('eth_accounts')
       .then((accounts: string[]): string => accounts[0]);
   }
 
