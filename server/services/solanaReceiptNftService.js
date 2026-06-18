@@ -1,5 +1,3 @@
-import fs from "fs/promises";
-import path from "path";
 import { fileURLToPath } from "url";
 import {
     Connection,
@@ -29,7 +27,6 @@ import { buildStakingReceipt } from "./stakingMetadata.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const RECEIPT_STORE = path.join(__dirname, "..", "data", "solana-staking-nfts.json");
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID);
 
 function getConnection() {
@@ -173,22 +170,6 @@ async function createReceiptMetadata({ connection, minter, mint, receipt }) {
     };
 }
 
-async function readReceiptStore() {
-    try {
-        const raw = await fs.readFile(RECEIPT_STORE, "utf8");
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-        if (error.code === "ENOENT") return [];
-        throw error;
-    }
-}
-
-async function writeReceiptStore(records) {
-    await fs.mkdir(path.dirname(RECEIPT_STORE), { recursive: true });
-    await fs.writeFile(RECEIPT_STORE, JSON.stringify(records, null, 2));
-}
-
 function expandReceipt(receipt) {
     return {
         v: receipt.v || "1",
@@ -300,22 +281,11 @@ export async function mintSolanaStakingNFT({
         explorerUrl: getExplorerUrl(mint.toBase58(), "address"),
     };
 
-    const records = await readReceiptStore();
-    records.push(record);
-    await writeReceiptStore(records);
-
     return record;
 }
 
 export async function getSolanaStakingNFTs(ownerAddress) {
     const owner = new PublicKey(ownerAddress);
-    const records = (await readReceiptStore())
-        .filter((record) => record.owner === owner.toBase58())
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-    if (records.length === 0) {
-        return [];
-    }
 
     try {
         const connection = getConnection();
@@ -332,9 +302,35 @@ export async function getSolanaStakingNFTs(ownerAddress) {
                 .map((account) => account.account.data.parsed.info.mint)
         );
 
-        return records.filter((record) => liveMints.has(record.mintAddress));
-    } catch (error) {
-        console.error("[Solana NFT] Failed to verify token ownership, returning cached receipts:", error.message);
+        if (liveMints.size === 0) {
+            return [];
+        }
+
+        const records = Array.from(liveMints).map((mintAddress) => {
+            const mint = new PublicKey(mintAddress);
+            const now = Date.now();
+            return {
+                id: mint.toBase58(),
+                mintAddress: mint.toBase58(),
+                owner: owner.toBase58(),
+                mintTxHash: "",
+                metadataAddress: "",
+                metadataTxHash: "",
+                metadataUri: "",
+                metadataName: "",
+                metadataSymbol: "",
+                revokeMintAuthorityTxHash: "",
+                metadata: {},
+                receipt: {},
+                createdAt: now,
+                updatedAt: now,
+                explorerUrl: getExplorerUrl(mint.toBase58(), "address"),
+            };
+        });
+
         return records;
+    } catch (error) {
+        console.error("[Solana NFT] Failed to fetch from Solana:", error.message);
+        return [];
     }
 }
