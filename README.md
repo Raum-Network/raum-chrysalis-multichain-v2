@@ -1,4 +1,4 @@
-# Raum Chrysalis
+#Chrysalis
 
 Chrysalis is a cross-chain liquid staking application built by Raum. It gives users a single interface to start a stake from multiple source networks, route the asset through different bridge protocols, track the transfer lifecycle, and view the resulting staking position on the destination side.
 
