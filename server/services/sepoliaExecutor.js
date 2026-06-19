@@ -16,7 +16,7 @@ const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || "https://sepolia.infura.i
 const abiCoder = new ethers.AbiCoder();
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const RECEIPT_TIMEOUT_MS = Number(process.env.SEPOLIA_RECEIPT_TIMEOUT_MS || 180_000);
+const BROADCAST_TIMEOUT_MS = Number(process.env.SEPOLIA_BROADCAST_TIMEOUT_MS || 45_000);
 const GAS_BUFFER_NUMERATOR = 12n;
 const GAS_BUFFER_DENOMINATOR = 10n;
 
@@ -172,40 +172,34 @@ export async function executeSepoliaCctp({
     log("broadcasting-transaction");
 
     let timeoutId;
-    const receipt = await new Promise((resolve, reject) => {
-        let transactionHash = "";
+    const transactionHash = await new Promise((resolve, reject) => {
         timeoutId = setTimeout(() => {
-            const message = transactionHash
-                ? `Timed out waiting for Sepolia receipt after ${RECEIPT_TIMEOUT_MS / 1000}s. Transaction hash: ${transactionHash}`
-                : `Timed out broadcasting Sepolia transaction after ${RECEIPT_TIMEOUT_MS / 1000}s.`;
-            log("timeout", { transactionHash: transactionHash || null });
+            const message = `Timed out broadcasting Sepolia transaction after ${BROADCAST_TIMEOUT_MS / 1000}s.`;
+            log("broadcast-timeout");
             reject(new Error(message));
-        }, RECEIPT_TIMEOUT_MS);
+        }, BROADCAST_TIMEOUT_MS);
 
         web3.eth
             .sendSignedTransaction(signedTx.rawTransaction)
             .on("transactionHash", (hash) => {
-                transactionHash = hash;
+                clearTimeout(timeoutId);
                 log("transaction-hash", {
                     transactionHash: hash,
                     explorerUrl: `https://sepolia.etherscan.io/tx/${hash}`,
                 });
-                log("waiting-for-receipt", { transactionHash: hash });
+                resolve(hash);
             })
             .on("receipt", (confirmedReceipt) => {
-                clearTimeout(timeoutId);
                 log("receipt-confirmed", {
                     transactionHash: confirmedReceipt.transactionHash,
                     blockNumber: confirmedReceipt.blockNumber?.toString(),
                     gasUsed: confirmedReceipt.gasUsed?.toString(),
                     status: confirmedReceipt.status?.toString(),
                 });
-                resolve(confirmedReceipt);
             })
             .on("error", (error) => {
                 clearTimeout(timeoutId);
                 log("transaction-error", {
-                    transactionHash: transactionHash || null,
                     error: error?.message || String(error),
                 });
                 reject(error);
@@ -216,8 +210,9 @@ export async function executeSepoliaCctp({
 
     return {
         requestId,
-        transactionHash: receipt.transactionHash,
-        gasUsed: receipt.gasUsed?.toString(),
-        blockNumber: receipt.blockNumber?.toString(),
+        status: "broadcast",
+        transactionHash,
+        gas,
+        gasPrice: gasPrice.toString(),
     };
 }

@@ -468,6 +468,17 @@ class StakeManager {
     throw new Error(`Transaction receipt not found for txHash: ${txHash}`);
   }
 
+  private async pollSepoliaTransactionReceipt(txHash: string, maxRetries = 120, interval = 2000) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const receipt = await this.sepoliaWeb3.eth.getTransactionReceipt(txHash);
+      if (receipt) {
+        return receipt;
+      }
+      await new Promise((r) => setTimeout(r, interval));
+    }
+    throw new Error(`Sepolia transaction receipt not found for txHash: ${txHash}`);
+  }
+
   private async pollAttestation(
     messageHash: string,
     messageBytes: string,
@@ -664,23 +675,60 @@ class StakeManager {
           solanaOrigin: this.currentStatus?.origin || '',
         }),
       });
-      const result = await response.json() as {
+      const responseText = await response.text();
+      let result: {
         success?: boolean;
         requestId?: string;
+        status?: string;
         transactionHash?: string;
+        gas?: string;
+        gasPrice?: string;
         gasUsed?: string;
         blockNumber?: string;
         error?: string;
       };
+
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error(
+          `Sepolia execution returned non-JSON response (${response.status}). ${responseText.slice(0, 120)}`
+        );
+      }
+
       if (!response.ok || !result.success || !result.transactionHash) {
         throw new Error(result.error || `Sepolia execution failed for request ${requestId}`);
+      }
+
+      console.info('Sepolia destination contract broadcast:', {
+        requestId: result.requestId || requestId,
+        transactionHash: result.transactionHash,
+        gas: result.gas,
+        gasPrice: result.gasPrice,
+      });
+
+      this.currentStatus = {
+        ...this.currentStatus!,
+        destinationTxHash: result.transactionHash,
+        attestationStatus: 'destination_broadcast',
+        expectedTime: 'Polling Sepolia tx receipt',
+        status: 'IN_PROGRESS',
+        sourceChain: 'sepolia'
+      };
+      this.updateStatus(this.currentStatus, onStatusUpdate);
+      this.notifyStatusSubscribers(this.currentStatus);
+
+      const receipt = await this.pollSepoliaTransactionReceipt(result.transactionHash);
+      if (receipt.status === false || receipt.status === 0n) {
+        throw new Error(`Sepolia destination transaction reverted: ${result.transactionHash}`);
       }
 
       console.info('Sepolia destination contract confirmed:', {
         requestId: result.requestId || requestId,
         transactionHash: result.transactionHash,
-        gasUsed: result.gasUsed,
-        blockNumber: result.blockNumber,
+        gasUsed: receipt.gasUsed?.toString(),
+        blockNumber: receipt.blockNumber?.toString(),
+        status: receipt.status?.toString(),
       });
 
       this.currentStatus = {
