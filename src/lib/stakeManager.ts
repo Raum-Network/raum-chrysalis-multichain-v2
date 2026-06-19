@@ -39,6 +39,10 @@ type WriteContractAsyncFn = (params: {
 
 type DestinationExecutionError = Error & { destinationExecutionFailed?: boolean };
 
+function isPendingReceiptError(error: unknown) {
+  return error instanceof Error && /transaction not found|receipt not found/i.test(error.message);
+}
+
 export type StakeStatus = {
   sourceTxHash: string;
   ccipMessageId: string | null;
@@ -459,9 +463,15 @@ class StakeManager {
   private async pollTransactionReceipt(txHash: string, maxRetries = 120, interval = 2000) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
 
-      const receipt = await this.web3.eth.getTransactionReceipt(txHash);
-      if (receipt) {
-        return receipt;
+      try {
+        const receipt = await this.web3.eth.getTransactionReceipt(txHash);
+        if (receipt) {
+          return receipt;
+        }
+      } catch (error) {
+        if (!isPendingReceiptError(error)) {
+          throw error;
+        }
       }
       await new Promise((r) => setTimeout(r, interval));
     }
@@ -470,9 +480,15 @@ class StakeManager {
 
   private async pollSepoliaTransactionReceipt(txHash: string, maxRetries = 120, interval = 2000) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-      const receipt = await this.sepoliaWeb3.eth.getTransactionReceipt(txHash);
-      if (receipt) {
-        return receipt;
+      try {
+        const receipt = await this.sepoliaWeb3.eth.getTransactionReceipt(txHash);
+        if (receipt) {
+          return receipt;
+        }
+      } catch (error) {
+        if (!isPendingReceiptError(error)) {
+          throw error;
+        }
       }
       await new Promise((r) => setTimeout(r, interval));
     }
