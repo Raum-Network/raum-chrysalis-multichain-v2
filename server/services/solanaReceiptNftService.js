@@ -22,6 +22,7 @@ import {
 import {
     MPL_TOKEN_METADATA_PROGRAM_ID,
     getCreateMetadataAccountV3InstructionDataSerializer,
+    getMetadataAccountDataSerializer,
 } from "@metaplex-foundation/mpl-token-metadata";
 import config from "../config/index.js";
 import { buildStakingReceipt } from "./stakingMetadata.js";
@@ -83,6 +84,26 @@ function truncate(value, maxLength) {
     return String(value || "").slice(0, maxLength);
 }
 
+function cleanMetadataText(value) {
+    return String(value || "").replace(/\0/g, "").trim();
+}
+
+function compactReceiptForMetadata(receipt) {
+    const expanded = expandReceipt(receipt);
+    const compact = {
+        v: expanded.v,
+        a: truncate(expanded.amount, 16),
+        t: truncate(expanded.token, 8),
+        e: truncate(expanded.mintedStETH, 16),
+        y: truncate(expanded.apy, 8),
+        ts: Number(expanded.stakedAt || 0),
+        id: truncate(expanded.id, 12),
+    };
+
+    if (expanded.txHash) compact.h = truncate(expanded.txHash, 88);
+    return compact;
+}
+
 function buildMetadataJson(receipt) {
     const expanded = expandReceipt(receipt);
     const amount = truncate(expanded.amount, 16);
@@ -95,12 +116,13 @@ function buildMetadataJson(receipt) {
         name: `Raum Stake ${amount} ${token}`.slice(0, 32),
         symbol: "RAUMSTK",
         description: `Receipt for staking ${amount} ${token} via ${pool}. Minted ${mintedStETH} stETH at ${apy}% APY.`,
+        r: compactReceiptForMetadata(receipt),
     };
 }
 
 function buildMetadataUri(receipt) {
-    const json = JSON.stringify(buildMetadataJson(receipt));
-    const uri = `data:application/json,${encodeURIComponent(json)}`;
+    const compactJson = JSON.stringify({ r: compactReceiptForMetadata(receipt) });
+    const uri = `data:application/json,${encodeURIComponent(compactJson)}`;
 
     if (uri.length <= 200) {
         return uri;
@@ -111,9 +133,14 @@ function buildMetadataUri(receipt) {
     const token = truncate(expanded.token, 8);
     const mintedStETH = truncate(expanded.mintedStETH, 16);
     const compact = {
-        name: `Raum Stake ${amount} ${token}`.slice(0, 32),
-        symbol: "RAUMSTK",
-        description: `Staked ${amount} ${token}; minted ${mintedStETH} stETH.`,
+        r: {
+            v: "1",
+            a: amount,
+            t: token,
+            e: mintedStETH,
+            ts: Number(expanded.stakedAt || 0),
+            id: truncate(expanded.id, 12),
+        },
     };
 
     const compactUri = `data:application/json,${encodeURIComponent(JSON.stringify(compact))}`;
@@ -122,6 +149,51 @@ function buildMetadataUri(receipt) {
     }
 
     return "data:application/json,%7B%22name%22%3A%22Raum%20Stake%20Receipt%22%2C%22symbol%22%3A%22RAUMSTK%22%2C%22description%22%3A%22Raum%20staking%20receipt.%22%7D";
+}
+
+function parseMetadataUri(uri) {
+    const cleanedUri = cleanMetadataText(uri);
+    if (!cleanedUri.startsWith("data:application/json,")) return null;
+
+    const rawJson = cleanedUri.slice("data:application/json,".length);
+    try {
+        return JSON.parse(decodeURIComponent(rawJson));
+    } catch {
+        try {
+            return JSON.parse(rawJson);
+        } catch {
+            return null;
+        }
+    }
+}
+
+async function readReceiptMetadata(connection, mint) {
+    const metadataAddress = getMetadataAddress(mint);
+    const accountInfo = await connection.getAccountInfo(metadataAddress, "confirmed");
+    if (!accountInfo?.data) return null;
+
+    const [metadata] = getMetadataAccountDataSerializer().deserialize(accountInfo.data);
+    const metadataName = cleanMetadataText(metadata.name);
+    const metadataSymbol = cleanMetadataText(metadata.symbol);
+    const metadataUri = cleanMetadataText(metadata.uri);
+
+    if (metadataSymbol !== "RAUMSTK") return null;
+
+    const metadataJson = parseMetadataUri(metadataUri);
+    const compactReceipt = metadataJson?.r || metadataJson?.receipt || {};
+    const amountFromName = metadataName.match(/^Raum Stake\s+([^\s]+)\s+([A-Z0-9]+)/i);
+
+    return {
+        metadataAddress: metadataAddress.toBase58(),
+        metadataUri,
+        metadataName,
+        metadataSymbol,
+        receipt: {
+            ...compactReceipt,
+            a: compactReceipt.a || amountFromName?.[1] || "0",
+            t: compactReceipt.t || amountFromName?.[2] || "USDC",
+        },
+    };
 }
 
 async function createReceiptMetadata({ connection, minter, mint, receipt }) {
@@ -294,42 +366,55 @@ export async function getSolanaStakingNFTs(ownerAddress) {
             programId: TOKEN_PROGRAM_ID,
         });
 
-        const liveMints = new Set(
-            accounts.value
+        const liveTokens = accounts.value
                 .filter((account) => {
                     const info = account.account.data.parsed?.info;
                     return info?.tokenAmount?.decimals === 0 && info?.tokenAmount?.uiAmount === 1;
                 })
-                .map((account) => account.account.data.parsed.info.mint)
-        );
+                .map((account) => ({
+                    tokenAccount: account.pubkey.toBase58(),
+                    mintAddress: account.account.data.parsed.info.mint,
+                }));
 
-        if (liveMints.size === 0) {
+        if (liveTokens.length === 0) {
             return [];
         }
 
-        const records = Array.from(liveMints).map((mintAddress) => {
+        const records = await Promise.all(liveTokens.map(async ({ mintAddress, tokenAccount }) => {
             const mint = new PublicKey(mintAddress);
-            const now = Date.now();
+            const metadata = await readReceiptMetadata(connection, mint);
+            if (!metadata) return null;
+
+            const receipt = expandReceipt({
+                ...metadata.receipt,
+                s: owner.toBase58(),
+                id: metadata.receipt.id || metadata.receipt.i || mint.toBase58(),
+            });
+
+            const createdAt = receipt.stakedAt ? Number(receipt.stakedAt) * 1000 : Date.now();
             return {
                 id: mint.toBase58(),
                 mintAddress: mint.toBase58(),
+                tokenAccount,
                 owner: owner.toBase58(),
                 mintTxHash: "",
-                metadataAddress: "",
+                metadataAddress: metadata.metadataAddress,
                 metadataTxHash: "",
-                metadataUri: "",
-                metadataName: "",
-                metadataSymbol: "",
+                metadataUri: metadata.metadataUri,
+                metadataName: metadata.metadataName,
+                metadataSymbol: metadata.metadataSymbol,
                 revokeMintAuthorityTxHash: "",
-                metadata: {},
-                receipt: {},
-                createdAt: now,
-                updatedAt: now,
+                metadata: metadata.receipt,
+                receipt,
+                createdAt,
+                updatedAt: createdAt,
                 explorerUrl: getExplorerUrl(mint.toBase58(), "address"),
             };
-        });
+        }));
 
-        return records;
+        return records
+            .filter(Boolean)
+            .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
     } catch (error) {
         console.error("[Solana NFT] Failed to fetch from Solana:", error.message);
         return [];

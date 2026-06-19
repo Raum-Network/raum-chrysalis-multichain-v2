@@ -14,7 +14,12 @@ import stakedUserBalance from '../lib/sepoliaContract';
 import ReactGA from 'react-ga4';
 import { useStaking } from '../hooks/useStaking';
 import { getTxExplorerUrl } from '../lib/networkSupport';
-import { PersistedTransaction, getPersistedTransactions } from '../services/transactionRepository';
+import {
+  PersistedTransaction,
+  createPersistedTransactionId,
+  getPersistedTransactions,
+  upsertPersistedTransaction
+} from '../services/transactionRepository';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -163,6 +168,31 @@ const Transactions = () => {
 
           if (cctpResult.status === 'fulfilled') {
             setCctpTransactions(cctpResult.value);
+            await Promise.allSettled(cctpResult.value.map((tx) => {
+              const sourceNetwork = Object.values(SUPPORTED_NETWORKS).find((network) => network.name === tx.sourceNetworkName);
+              const sourceDecimals = sourceNetwork?.contracts.decimal || 6;
+              const id = createPersistedTransactionId('CCTP', tx.hash, tx.hash);
+
+              return upsertPersistedTransaction({
+                id,
+                walletAddress: address,
+                protocol: 'CCTP',
+                messageId: tx.hash,
+                sourceTxHash: tx.hash,
+                destinationTxHash: tx.destTransactionHash,
+                sourceNetworkName: tx.sourceNetworkName || sourceNetwork?.name || 'Unknown Network',
+                destNetworkName: 'Sepolia',
+                sender: tx.from,
+                receiver: tx.to,
+                amount: tx.amount,
+                assetSymbol: 'USDC',
+                sourceDecimals,
+                destDecimals: 6,
+                status: tx.status === 'SUCCESS' || tx.status === 'FAILURE' ? tx.status : 'IN_PROGRESS',
+                createdAt: tx.timestamp,
+                updatedAt: Date.now(),
+              });
+            }));
           } else {
             console.error('Error fetching CCTP transactions:', cctpResult.reason);
             setCctpTransactions([]);

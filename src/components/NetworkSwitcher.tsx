@@ -63,7 +63,7 @@ const NetworkSwitcher = ({ currentNetwork, onNetworkChange, onOpen }: NetworkSwi
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              className="premium-surface absolute bottom-full right-0 z-30 mb-3 w-80 rounded-[24px] p-2 sm:bottom-auto sm:top-full sm:mb-0 sm:mt-3"
+              className="premium-surface absolute bottom-full right-0 z-30 mb-3 w-80 rounded-[24px] p-2"
             >
               {(Object.keys(SUPPORTED_NETWORKS) as Networks[]).map((network) => (
                 <button

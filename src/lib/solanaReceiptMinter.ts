@@ -66,7 +66,7 @@ export async function mintSolanaStakingNFT(params: {
 }
 
 export async function fetchSolanaStakingNFTs(owner: string): Promise<SolanaStakingNFT[]> {
-  const response = await fetch(`${API_BASE}/solana-staking-nfts/${owner}`);
+  const response = await fetch(`${API_BASE}/solana-staking-nfts?owner=${encodeURIComponent(owner)}`);
 
   let data;
   try {
