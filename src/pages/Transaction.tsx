@@ -8,6 +8,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useStakingStore } from '../store/stakingStore';
 import { getCCIPStatus } from '../services/api';
 import { CCTPTransaction, fetchCCTPTransactions } from '../services/cctpTransactions';
+import { fetchSolanaCCTPTransactions } from '../services/solanaTransactions';
 import { SUPPORTED_NETWORKS } from '../config/contract';
 import { ethers } from 'ethers';
 import stakedUserBalance from '../lib/sepoliaContract';
@@ -102,6 +103,7 @@ const Transactions = () => {
   const [bridgingInfo, setBridgingInfo] = useState<Record<string, string | null>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [cctpTransactions, setCctpTransactions] = useState<CCTPTransaction[]>([]);
+  const [solanaCctpTransactions, setSolanaCctpTransactions] = useState<CCTPTransaction[]>([]);
   const [persistedTransactions, setPersistedTransactions] = useState<PersistedTransaction[]>([]);
   const fetchedPagesRef = useRef<Set<number>>(new Set());
   const isRippleNetwork = supportedProtocols.includes('Axelar ITS');
@@ -157,9 +159,11 @@ const Transactions = () => {
           setPersistedTransactions(persistedResult);
           setIsLoading(false);
 
-          const [ccipResult, cctpResult] = await Promise.allSettled([
+          const isSolanaNetwork = networkConfig.chainFamily === 'solana';
+          const [ccipResult, cctpResult, solanaCctpResult] = await Promise.allSettled([
             fetchTransactions(address),
             fetchCCTPTransactions(address),
+            isSolanaNetwork ? fetchSolanaCCTPTransactions(address) : Promise.resolve([]),
           ]);
 
           if (ccipResult.status === 'rejected') {
@@ -197,9 +201,38 @@ const Transactions = () => {
             console.error('Error fetching CCTP transactions:', cctpResult.reason);
             setCctpTransactions([]);
           }
+
+          if (solanaCctpResult.status === 'fulfilled') {
+            setSolanaCctpTransactions(solanaCctpResult.value);
+            await Promise.allSettled(solanaCctpResult.value.map((tx) =>
+              upsertPersistedTransaction({
+                id: createPersistedTransactionId('CCTP', tx.hash, tx.hash),
+                walletAddress: address,
+                protocol: 'CCTP',
+                messageId: tx.hash,
+                sourceTxHash: tx.hash,
+                destinationTxHash: tx.destTransactionHash,
+                sourceNetworkName: 'Solana Devnet',
+                destNetworkName: 'Sepolia',
+                sender: tx.from,
+                receiver: tx.to,
+                amount: tx.amount,
+                assetSymbol: 'USDC',
+                sourceDecimals: 6,
+                destDecimals: 6,
+                status: tx.status === 'SUCCESS' || tx.status === 'FAILURE' ? tx.status : 'IN_PROGRESS',
+                createdAt: tx.timestamp,
+                updatedAt: Date.now(),
+              })
+            ));
+          } else {
+            console.error('Error fetching Solana CCTP transactions:', solanaCctpResult.reason);
+            setSolanaCctpTransactions([]);
+          }
         } catch (error) {
           console.error('Error fetching transactions:', error);
           setCctpTransactions([]);
+          setSolanaCctpTransactions([]);
           setPersistedTransactions([]);
           setIsLoading(false);
         } finally {
@@ -453,12 +486,44 @@ const Transactions = () => {
       })
       .filter((tx): tx is DisplayTransaction => tx !== null);
 
+    const mappedSolanaCctpTransactions: DisplayTransaction[] = solanaCctpTransactions
+      .filter((tx) => {
+        if (networkConfig.chainFamily !== 'solana') return false;
+        if (searchQuery === '') return true;
+        return tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          tx.to.toLowerCase().includes(searchQuery.toLowerCase());
+      })
+      .map((tx) => ({
+        messageId: tx.hash,
+        hash: tx.hash,
+        state: tx.status === 'SUCCESS' ? MessageState.SUCCESS :
+          tx.status === 'FAILURE' ? MessageState.FAILURE :
+            MessageState.IN_PROGRESS,
+        blockTimestamp: tx.timestamp,
+        origin: tx.from,
+        sender: tx.from,
+        receiver: tx.to,
+        sourceTxHash: tx.hash,
+        destTransactionHash: tx.destTransactionHash || '',
+        tokenAmounts: [{
+          amount: tx.amount,
+          token: { symbol: 'USDC', decimals: 6 }
+        }],
+        protocol: 'CCTP',
+        sourceNetworkName: 'Solana Devnet',
+        destNetworkName: 'Sepolia',
+        sourceDecimals: 6,
+        destDecimals: 6
+      }));
+
     const mergedTransactionMap = new Map<string, DisplayTransaction>();
     const mergeCandidates = [
       ...mappedPersistedTransactions,
       ...currentStakeTransactions,
       ...mappedCcipTransactions,
       ...mappedCctpTransactions,
+      ...mappedSolanaCctpTransactions,
       ...itsTransactions
     ];
 
@@ -489,12 +554,14 @@ const Transactions = () => {
   }, [
     address,
     cctpTransactions,
+    solanaCctpTransactions,
     persistedTransactions,
     currentStatus,
     currentTxState,
     filteredTransactions,
     itsTransactions,
     networkConfig.name,
+    networkConfig.chainFamily,
     searchQuery
   ]);
 
@@ -573,7 +640,7 @@ const Transactions = () => {
   // Reset fetched pages when transactions change
   useEffect(() => {
     fetchedPagesRef.current.clear();
-  }, [transactions, cctpTransactions, persistedTransactions, networkConfig.name]);
+  }, [transactions, cctpTransactions, solanaCctpTransactions, persistedTransactions, networkConfig.name]);
 
   // Update the TransactionModal component
   const TransactionModal = ({ transaction }: { transaction: DisplayTransaction }) => (

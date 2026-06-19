@@ -31,6 +31,7 @@ export default async function handler(req, res) {
     stakingPeriodDays,
     apy,
     confirmationTxHash,
+    sourceTxHash,
     mintedStETH,
   } = parseBody(req);
 
@@ -50,6 +51,7 @@ export default async function handler(req, res) {
       stakingPeriodDays: Number(stakingPeriodDays) || 0,
       apy: apy ? String(apy) : "0",
       confirmationTxHash: confirmationTxHash || "",
+      sourceTxHash: sourceTxHash || "",
       mintedStETH: mintedStETH || "0",
     });
 

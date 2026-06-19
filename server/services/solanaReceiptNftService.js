@@ -92,15 +92,19 @@ function compactReceiptForMetadata(receipt) {
     const expanded = expandReceipt(receipt);
     const compact = {
         v: expanded.v,
-        a: truncate(expanded.amount, 16),
+        s: truncate(expanded.staker, 44),
+        a: truncate(expanded.amount, 18),
         t: truncate(expanded.token, 8),
-        e: truncate(expanded.mintedStETH, 16),
+        p: truncate(expanded.pool, 28),
+        d: Number(expanded.days || 0),
+        e: truncate(expanded.mintedStETH, 24),
         y: truncate(expanded.apy, 8),
         ts: Number(expanded.stakedAt || 0),
-        id: truncate(expanded.id, 12),
+        id: truncate(expanded.id, 16),
     };
 
-    if (expanded.txHash) compact.h = truncate(expanded.txHash, 88);
+    if (expanded.txHash) compact.h = truncate(expanded.txHash, 66);
+    if (expanded.sourceTxHash) compact.x = truncate(expanded.sourceTxHash, 88);
     return compact;
 }
 
@@ -121,14 +125,43 @@ function buildMetadataJson(receipt) {
 }
 
 function buildMetadataUri(receipt) {
-    const compactJson = JSON.stringify({ r: compactReceiptForMetadata(receipt) });
-    const uri = `data:application/json,${encodeURIComponent(compactJson)}`;
+    const expanded = expandReceipt(receipt);
+    const compactReceipt = compactReceiptForMetadata(expanded);
+    const candidates = [
+        { r: compactReceipt },
+        {
+            r: {
+                v: compactReceipt.v,
+                a: compactReceipt.a,
+                t: compactReceipt.t,
+                e: compactReceipt.e,
+                y: compactReceipt.y,
+                ts: compactReceipt.ts,
+                h: compactReceipt.h,
+                x: compactReceipt.x,
+                id: compactReceipt.id,
+            },
+        },
+        {
+            r: {
+                v: "1",
+                a: compactReceipt.a,
+                t: compactReceipt.t,
+                e: compactReceipt.e,
+                ts: compactReceipt.ts,
+                h: compactReceipt.h,
+                id: compactReceipt.id,
+            },
+        },
+    ];
 
-    if (uri.length <= 200) {
-        return uri;
+    for (const candidate of candidates) {
+        const uri = `data:application/json,${encodeURIComponent(JSON.stringify(candidate))}`;
+        if (uri.length <= 200) {
+            return uri;
+        }
     }
 
-    const expanded = expandReceipt(receipt);
     const amount = truncate(expanded.amount, 16);
     const token = truncate(expanded.token, 8);
     const mintedStETH = truncate(expanded.mintedStETH, 16);
@@ -256,6 +289,7 @@ function expandReceipt(receipt) {
         apy: receipt.apy || receipt.y || "0",
         stakedAt: receipt.stakedAt || receipt.ts || 0,
         txHash: receipt.txHash || receipt.h || "",
+        sourceTxHash: receipt.sourceTxHash || receipt.x || "",
         id: receipt.id || "",
     };
 }
@@ -268,6 +302,7 @@ export async function mintSolanaStakingNFT({
     stakingPeriodDays = 0,
     apy = "0",
     confirmationTxHash = "",
+    sourceTxHash = "",
     mintedStETH = "0",
 }) {
     const owner = new PublicKey(stakerAddress);
@@ -284,6 +319,9 @@ export async function mintSolanaStakingNFT({
         confirmationTxHash,
         mintedStETH: mintedStETH || "0",
     });
+    if (sourceTxHash) {
+        receipt.x = sourceTxHash;
+    }
 
     const mint = await createMint(
         connection,

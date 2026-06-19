@@ -249,6 +249,7 @@ router.post("/mint-solana-staking-nft", async (req, res) => {
         stakingPeriodDays,
         apy,
         confirmationTxHash,
+        sourceTxHash,
         mintedStETH
     } = req.body;
 
@@ -268,6 +269,7 @@ router.post("/mint-solana-staking-nft", async (req, res) => {
             stakingPeriodDays: Number(stakingPeriodDays) || 0,
             apy: apy ? String(apy) : "0",
             confirmationTxHash: confirmationTxHash || "",
+            sourceTxHash: sourceTxHash || "",
             mintedStETH: mintedStETH || "0"
         });
 

@@ -503,11 +503,13 @@ export function useStaking() {
     amount,
     apy,
     confirmationTxHash,
+    sourceTxHash,
     mintedStETH,
   }: {
     amount: string;
     apy?: string;
     confirmationTxHash?: string;
+    sourceTxHash?: string;
     mintedStETH: string;
   }) => {
     if (!address || networkConfig.chainFamily !== 'solana') return;
@@ -523,6 +525,7 @@ export function useStaking() {
       stakingPeriodDays: 0,
       apy: apy || '4.8',
       confirmationTxHash: confirmationTxHash || '',
+      sourceTxHash: sourceTxHash || '',
       mintedStETH,
     });
 
@@ -561,6 +564,7 @@ export function useStaking() {
           amount: status.amount ? ethers.formatUnits(BigInt(status.amount), status.sourceDecimals ?? decimals) : stakeAmount.toString(),
           apy: undefined,
           confirmationTxHash: status.destinationTxHash,
+          sourceTxHash: status.sourceTxHash,
           mintedStETH,
         });
       } catch (error) {

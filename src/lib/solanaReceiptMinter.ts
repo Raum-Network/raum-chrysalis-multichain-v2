@@ -10,6 +10,7 @@ export type SolanaStakingReceipt = {
   apy: string;
   stakedAt: number;
   txHash?: string;
+  sourceTxHash?: string;
   id: string;
 };
 
@@ -49,6 +50,7 @@ export async function mintSolanaStakingNFT(params: {
   stakingPeriodDays?: number;
   apy?: string;
   confirmationTxHash?: string;
+  sourceTxHash?: string;
   mintedStETH?: string;
 }): Promise<SolanaStakingNFT> {
   const response = await fetch(`${API_BASE}/mint-solana-staking-nft`, {
