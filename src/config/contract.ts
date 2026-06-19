@@ -254,8 +254,8 @@ export const SUPPORTED_NETWORKS: Record<Networks, NetworkConfig> = {
     assetSymbol: 'USDC',
     destinationDomain: 0,
     sourceDomainId: 5,
-    rpcUrl: 'https://api.devnet.solana.com',
-    publicRpc: 'https://api.devnet.solana.com',
+    rpcUrl: 'https://solana-devnet.infura.io/v3/cea2942c462d447983f9f20783cd2f64',
+    publicRpc: 'https://solana-devnet.infura.io/v3/cea2942c462d447983f9f20783cd2f64',
     explorer: 'https://explorer.solana.com',
     contracts: {
       ccip: '3MZSFAUSTpkuQtoAWW1nB51jnXk2BzbBJoiuNa6tr67P',
