@@ -416,7 +416,7 @@ export function useStaking() {
     };
 
     fetchSolanaFeeBalances();
-    const id = setInterval(fetchSolanaFeeBalances, 15000);
+    const id = setInterval(fetchSolanaFeeBalances, 60000);
     return () => { active = false; clearInterval(id); };
   }, [address, networkConfig]);
 
@@ -466,7 +466,7 @@ export function useStaking() {
     };
 
     fetchSolanaUsdcBalance();
-    const intervalId = setInterval(fetchSolanaUsdcBalance, 15000);
+    const intervalId = setInterval(fetchSolanaUsdcBalance, 60000);
     return () => {
       active = false;
       clearInterval(intervalId);
@@ -492,7 +492,7 @@ export function useStaking() {
     };
 
     fetchSolanaReceipts();
-    const intervalId = setInterval(fetchSolanaReceipts, 15000);
+    const intervalId = setInterval(fetchSolanaReceipts, 60000);
     return () => {
       active = false;
       clearInterval(intervalId);

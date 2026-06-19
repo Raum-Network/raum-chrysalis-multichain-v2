@@ -198,7 +198,7 @@ export function useWallet() {
     };
 
     fetchSolanaBalance();
-    const interval = setInterval(fetchSolanaBalance, 15000);
+    const interval = setInterval(fetchSolanaBalance, 60000);
     return () => { active = false; clearInterval(interval); };
   }, [networkOverride, solanaAddress]);
 

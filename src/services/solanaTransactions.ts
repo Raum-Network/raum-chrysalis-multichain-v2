@@ -39,9 +39,12 @@ const SOLANA_RPC_URL = SOLANA_NETWORK.publicRpc;
 const CCTP_TOKEN_MESSENGER_PROGRAM = SOLANA_NETWORK.solana?.cctpV2.tokenMessengerMinter || SOLANA_NETWORK.contracts.cctp;
 const SOLANA_USDC_MINT = SOLANA_NETWORK.solana?.usdcMint || SOLANA_NETWORK.contracts.usdc;
 const DIRECT_MINT_DISCRIMINATOR = Buffer.from([215, 60, 61, 46, 114, 55, 128, 176]);
-const SIGNATURE_LIMIT = 100;
+const SIGNATURE_LIMIT = 30;
 const BATCH_SIZE = 10;
 const RPC_TIMEOUT_MS = 7000;
+const SCAN_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const scanCache = new Map<string, { expiresAt: number; promise: Promise<CCTPTransaction[]> }>();
 
 const evmAddressToBytes32Hex = (address: string) => {
   const normalized = ethers.getAddress(address);
@@ -155,6 +158,26 @@ const hasOurCctpReceiver = (transaction: ParsedTransaction) => {
 };
 
 export async function fetchSolanaCCTPTransactions(ownerAddress: string): Promise<CCTPTransaction[]> {
+  if (!ownerAddress || !CCTP_TOKEN_MESSENGER_PROGRAM) return [];
+
+  const cacheKey = `${SOLANA_RPC_URL}:${ownerAddress}`;
+  const cached = scanCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.promise;
+  }
+
+  const promise = fetchSolanaCCTPTransactionsUncached(ownerAddress);
+  scanCache.set(cacheKey, { expiresAt: Date.now() + SCAN_CACHE_TTL_MS, promise });
+
+  try {
+    return await promise;
+  } catch (error) {
+    scanCache.delete(cacheKey);
+    throw error;
+  }
+}
+
+async function fetchSolanaCCTPTransactionsUncached(ownerAddress: string): Promise<CCTPTransaction[]> {
   if (!ownerAddress || !CCTP_TOKEN_MESSENGER_PROGRAM) return [];
 
   const signatures = await rpc<SignatureInfo[]>('getSignaturesForAddress', [

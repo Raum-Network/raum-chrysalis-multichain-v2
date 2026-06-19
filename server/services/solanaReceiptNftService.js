@@ -31,9 +31,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID);
 const ACCOUNT_BATCH_SIZE = 100;
+const RECEIPT_CACHE_TTL_MS = 60 * 1000;
+const receiptCache = new Map();
 
 function getConnection() {
-    return new Connection(config.SOLANA_RPC_URL || clusterApiUrl("devnet"), "confirmed");
+    return new Connection(config.SOLANA_RPC_URL || clusterApiUrl("devnet"), {
+        commitment: "confirmed",
+        wsEndpoint: config.SOLANA_WS_URL || "wss://api.devnet.solana.com",
+    });
 }
 
 function parseSecretKey(secretKey) {
@@ -420,6 +425,24 @@ export async function mintSolanaStakingNFT({
 }
 
 export async function getSolanaStakingNFTs(ownerAddress) {
+    const cacheKey = `${config.SOLANA_RPC_URL}:${ownerAddress}`;
+    const cached = receiptCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.promise;
+    }
+
+    const promise = getSolanaStakingNFTsUncached(ownerAddress);
+    receiptCache.set(cacheKey, { expiresAt: Date.now() + RECEIPT_CACHE_TTL_MS, promise });
+
+    try {
+        return await promise;
+    } catch (error) {
+        receiptCache.delete(cacheKey);
+        throw error;
+    }
+}
+
+async function getSolanaStakingNFTsUncached(ownerAddress) {
     const owner = new PublicKey(ownerAddress);
 
     try {

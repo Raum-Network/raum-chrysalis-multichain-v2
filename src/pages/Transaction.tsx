@@ -161,8 +161,8 @@ const Transactions = () => {
 
           const isSolanaNetwork = networkConfig.chainFamily === 'solana';
           const [ccipResult, cctpResult, solanaCctpResult] = await Promise.allSettled([
-            fetchTransactions(address),
-            fetchCCTPTransactions(address),
+            isSolanaNetwork ? Promise.resolve([]) : fetchTransactions(address),
+            isSolanaNetwork ? Promise.resolve([]) : fetchCCTPTransactions(address),
             isSolanaNetwork ? fetchSolanaCCTPTransactions(address) : Promise.resolve([]),
           ]);
 
@@ -253,8 +253,8 @@ const Transactions = () => {
 
     loadTransactions();
 
-    // Polling for updates every 30 seconds
-    const interval = setInterval(loadTransactions, 30000);
+    // Polling keeps DB/status fresh; Solana deep scan is cached in fetchSolanaCCTPTransactions.
+    const interval = setInterval(loadTransactions, networkConfig.chainFamily === 'solana' ? 120000 : 30000);
     return () => clearInterval(interval);
   }, [address, fetchTransactions, networkConfig.name]);
 
