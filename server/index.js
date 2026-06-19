@@ -14,6 +14,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
+import { randomUUID } from "crypto";
 import * as xrpl from "xrpl";
 import { mintStakingNFT, acceptSellOffer } from "./services/xrplNftService.js";
 import { getSolanaStakingNFTs, mintSolanaStakingNFT } from "./services/solanaReceiptNftService.js";
@@ -283,12 +284,14 @@ router.post("/mint-solana-staking-nft", async (req, res) => {
 
 // ── POST /execute-sepolia-contract ───────────────────────────────────────────
 router.post("/execute-sepolia-contract", async (req, res) => {
+    const requestId = req.body?.requestId || randomUUID();
     try {
-        const result = await executeSepoliaCctp(req.body || {});
+        console.info("[API] Sepolia execution requested:", requestId);
+        const result = await executeSepoliaCctp({ ...(req.body || {}), requestId });
         return res.status(201).json({ success: true, ...result });
     } catch (err) {
-        console.error("[API] Sepolia execution error:", err.message);
-        return res.status(500).json({ success: false, error: err.message });
+        console.error("[API] Sepolia execution error:", requestId, err.message);
+        return res.status(500).json({ success: false, requestId, error: err.message });
     }
 });
 

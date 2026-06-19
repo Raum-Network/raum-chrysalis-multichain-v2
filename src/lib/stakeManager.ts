@@ -628,11 +628,32 @@ class StakeManager {
     address: string,
     onStatusUpdate: (status: StakeStatus) => void
   ) {
+    const requestId = `sepolia-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 210_000);
+
     try {
+      this.currentStatus = {
+        ...this.currentStatus!,
+        attestationStatus: 'executing_destination',
+        expectedTime: 'Waiting for Sepolia destination tx'
+      };
+      this.updateStatus(this.currentStatus, onStatusUpdate);
+      this.notifyStatusSubscribers(this.currentStatus);
+
+      console.info('Calling Sepolia destination contract:', {
+        requestId,
+        receiverAddress: this.networkConfig.contracts.cctpDestinationCaller,
+        sourceDomainId: this.networkConfig.sourceDomainId ?? 0,
+        isSolanaSource: this.networkConfig.chainFamily === 'solana',
+      });
+
       const response = await fetch('/api/execute-sepolia-contract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
+          requestId,
           messageBytes,
           attestation,
           amount,
@@ -643,14 +664,30 @@ class StakeManager {
           solanaOrigin: this.currentStatus?.origin || '',
         }),
       });
-      const result = await response.json() as { success?: boolean; transactionHash?: string; error?: string };
+      const result = await response.json() as {
+        success?: boolean;
+        requestId?: string;
+        transactionHash?: string;
+        gasUsed?: string;
+        blockNumber?: string;
+        error?: string;
+      };
       if (!response.ok || !result.success || !result.transactionHash) {
-        throw new Error(result.error || 'Sepolia execution failed');
+        throw new Error(result.error || `Sepolia execution failed for request ${requestId}`);
       }
+
+      console.info('Sepolia destination contract confirmed:', {
+        requestId: result.requestId || requestId,
+        transactionHash: result.transactionHash,
+        gasUsed: result.gasUsed,
+        blockNumber: result.blockNumber,
+      });
 
       this.currentStatus = {
         ...this.currentStatus!,
         destinationTxHash: result.transactionHash,
+        attestationStatus: 'destination_confirmed',
+        expectedTime: '',
         status: 'SUCCESS',
         sourceChain: 'sepolia'
       };
@@ -660,8 +697,15 @@ class StakeManager {
       this.stopTimer();
 
     } catch (error) {
-      console.error("Error calling Sepolia contract:", error);
-      throw error;
+      const message = error instanceof DOMException && error.name === 'AbortError'
+        ? `Sepolia execution request timed out for ${requestId}. Check server logs for this request id; if a tx hash was broadcast it will be logged there.`
+        : error instanceof Error
+          ? `${error.message} (request ${requestId})`
+          : `Sepolia execution failed for request ${requestId}`;
+      console.error("Error calling Sepolia contract:", message, error);
+      throw new Error(message);
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   }
 

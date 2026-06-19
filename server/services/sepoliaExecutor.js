@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { randomUUID } from "crypto";
 import { ethers } from "ethers";
 import Web3 from "web3";
 import { PublicKey } from "@solana/web3.js";
@@ -15,6 +16,17 @@ const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || "https://sepolia.infura.i
 const abiCoder = new ethers.AbiCoder();
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const RECEIPT_TIMEOUT_MS = Number(process.env.SEPOLIA_RECEIPT_TIMEOUT_MS || 180_000);
+const GAS_BUFFER_NUMERATOR = 12n;
+const GAS_BUFFER_DENOMINATOR = 10n;
+
+function createExecutionLogger(requestId) {
+    const startedAt = Date.now();
+    return (stage, details = {}) => {
+        const elapsedMs = Date.now() - startedAt;
+        console.info("[SepoliaExecutor]", JSON.stringify({ requestId, stage, elapsedMs, ...details }));
+    };
+}
 
 function normalizeEvmAddress(value) {
     if (!value) return ZERO_ADDRESS;
@@ -109,10 +121,20 @@ export async function executeSepoliaCctp({
     sourceDomainId = 0,
     isSolanaSource = false,
     solanaOrigin = "",
+    requestId = randomUUID(),
 }) {
+    const log = createExecutionLogger(requestId);
+
     if (!config.PRIVATE_KEY) {
         throw new Error("PRIVATE_KEY is not configured");
     }
+
+    log("initializing", {
+        receiverAddress,
+        amount: String(amount),
+        sourceDomainId,
+        isSolanaSource,
+    });
 
     const web3 = new Web3(SEPOLIA_RPC_URL);
     const account = web3.eth.accounts.privateKeyToAccount(config.PRIVATE_KEY);
@@ -120,6 +142,7 @@ export async function executeSepoliaCctp({
 
     const normalizedReceiver = normalizeEvmAddress(receiverAddress);
     const contract = new web3.eth.Contract(RECEIVER_ABI, normalizedReceiver);
+    log("resolving-hook-data", { receiverAddress: normalizedReceiver });
     const hookData = await resolveHookData({
         web3,
         contract,
@@ -130,10 +153,15 @@ export async function executeSepoliaCctp({
         isSolanaSource,
         solanaOrigin,
     });
+    log("hook-data-ready", { hookDataBytes: Math.max(0, (hookData.length - 2) / 2) });
 
     const tx = contract.methods.receiveUSDC(hookData, messageBytes, attestation);
-    const gas = await tx.estimateGas({ from: account.address });
+    log("estimating-gas", { from: account.address });
+    const estimatedGas = BigInt(await tx.estimateGas({ from: account.address }));
+    const gas = ((estimatedGas * GAS_BUFFER_NUMERATOR) / GAS_BUFFER_DENOMINATOR).toString();
     const gasPrice = await web3.eth.getGasPrice();
+    log("gas-ready", { estimatedGas: estimatedGas.toString(), gas, gasPrice: gasPrice.toString() });
+
     const signedTx = await account.signTransaction({
         from: account.address,
         to: normalizedReceiver,
@@ -141,10 +169,55 @@ export async function executeSepoliaCctp({
         gas,
         gasPrice,
     });
-    const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+    log("broadcasting-transaction");
+
+    let timeoutId;
+    const receipt = await new Promise((resolve, reject) => {
+        let transactionHash = "";
+        timeoutId = setTimeout(() => {
+            const message = transactionHash
+                ? `Timed out waiting for Sepolia receipt after ${RECEIPT_TIMEOUT_MS / 1000}s. Transaction hash: ${transactionHash}`
+                : `Timed out broadcasting Sepolia transaction after ${RECEIPT_TIMEOUT_MS / 1000}s.`;
+            log("timeout", { transactionHash: transactionHash || null });
+            reject(new Error(message));
+        }, RECEIPT_TIMEOUT_MS);
+
+        web3.eth
+            .sendSignedTransaction(signedTx.rawTransaction)
+            .on("transactionHash", (hash) => {
+                transactionHash = hash;
+                log("transaction-hash", {
+                    transactionHash: hash,
+                    explorerUrl: `https://sepolia.etherscan.io/tx/${hash}`,
+                });
+                log("waiting-for-receipt", { transactionHash: hash });
+            })
+            .on("receipt", (confirmedReceipt) => {
+                clearTimeout(timeoutId);
+                log("receipt-confirmed", {
+                    transactionHash: confirmedReceipt.transactionHash,
+                    blockNumber: confirmedReceipt.blockNumber?.toString(),
+                    gasUsed: confirmedReceipt.gasUsed?.toString(),
+                    status: confirmedReceipt.status?.toString(),
+                });
+                resolve(confirmedReceipt);
+            })
+            .on("error", (error) => {
+                clearTimeout(timeoutId);
+                log("transaction-error", {
+                    transactionHash: transactionHash || null,
+                    error: error?.message || String(error),
+                });
+                reject(error);
+            });
+    }).finally(() => {
+        if (timeoutId) clearTimeout(timeoutId);
+    });
 
     return {
+        requestId,
         transactionHash: receipt.transactionHash,
         gasUsed: receipt.gasUsed?.toString(),
+        blockNumber: receipt.blockNumber?.toString(),
     };
 }

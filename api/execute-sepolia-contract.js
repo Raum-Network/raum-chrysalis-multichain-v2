@@ -1,4 +1,5 @@
 import { executeSepoliaCctp } from "../server/services/sepoliaExecutor.js";
+import { randomUUID } from "crypto";
 
 const json = (res, statusCode, payload) => {
   res.statusCode = statusCode;
@@ -23,12 +24,22 @@ export default async function handler(req, res) {
     return json(res, 405, { success: false, error: "Method not allowed" });
   }
 
+  const body = parseBody(req);
+  const requestId = body.requestId || randomUUID();
+
   try {
-    const result = await executeSepoliaCctp(parseBody(req));
+    console.info("[API] Sepolia execution requested:", requestId);
+    const result = await executeSepoliaCctp({ ...body, requestId });
     return json(res, 201, { success: true, ...result });
   } catch (error) {
+    console.error(
+      "[API] Sepolia execution error:",
+      requestId,
+      error instanceof Error ? error.message : error
+    );
     return json(res, 500, {
       success: false,
+      requestId,
       error: error instanceof Error ? error.message : "Sepolia execution failed",
     });
   }
