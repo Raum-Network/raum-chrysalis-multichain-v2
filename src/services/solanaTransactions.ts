@@ -50,9 +50,9 @@ const hasOurCctpReceiver = (transaction: ParsedTransactionWithMeta) => {
     try {
       const data = Buffer.from(bs58.decode(instruction.data));
       const isDirectMint = data.subarray(0, DIRECT_MINT_DISCRIMINATOR.length).equals(DIRECT_MINT_DISCRIMINATOR);
-      if (!isDirectMint || data.length < 52) return false;
+      if (!isDirectMint || data.length < 56) return false;
 
-      const receiver = data.subarray(20, 52).toString('hex');
+      const receiver = data.subarray(24, 56).toString('hex');
       return receiver === expectedReceiver;
     } catch {
       return false;
