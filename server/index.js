@@ -297,6 +297,22 @@ router.post("/execute-sepolia-contract", async (req, res) => {
     }
 });
 
+// ── GET /solana-staking-nfts?owner=... ───────────────────────────────────────
+router.get("/solana-staking-nfts", async (req, res) => {
+    try {
+        const owner = req.query.owner;
+        if (!owner || typeof owner !== "string") {
+            return res.status(400).json({ success: false, error: "Missing owner query param" });
+        }
+
+        const receipts = await getSolanaStakingNFTs(owner);
+        return res.json({ success: true, receipts });
+    } catch (err) {
+        console.error("[API] Solana NFT list error:", err.message);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // ── GET /solana-staking-nfts/:owner ──────────────────────────────────────────
 router.get("/solana-staking-nfts/:owner", async (req, res) => {
     try {

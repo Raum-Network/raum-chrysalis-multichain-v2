@@ -204,14 +204,20 @@ const Transactions = () => {
 
           if (solanaCctpResult.status === 'fulfilled') {
             setSolanaCctpTransactions(solanaCctpResult.value);
-            await Promise.allSettled(solanaCctpResult.value.map((tx) =>
-              upsertPersistedTransaction({
-                id: createPersistedTransactionId('CCTP', tx.hash, tx.hash),
+            const persistedById = new Map(persistedResult.map((tx) => [tx.id, tx]));
+            await Promise.allSettled(solanaCctpResult.value.map((tx) => {
+              const id = createPersistedTransactionId('CCTP', tx.hash, tx.hash);
+              const existing = persistedById.get(id);
+              const existingFinal = existing?.status === 'SUCCESS' || existing?.status === 'FAILURE';
+              if (existingFinal) return Promise.resolve();
+
+              return upsertPersistedTransaction({
+                id,
                 walletAddress: address,
                 protocol: 'CCTP',
                 messageId: tx.hash,
                 sourceTxHash: tx.hash,
-                destinationTxHash: tx.destTransactionHash,
+                destinationTxHash: tx.destTransactionHash || existing?.destinationTxHash,
                 sourceNetworkName: 'Solana Devnet',
                 destNetworkName: 'Sepolia',
                 sender: tx.from,
@@ -220,11 +226,15 @@ const Transactions = () => {
                 assetSymbol: 'USDC',
                 sourceDecimals: 6,
                 destDecimals: 6,
-                status: tx.status === 'SUCCESS' || tx.status === 'FAILURE' ? tx.status : 'IN_PROGRESS',
-                createdAt: tx.timestamp,
+                status: existing?.destinationTxHash
+                  ? 'SUCCESS'
+                  : tx.status === 'SUCCESS' || tx.status === 'FAILURE'
+                    ? tx.status
+                    : 'IN_PROGRESS',
+                createdAt: existing?.createdAt || tx.timestamp,
                 updatedAt: Date.now(),
-              })
-            ));
+              });
+            }));
           } else {
             console.error('Error fetching Solana CCTP transactions:', solanaCctpResult.reason);
             setSolanaCctpTransactions([]);

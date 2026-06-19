@@ -1,66 +1,121 @@
-import { Connection, PublicKey, ParsedTransactionWithMeta } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import bs58 from 'bs58';
 import { ethers } from 'ethers';
 import { SUPPORTED_NETWORKS } from '../config/contract';
 import { CCTPTransaction } from './cctpTransactions';
 
+type SignatureInfo = {
+  signature: string;
+  slot: number;
+  err: unknown | null;
+  blockTime: number | null;
+};
+
+type JsonRpcResult<T> = { id: number; result?: T; error?: { code: number; message: string } };
+
+type ParsedInstruction = {
+  programId?: string;
+  data?: string;
+};
+
+type ParsedTransaction = {
+  slot: number;
+  blockTime: number | null;
+  transaction: {
+    message: {
+      accountKeys: Array<string | { pubkey: string }>;
+      instructions: ParsedInstruction[];
+    };
+  };
+  meta: {
+    err: unknown | null;
+    preTokenBalances?: Array<{ owner?: string; mint?: string; uiTokenAmount: { amount: string } }>;
+    postTokenBalances?: Array<{ owner?: string; mint?: string; uiTokenAmount: { amount: string } }>;
+  } | null;
+};
+
 const SOLANA_NETWORK = SUPPORTED_NETWORKS['solana-devnet'];
+const SOLANA_RPC_URL = SOLANA_NETWORK.publicRpc;
 const CCTP_TOKEN_MESSENGER_PROGRAM = SOLANA_NETWORK.solana?.cctpV2.tokenMessengerMinter || SOLANA_NETWORK.contracts.cctp;
 const SOLANA_USDC_MINT = SOLANA_NETWORK.solana?.usdcMint || SOLANA_NETWORK.contracts.usdc;
 const DIRECT_MINT_DISCRIMINATOR = Buffer.from([215, 60, 61, 46, 114, 55, 128, 176]);
+const SIGNATURE_LIMIT = 100;
+const BATCH_SIZE = 10;
+const RPC_TIMEOUT_MS = 7000;
 
 const evmAddressToBytes32Hex = (address: string) => {
   const normalized = ethers.getAddress(address);
   return `${'00'.repeat(12)}${normalized.slice(2).toLowerCase()}`;
 };
 
-const keyToString = (key: unknown) => {
-  if (typeof key === 'string') return key;
-  if (key && typeof key === 'object' && 'pubkey' in key) {
-    const pubkey = (key as { pubkey?: unknown }).pubkey;
-    return pubkey?.toString?.() || '';
+const keyToString = (key: string | { pubkey: string }) =>
+  typeof key === 'string' ? key : key.pubkey;
+
+const withTimeout = async <T>(promise: Promise<T>, ms: number): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`Solana RPC timeout after ${ms}ms`)), ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
-  return key?.toString?.() || '';
 };
 
-const getAccountKeys = (transaction: ParsedTransactionWithMeta) =>
-  transaction.transaction.message.accountKeys.map(keyToString).filter(Boolean);
+async function rpc<T>(method: string, params: unknown[]): Promise<T> {
+  const response = await withTimeout(
+    fetch(SOLANA_RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+    }),
+    RPC_TIMEOUT_MS
+  );
 
-const hasProgramInstruction = (transaction: ParsedTransactionWithMeta, programId: string) =>
-  transaction.transaction.message.instructions.some((instruction) => {
-    if ('programId' in instruction) {
-      return instruction.programId.toString() === programId;
-    }
-    return false;
-  });
+  if (!response.ok) {
+    throw new Error(`Solana RPC HTTP ${response.status}`);
+  }
 
-const hasOurCctpReceiver = (transaction: ParsedTransactionWithMeta) => {
-  if (!SOLANA_NETWORK.contracts.cctpDestinationCaller) return false;
-  const expectedReceiver = evmAddressToBytes32Hex(SOLANA_NETWORK.contracts.cctpDestinationCaller || '');
+  const json = await response.json() as JsonRpcResult<T>;
+  if (json.error) {
+    throw new Error(`Solana RPC error ${json.error.code}: ${json.error.message}`);
+  }
 
-  return transaction.transaction.message.instructions.some((instruction) => {
-    if (!('programId' in instruction) || instruction.programId.toString() !== CCTP_TOKEN_MESSENGER_PROGRAM) {
-      return false;
-    }
-    if (!('data' in instruction) || typeof instruction.data !== 'string') {
-      return false;
-    }
+  return json.result as T;
+}
 
-    try {
-      const data = Buffer.from(bs58.decode(instruction.data));
-      const isDirectMint = data.subarray(0, DIRECT_MINT_DISCRIMINATOR.length).equals(DIRECT_MINT_DISCRIMINATOR);
-      if (!isDirectMint || data.length < 56) return false;
+async function rpcBatch<T>(requests: Array<{ method: string; params: unknown[] }>): Promise<Array<T | null>> {
+  if (requests.length === 0) return [];
 
-      const receiver = data.subarray(24, 56).toString('hex');
-      return receiver === expectedReceiver;
-    } catch {
-      return false;
-    }
-  });
-};
+  const payload = requests.map((request, index) => ({
+    jsonrpc: '2.0',
+    id: index,
+    method: request.method,
+    params: request.params,
+  }));
 
-const getUserUsdcDelta = (transaction: ParsedTransactionWithMeta, owner: string) => {
+  const response = await withTimeout(
+    fetch(SOLANA_RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+    RPC_TIMEOUT_MS
+  );
+
+  if (!response.ok) {
+    throw new Error(`Solana RPC batch HTTP ${response.status}`);
+  }
+
+  const data = await response.json() as Array<JsonRpcResult<T>>;
+  return data
+    .sort((a, b) => a.id - b.id)
+    .map((entry) => entry.result ?? null);
+}
+
+const getUserUsdcDelta = (transaction: ParsedTransaction, owner: string) => {
   const before = transaction.meta?.preTokenBalances?.find((balance) =>
     balance.owner === owner && balance.mint === SOLANA_USDC_MINT
   );
@@ -75,39 +130,72 @@ const getUserUsdcDelta = (transaction: ParsedTransactionWithMeta, owner: string)
   return burned.toString();
 };
 
+const hasOurCctpReceiver = (transaction: ParsedTransaction) => {
+  if (!SOLANA_NETWORK.contracts.cctpDestinationCaller) return false;
+  const expectedReceiver = evmAddressToBytes32Hex(SOLANA_NETWORK.contracts.cctpDestinationCaller);
+
+  return transaction.transaction.message.instructions.some((instruction) => {
+    if (instruction.programId !== CCTP_TOKEN_MESSENGER_PROGRAM || !instruction.data) {
+      return false;
+    }
+
+    try {
+      const data = Buffer.from(bs58.decode(instruction.data));
+      const isDirectMint = data.subarray(0, DIRECT_MINT_DISCRIMINATOR.length).equals(DIRECT_MINT_DISCRIMINATOR);
+      const dataHex = data.toString('hex');
+
+      if (dataHex.includes(expectedReceiver)) return true;
+      if (!isDirectMint || data.length < 56) return false;
+
+      return data.subarray(24, 56).toString('hex') === expectedReceiver;
+    } catch {
+      return false;
+    }
+  });
+};
+
 export async function fetchSolanaCCTPTransactions(ownerAddress: string): Promise<CCTPTransaction[]> {
   if (!ownerAddress || !CCTP_TOKEN_MESSENGER_PROGRAM) return [];
 
-  const connection = new Connection(SOLANA_NETWORK.publicRpc, 'confirmed');
-  const owner = new PublicKey(ownerAddress);
-  const program = new PublicKey(CCTP_TOKEN_MESSENGER_PROGRAM);
-  const currentSlot = await connection.getSlot('confirmed');
-  const minSlot = Math.max(0, currentSlot - 1000);
-
-  const [walletSignatures, programSignatures] = await Promise.all([
-    connection.getSignaturesForAddress(owner, { limit: 1000 }, 'confirmed'),
-    connection.getSignaturesForAddress(program, { limit: 1000 }, 'confirmed'),
+  const signatures = await rpc<SignatureInfo[]>('getSignaturesForAddress', [
+    ownerAddress,
+    { limit: SIGNATURE_LIMIT, commitment: 'confirmed' },
   ]);
 
-  const signatures = Array.from(
-    new Map(
-      [...walletSignatures, ...programSignatures]
-        .filter((signature) => signature.slot >= minSlot)
-        .map((signature) => [signature.signature, signature])
-    ).values()
-  );
+  const transactionsBySignature = new Map<string, ParsedTransaction>();
 
-  const transactions = await Promise.all(
-    signatures.map(async (signatureInfo) => {
-      const transaction = await connection.getParsedTransaction(signatureInfo.signature, {
-        commitment: 'confirmed',
-        maxSupportedTransactionVersion: 0,
+  for (let index = 0; index < signatures.length; index += BATCH_SIZE) {
+    const chunk = signatures.slice(index, index + BATCH_SIZE);
+    try {
+      const results = await rpcBatch<ParsedTransaction>(
+        chunk.map((signature) => ({
+          method: 'getTransaction',
+          params: [
+            signature.signature,
+            { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed' },
+          ],
+        }))
+      );
+
+      chunk.forEach((signature, resultIndex) => {
+        const transaction = results[resultIndex];
+        if (transaction) {
+          transactionsBySignature.set(signature.signature, transaction);
+        }
       });
+    } catch (error) {
+      console.warn('Skipping Solana transaction batch:', error);
+    }
+  }
+
+  const matches = signatures
+    .map((signatureInfo) => {
+      const transaction = transactionsBySignature.get(signatureInfo.signature);
       if (!transaction) return null;
 
-      const accountKeys = getAccountKeys(transaction);
+      const accountKeys = transaction.transaction.message.accountKeys.map(keyToString);
       if (!accountKeys.includes(ownerAddress)) return null;
-      if (!hasProgramInstruction(transaction, CCTP_TOKEN_MESSENGER_PROGRAM)) return null;
+      if (!accountKeys.includes(CCTP_TOKEN_MESSENGER_PROGRAM)) return null;
       if (!hasOurCctpReceiver(transaction)) return null;
 
       const amount = getUserUsdcDelta(transaction, ownerAddress);
@@ -116,7 +204,7 @@ export async function fetchSolanaCCTPTransactions(ownerAddress: string): Promise
       return {
         hash: signatureInfo.signature,
         from: ownerAddress,
-        to: CCTP_TOKEN_MESSENGER_PROGRAM,
+        to: SOLANA_NETWORK.contracts.cctpDestinationCaller || CCTP_TOKEN_MESSENGER_PROGRAM,
         amount,
         timestamp: (transaction.blockTime || signatureInfo.blockTime || Math.floor(Date.now() / 1000)) * 1000,
         status: transaction.meta?.err ? 'FAILURE' as const : 'IN_PROGRESS' as const,
@@ -124,9 +212,7 @@ export async function fetchSolanaCCTPTransactions(ownerAddress: string): Promise
         destTransactionHash: undefined,
       };
     })
-  );
+    .filter((transaction): transaction is CCTPTransaction => transaction !== null);
 
-  return transactions
-    .filter((transaction): transaction is CCTPTransaction => transaction !== null)
-    .sort((a, b) => b.timestamp - a.timestamp);
+  return matches.sort((a, b) => b.timestamp - a.timestamp);
 }

@@ -30,6 +30,7 @@ import { buildStakingReceipt } from "./stakingMetadata.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID);
+const ACCOUNT_BATCH_SIZE = 100;
 
 function getConnection() {
     return new Connection(config.SOLANA_RPC_URL || clusterApiUrl("devnet"), "confirmed");
@@ -64,6 +65,15 @@ function getMinterKeypair() {
     return Keypair.fromSecretKey(parseSecretKey(config.SOLANA_MINTER_SECRET_KEY));
 }
 
+function getConfiguredMinterAddress() {
+    if (config.SOLANA_MINTER_ADDRESS) return config.SOLANA_MINTER_ADDRESS;
+    try {
+        return getMinterKeypair().publicKey.toBase58();
+    } catch {
+        return "";
+    }
+}
+
 function getExplorerUrl(signatureOrAddress, type = "tx") {
     const clusterParam = config.SOLANA_CLUSTER === "mainnet-beta" ? "" : `?cluster=${config.SOLANA_CLUSTER || "devnet"}`;
     return `https://explorer.solana.com/${type}/${signatureOrAddress}${clusterParam}`;
@@ -86,6 +96,14 @@ function truncate(value, maxLength) {
 
 function cleanMetadataText(value) {
     return String(value || "").replace(/\0/g, "").trim();
+}
+
+function publicKeyToString(value) {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (typeof value.toBase58 === "function") return value.toBase58();
+    if (value.publicKey && typeof value.publicKey.toBase58 === "function") return value.publicKey.toBase58();
+    return String(value);
 }
 
 function compactReceiptForMetadata(receipt) {
@@ -205,10 +223,15 @@ async function readReceiptMetadata(connection, mint) {
     const accountInfo = await connection.getAccountInfo(metadataAddress, "confirmed");
     if (!accountInfo?.data) return null;
 
+    return readReceiptMetadataFromAccount(metadataAddress, accountInfo);
+}
+
+function readReceiptMetadataFromAccount(metadataAddress, accountInfo) {
     const [metadata] = getMetadataAccountDataSerializer().deserialize(accountInfo.data);
     const metadataName = cleanMetadataText(metadata.name);
     const metadataSymbol = cleanMetadataText(metadata.symbol);
     const metadataUri = cleanMetadataText(metadata.uri);
+    const updateAuthority = publicKeyToString(metadata.updateAuthority);
 
     if (metadataSymbol !== "RAUMSTK") return null;
 
@@ -221,6 +244,7 @@ async function readReceiptMetadata(connection, mint) {
         metadataUri,
         metadataName,
         metadataSymbol,
+        updateAuthority,
         receipt: {
             ...compactReceipt,
             a: compactReceipt.a || amountFromName?.[1] || "0",
@@ -400,6 +424,7 @@ export async function getSolanaStakingNFTs(ownerAddress) {
 
     try {
         const connection = getConnection();
+        const expectedMinter = getConfiguredMinterAddress();
         const accounts = await connection.getParsedTokenAccountsByOwner(owner, {
             programId: TOKEN_PROGRAM_ID,
         });
@@ -418,40 +443,63 @@ export async function getSolanaStakingNFTs(ownerAddress) {
             return [];
         }
 
-        const records = await Promise.all(liveTokens.map(async ({ mintAddress, tokenAccount }) => {
+        const metadataRequests = liveTokens.map(({ mintAddress, tokenAccount }) => {
             const mint = new PublicKey(mintAddress);
-            const metadata = await readReceiptMetadata(connection, mint);
-            if (!metadata) return null;
-
-            const receipt = expandReceipt({
-                ...metadata.receipt,
-                s: owner.toBase58(),
-                id: metadata.receipt.id || metadata.receipt.i || mint.toBase58(),
-            });
-
-            const createdAt = receipt.stakedAt ? Number(receipt.stakedAt) * 1000 : Date.now();
             return {
-                id: mint.toBase58(),
-                mintAddress: mint.toBase58(),
+                mint,
+                mintAddress,
                 tokenAccount,
-                owner: owner.toBase58(),
-                mintTxHash: "",
-                metadataAddress: metadata.metadataAddress,
-                metadataTxHash: "",
-                metadataUri: metadata.metadataUri,
-                metadataName: metadata.metadataName,
-                metadataSymbol: metadata.metadataSymbol,
-                revokeMintAuthorityTxHash: "",
-                metadata: metadata.receipt,
-                receipt,
-                createdAt,
-                updatedAt: createdAt,
-                explorerUrl: getExplorerUrl(mint.toBase58(), "address"),
+                metadataAddress: getMetadataAddress(mint),
             };
-        }));
+        });
+
+        const records = [];
+
+        for (let index = 0; index < metadataRequests.length; index += ACCOUNT_BATCH_SIZE) {
+            const chunk = metadataRequests.slice(index, index + ACCOUNT_BATCH_SIZE);
+            const accountInfos = await connection.getMultipleAccountsInfo(
+                chunk.map((item) => item.metadataAddress),
+                "confirmed"
+            );
+
+            for (let itemIndex = 0; itemIndex < chunk.length; itemIndex++) {
+                const item = chunk[itemIndex];
+                const accountInfo = accountInfos[itemIndex];
+                if (!accountInfo?.data) continue;
+
+                const metadata = readReceiptMetadataFromAccount(item.metadataAddress, accountInfo);
+                if (!metadata) continue;
+                if (expectedMinter && metadata.updateAuthority && metadata.updateAuthority !== expectedMinter) continue;
+
+                const receipt = expandReceipt({
+                    ...metadata.receipt,
+                    s: owner.toBase58(),
+                    id: metadata.receipt.id || metadata.receipt.i || item.mint.toBase58(),
+                });
+
+                const createdAt = receipt.stakedAt ? Number(receipt.stakedAt) * 1000 : Date.now();
+                records.push({
+                    id: item.mint.toBase58(),
+                    mintAddress: item.mint.toBase58(),
+                    tokenAccount: item.tokenAccount,
+                    owner: owner.toBase58(),
+                    mintTxHash: "",
+                    metadataAddress: metadata.metadataAddress,
+                    metadataTxHash: "",
+                    metadataUri: metadata.metadataUri,
+                    metadataName: metadata.metadataName,
+                    metadataSymbol: metadata.metadataSymbol,
+                    revokeMintAuthorityTxHash: "",
+                    metadata: metadata.receipt,
+                    receipt,
+                    createdAt,
+                    updatedAt: createdAt,
+                    explorerUrl: getExplorerUrl(item.mint.toBase58(), "address"),
+                });
+            }
+        }
 
         return records
-            .filter(Boolean)
             .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
     } catch (error) {
         console.error("[Solana NFT] Failed to fetch from Solana:", error.message);
