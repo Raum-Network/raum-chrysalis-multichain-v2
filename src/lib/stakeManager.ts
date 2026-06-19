@@ -40,7 +40,13 @@ type WriteContractAsyncFn = (params: {
 type DestinationExecutionError = Error & { destinationExecutionFailed?: boolean };
 
 function isPendingReceiptError(error: unknown) {
-  return error instanceof Error && /transaction not found|receipt not found/i.test(error.message);
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error && 'message' in error
+        ? String((error as { message?: unknown }).message)
+        : String(error);
+  return /transaction not found|receipt not found/i.test(message);
 }
 
 export type StakeStatus = {

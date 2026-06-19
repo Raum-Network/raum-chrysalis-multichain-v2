@@ -32,6 +32,15 @@ export type SolanaStakingNFT = {
 
 const API_BASE = (import.meta.env.VITE_SOLANA_NFT_API_URL || "/api").replace(/\/+$/, "");
 
+async function readJsonResponse(response: Response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Expected JSON, got ${response.status} ${response.statusText}: ${text.slice(0, 80)}`);
+  }
+}
+
 export async function mintSolanaStakingNFT(params: {
   stakerAddress: string;
   stakedAmount: string;
@@ -48,7 +57,7 @@ export async function mintSolanaStakingNFT(params: {
     body: JSON.stringify(params),
   });
 
-  const data = await response.json();
+  const data = await readJsonResponse(response);
   if (!response.ok || !data.success) {
     throw new Error(data.error || "Failed to mint Solana staking NFT");
   }
@@ -58,9 +67,18 @@ export async function mintSolanaStakingNFT(params: {
 
 export async function fetchSolanaStakingNFTs(owner: string): Promise<SolanaStakingNFT[]> {
   const response = await fetch(`${API_BASE}/solana-staking-nfts/${owner}`);
-  const data = await response.json();
+
+  let data;
+  try {
+    data = await readJsonResponse(response);
+  } catch (error) {
+    console.warn("Solana staking NFT API returned non-JSON response:", error);
+    return [];
+  }
+
   if (!response.ok || !data.success) {
-    throw new Error(data.error || "Failed to fetch Solana staking NFTs");
+    console.warn("Solana staking NFT API failed:", data.error || response.statusText);
+    return [];
   }
 
   return data.receipts || [];

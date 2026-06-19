@@ -1,5 +1,5 @@
 import { useWallet } from '../lib/walletConnect';
-import { ConnectKitButton } from 'connectkit';
+import { useModal } from 'connectkit';
 import { LogOut, Wallet2, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -14,6 +14,7 @@ const ConnectButton = ({ hideNetworkSwitcher = false }: { hideNetworkSwitcher?: 
   const { isConnected, address, balance, nativeCurrencySymbol, network, chainId, switchNetwork, disconnect, connect } = useWallet();
   const [isOpen, setIsOpen] = useState(false);
   const { theme } = useTheme();
+  const { open, setOpen } = useModal();
   const iconColour = theme === 'night' ? 'text-white' : 'text-slate-900';
 
   const handleDisconnect = () => {
@@ -110,29 +111,25 @@ const ConnectButton = ({ hideNetworkSwitcher = false }: { hideNetworkSwitcher?: 
           />
         </div>
       )}
-      <ConnectKitButton.Custom>
-        {({ isConnecting, show, address: connectedAddress }) => (
-          <motion.button
-            whileHover={{ y: -1 }}
-            whileTap={{ scale: 0.99 }}
-            onClick={async () => {
-              ReactGA.event({
-                category: 'Wallet',
-                action: 'Click',
-                label: connectedAddress ? `Connected Wallet ${connectedAddress}` : 'Connect Wallet Button'
-              });
-              if (network === 'ripple-testnet' || network === 'solana-devnet') {
-                await connect();
-              } else {
-                show?.();
-              }
-            }}
-            className="rounded-2xl bg-[rgb(var(--ink-strong))] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.16)] transition-colors hover:bg-[rgb(var(--accent-strong))]"
-          >
-            {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-          </motion.button>
-        )}
-      </ConnectKitButton.Custom>
+      <motion.button
+        whileHover={{ y: -1 }}
+        whileTap={{ scale: 0.99 }}
+        onClick={async () => {
+          ReactGA.event({
+            category: 'Wallet',
+            action: 'Click',
+            label: 'Connect Wallet Button'
+          });
+          if (network === 'ripple-testnet' || network === 'solana-devnet') {
+            await connect();
+          } else {
+            setOpen(true);
+          }
+        }}
+        className="rounded-2xl bg-[rgb(var(--ink-strong))] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.16)] transition-colors hover:bg-[rgb(var(--accent-strong))]"
+      >
+        {open ? 'Connecting...' : 'Connect Wallet'}
+      </motion.button>
     </div>
   );
 };
